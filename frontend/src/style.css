@@ -1,0 +1,13 @@
+/* Rules for the whole page and the body inside it */
+html,
+body {
+  margin: 0; /* Remove the browser's default white border around the page */
+  height: 100%; /* Make the page exactly as tall as the browser window */
+  background: #080b10; /* Near-black background, the same color as the mockup */
+}
+
+/* Rules for the box that holds the map (the div with id="map") */
+#map {
+  position: absolute; /* Place the box freely instead of in the normal page flow */
+  inset: 0; /* Stretch it to touch the top, right, bottom, and left edges of the window */
+}

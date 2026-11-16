@@ -61,6 +61,21 @@ The design is dark, minimal, and image-led. `docs/mockup.html` is the design ref
 - **Second test:** Stavanger, Norway. It's a cloudy region with subtle change.
 - Nothing may be hard-coded to one country.
 
+### Design decisions
+
+These override the mockup where the two differ:
+
+- **Global search:** the search box says "Enter any address", with no country named.
+- **Year slider:** runs from 1985 to the latest available year. Years before 2017 (GLC_FCS30D data) are visibly marked as coarser.
+
+### Later features
+
+Not part of the first version, so don't build these yet:
+
+- "New construction sites found" stat (grouping changed pixels into separate sites)
+- Share screen (download image, PDF summary, copy link)
+- Long view era (GLC_FCS30D, 1985 to 2016)
+
 ### Purpose
 
 This is a portfolio project. The user has a background in landscape architecture, urban planning, and IT. Explain both the code **and** the GIS and remote sensing concepts (for example, rasters, pixel resolution, map projections, land-cover classes) as we go.
