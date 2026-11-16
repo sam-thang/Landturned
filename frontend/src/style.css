@@ -126,6 +126,89 @@ body {
   height: 100%; /* Full wrapper height */
 } /* End of the map rule */
 
+/* ---------- Drawing marks: north arrow and scale bar ---------- */
+
+/* The group in the bottom-left corner of the map: north arrow and scale bar side by side on a dark backing */
+.map-marks {
+  position: absolute; /* Placed freely over the map */
+  left: 14px; /* 14 px from the left edge */
+  bottom: 14px; /* 14 px from the bottom edge */
+  display: flex; /* Arrow and scale bar in a row... */
+  align-items: center; /* ...vertically centered with each other */
+  gap: 12px; /* 12 px between the arrow and the scale bar */
+  padding: 6px 8px; /* A little space between the marks and the edge of the backing (top/bottom, left/right) */
+  background: rgba(10, 12, 15, 0.7); /* The page's near-black at 70%: readable over bright imagery, but the map still shows through */
+  pointer-events: none; /* Never block dragging the map */
+} /* End of the marks group rule */
+
+/* ARROWHEAD: one solid shape */
+.north-arrow .north-head {
+  fill: var(--ink); /* Solid off-white, same color as the scale bar */
+} /* End of the arrowhead rule */
+
+/* LETTER: "N", in the same font and size as the scale bar labels */
+.north-arrow .north-letter {
+  fill: var(--ink); /* Off-white */
+  font: 11px var(--mono); /* Mono font, 11 px, matching .scale-labels */
+} /* End of the letter rule */
+
+/* The two blocks of the scale bar */
+.scale-blocks {
+  display: flex; /* Blocks side by side */
+  height: 10px; /* A bolder bar than before (option A) */
+  border: 1.25px solid var(--ink); /* Off-white outline, same line weight as the north arrow */
+} /* End of the blocks rule */
+
+/* Each block takes half the bar */
+.scale-blocks span {
+  flex: 1; /* Equal halves */
+} /* End of the block rule */
+
+/* The first block is light... */
+.scale-blocks span:first-child {
+  background: var(--ink); /* Solid off-white */
+} /* End of the light block rule */
+
+/* ...and the second is dark */
+.scale-blocks span:last-child {
+  background: rgba(10, 12, 15, 0.7); /* Mostly solid dark */
+} /* End of the dark block rule */
+
+/* The row of numbers under the bar */
+.scale-labels {
+  position: relative; /* So the numbers can be placed along it */
+  height: 11px; /* Ends exactly at the bottom of the numbers (the empty space below them is cut off), so the backing's padding looks even */
+  margin-top: 5px; /* Space between the bar and the numbers */
+  font-size: 11px; /* Small, and the same size as the "N" of the north arrow */
+  color: var(--ink); /* Off-white */
+} /* End of the labels rule */
+
+/* Each number sits at its exact spot: start, middle, end */
+.scale-labels span {
+  position: absolute; /* Placed freely along the row */
+  top: 0; /* At the top of the row */
+  white-space: nowrap; /* Never wrap, e.g. "500 m" stays on one line */
+} /* End of the number rule */
+
+/* The "0" starts at the left edge */
+.scale-labels span:nth-child(1) {
+  left: 0; /* At the start of the bar */
+} /* End of the start number rule */
+
+/* The middle number is centered under the middle of the bar */
+.scale-labels span:nth-child(2) {
+  left: 50%; /* At the middle of the bar... */
+  transform: translateX(-50%); /* ...shifted back by half its own width, so it's centered there */
+} /* End of the middle number rule */
+
+/* The end number is centered under the end of the bar (the usual drawing convention) */
+.scale-labels span:nth-child(3) {
+  left: 100%; /* At the end of the bar... */
+  transform: translateX(-50%); /* ...centered there; its right half hangs past the bar into the space reserved below */
+} /* End of the end number rule */
+
+/* (The room to the right of the bar for the end label's right half is set exactly by scalebar.js.) */
+
 /* After the crossfade (main.js adds "show-map" to the stage): the map is visible and usable... */
 .stage.show-map .map-layer {
   opacity: 1; /* Fully visible */

@@ -5,6 +5,8 @@
 // "?url" asks Vite for the file's address instead of its code, and makes Vite include the file in the build.
 // MapLibre can't find this file on its own once Vite has repackaged MapLibre, so we tell it (see setWorkerUrl below).
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
+// Bring in the function that redraws the scale bar, from scalebar.js
+import { updateScaleBar } from './scalebar.js';
 
 // The web address pattern for Esri's satellite image tiles.
 // {z} = zoom level, {y} = tile row, {x} = tile column. Note: Esri puts y before x.
@@ -57,6 +59,10 @@ export async function showPlace(container, lon, lat) {
       container, // Draw inside this element
       bounds, // Start already framed on the square: no flying in from world view
       fitBoundsOptions: { padding: FIT_PADDING }, // Leave a little space around the square
+      dragRotate: false, // North-up: no rotating with right-click drag (or Ctrl + drag)
+      pitchWithRotate: false, // No tilting the map while dragging
+      touchPitch: false, // No tilting with two fingers on touch screens
+      maxPitch: 0, // Never allow any tilt: always look straight down, like a plan
       style: { // What the map shows: its data sources and how to draw them
         version: 8, // The version of MapLibre's style format
         sources: { // Where the map gets its data from
@@ -71,9 +77,13 @@ export async function showPlace(container, lon, lat) {
         layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite' }], // Draw the satellite images as one layer
       }, // End of the style
     }); // End of creating the map
-    map.addControl(new maplibre.NavigationControl(), 'top-right'); // Zoom and compass buttons in the top-right corner
+    map.touchZoomRotate.disableRotation(); // Two-finger pinch still zooms, but no longer twists the map
+    map.keyboard.disableRotation(); // Keyboard arrows still pan, but Shift + arrows no longer rotate
+    map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'top-right'); // Zoom buttons only (no compass: the map is always north-up)
+    map.on('move', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // Whenever the map moves or zooms, redraw the scale bar
+    updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
   } else { // The map already exists: move it straight to the new square
-    map.fitBounds(bounds, { padding: FIT_PADDING, animate: false }); // Jump, don't fly
+    map.fitBounds(bounds, { padding: FIT_PADDING, animate: false }); // Jump, don't fly (this also fires "move", which updates the scale bar)
   } // End of the create-or-move check
 
   await waitForIdle(); // Wait for the imagery to finish loading

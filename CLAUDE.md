@@ -74,6 +74,7 @@ These override the mockup where the two differ:
 - **Reveal:** one sentence leads the results, e.g. "Since 1985, Fontana turned X hectares of open land into buildings within 1 km." Until the long view era (GLC_FCS30D) is built, all app text says "since 2017" instead of "since 1985".
 - **Timeline:** from 1985 to the latest available year. The coarse 30 m era (GLC_FCS30D) is visually marked. Before 2000 it moves in 5-year steps.
 - **Planning-drawing identity:** a title block with site, coordinates, period, and data source; a scale bar; a north arrow; a locator globe (a small "key map" inset in a map corner showing the site with the pulsing dot, also clickable as a second way back to the globe). The four change colors (red, green, orange, blue) are the only accent colors.
+- **North-up map:** the MapLibre map is locked north-up (no rotation or tilt), like a plan sheet, so the north arrow always points up.
 - **Honest progress:** the loading steps and progress bar follow real events (globe turn finished, map tiles loaded, later the backend result), never fake timers. A short hold after the last step lets people see it complete before the crossfade.
 
 ### Later features

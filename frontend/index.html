@@ -14,6 +14,20 @@
         <canvas id="globe" class="globe" role="img" aria-label="Globe of the Earth"></canvas> <!-- A drawing surface; globe.js paints the Earth on it. role/aria-label describe it for screen readers -->
         <div class="map-layer"> <!-- Wrapper for the satellite map: handles position and fading (invisible until the crossfade) -->
           <div id="map" class="map"></div> <!-- MapLibre draws the map in here -->
+          <div class="map-marks"> <!-- Bottom-left group of drawing marks: north arrow to the left of the scale bar, on one dark backing -->
+            <svg class="north-arrow" viewBox="4.5 0 11 26" width="11" height="26" role="img" aria-label="North arrow: north is up"> <!-- A small drawing, trimmed to exactly the visible arrow and "N" (11 × 26 px), so the backing's padding looks even; role/aria-label describe it for screen readers -->
+              <path class="north-head" d="M10 0 L15.5 15 L10 12 L4.5 15 Z" /> <!-- ARROWHEAD: one solid shape: tip at the very top (level with the top of the scale bar), two outer corners, and a notch in the middle of the base -->
+              <text class="north-letter" x="10" y="26" text-anchor="middle">N</text> <!-- LETTER: "N", 11 px like the scale labels, sitting on the same baseline as them (y = 26), so its bottom lines up with theirs -->
+            </svg> <!-- End of the north arrow -->
+            <div id="scale" class="scale"> <!-- The scale bar; scalebar.js sets its width to match a real distance -->
+              <div class="scale-blocks"><span></span><span></span></div> <!-- Two blocks: light and dark, like a drawn scale bar -->
+              <div class="scale-labels mono"> <!-- The numbers under the bar -->
+                <span>0</span> <!-- Start -->
+                <span id="scale-mid"></span> <!-- Middle (half the length), filled in by scalebar.js -->
+                <span id="scale-end"></span> <!-- End, with the unit, filled in by scalebar.js -->
+              </div> <!-- End of the labels -->
+            </div> <!-- End of the scale bar -->
+          </div> <!-- End of the drawing marks -->
         </div> <!-- End of the map wrapper -->
         <div id="teaser" class="teaser" hidden><strong></strong><small></small></div> <!-- The hover box for hotspots; globe.js fills in the name and teaser, and shows it -->
         <div id="callout" class="callout" aria-hidden="true"> <!-- The annotation shown at a chosen place; aria-hidden because the panel says the same for screen readers -->
