@@ -29,8 +29,9 @@ const MAX_TILT = 70;
 // True if the user has asked their computer to reduce motion (an accessibility setting)
 const REDUCE_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// How long the globe takes to turn to a chosen place, in milliseconds (1.6 seconds)
-const TURN_MS = 1600;
+// How long the globe takes to turn to a chosen place, in milliseconds (1.6 seconds).
+// "export" lets main.js use it too, so the progress bar can fill in step with the turn.
+export const TURN_MS = 1600;
 // How far (in pixels) the pointer may move between press and release and still count as a click, not a drag
 const CLICK_TOLERANCE = 3;
 

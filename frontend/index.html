@@ -47,10 +47,11 @@
           <p class="kicker">LOCATING</p> <!-- Small label -->
           <h2 id="locating-name" class="place-title"></h2> <!-- The chosen place's name -->
           <p id="locating-coords" class="coords mono"></p> <!-- Its coordinates -->
-          <ol class="steps mono"> <!-- A numbered list of loading steps; main.js ticks them off -->
+          <ol id="steps" class="steps mono"> <!-- The list of loading steps; loading.js marks them running and done -->
             <li id="step-locate">Locating the site</li> <!-- Step 1: the globe turns and zooms -->
-            <li id="step-map">Loading detailed map</li> <!-- Step 2: the satellite map loads (next step, 3b) -->
+            <li id="step-map">Loading detailed map</li> <!-- Step 2: the satellite map loads -->
           </ol> <!-- End of the steps -->
+          <div id="progress" class="progress" aria-hidden="true"><i></i></div> <!-- One progress bar; the <i> is the fill (screen readers get the step list instead) -->
         </div> <!-- End of the locating section -->
         <div id="panel-result" hidden> <!-- Panel contents once the map is shown; hidden until then -->
           <button id="back" class="back" type="button">← New place</button> <!-- Goes back to the globe to choose another place -->

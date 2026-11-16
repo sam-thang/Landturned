@@ -1,7 +1,9 @@
 // Bring in our styles from style.css (colors, fonts, layout)
 import './style.css';
-// Bring in the function that draws the globe, from globe.js
-import { startGlobe } from './globe.js';
+// Bring in the function that draws the globe, and how long a turn takes, from globe.js
+import { startGlobe, TURN_MS } from './globe.js';
+// Bring in the functions for the loading steps and progress bar, from loading.js
+import { resetSteps, startStep, finishStep } from './loading.js';
 // Bring in the list of hotspot places, from places.js
 import { PLACES } from './places.js';
 // Bring in the address lookup function, from geocode.js
@@ -64,6 +66,8 @@ const REGIONAL_ZOOM = 3.4;
 const MIN_CALLOUT_MS = 1200;
 // How long the crossfade from globe to map takes; must match the 0.9 s transitions in style.css
 const CROSSFADE_MS = 900;
+// A short pause after the last step finishes, so people see everything completed before the crossfade
+const HOLD_MS = 500;
 
 // Which state the app is in: 'landing' (choosing a place), 'locating' (zooming in and loading),
 // 'result' (map shown), or 'returning' (going back to the globe)
@@ -82,14 +86,14 @@ async function selectPlace(place) {
   // Fill in and show the "locating" panel
   document.getElementById('locating-name').textContent = place.name; // The place name
   document.getElementById('locating-coords').textContent = formatCoords(place.lon, place.lat); // Its coordinates
-  document.getElementById('step-locate').classList.remove('done'); // Reset the steps (in case of an earlier visit)
-  document.getElementById('step-map').classList.remove('done'); // ...
-  document.getElementById('step-map').textContent = 'Loading detailed map'; // ...including the text, in case it showed an error before
+  resetSteps(); // Empty the progress bar and un-tick the steps (in case of an earlier visit)
+  document.getElementById('step-map').textContent = 'Loading detailed map'; // Reset the text too, in case it showed an error before
   showPanel('panel-locating'); // Swap the landing panel for the locating panel
 
   // Start loading the satellite map right away, hidden, so it loads while the globe turns.
   // We don't "await" it yet. ".then" turns the result into true (it worked) or false (it failed),
   // so a failure can't go unnoticed while we're busy with the globe.
+  // (The panel only shows the map step after "Locating the site" is done; see below.)
   const mapReady = showPlace(mapContainer, place.lon, place.lat).then(
     () => true, // Loaded fine
     (error) => { // Something went wrong (e.g. no WebGL in this browser):
@@ -100,8 +104,16 @@ async function selectPlace(place) {
 
   // Stage 1: lock the globe, then turn and zoom to a regional view
   globe.setInteractive(false); // No dragging or clicking while we zoom
+  startStep('locate', TURN_MS); // The locate step is running; we know it takes TURN_MS, so the bar's first share fills in step with the turn
   await globe.turnTo(place.lon, place.lat, REGIONAL_ZOOM); // Wait until the globe has finished turning and zooming
-  document.getElementById('step-locate').classList.add('done'); // Tick off step 1
+  finishStep('locate'); // Tick off step 1
+
+  // Now show the map step. It has been loading in the background all along;
+  // if it's already finished, it ticks off right away, otherwise as soon as it's really ready.
+  startStep('map'); // The map step is running; its duration is unknown, so the bar waits until it finishes
+  mapReady.then((loaded) => { // When the map is ready (or right away, if it already is)...
+    if (loaded) finishStep('map'); // ...tick off step 2, if it loaded successfully
+  }); // End of the map-ready handler
 
   // Show the callout at the place (which is now in the middle of the globe area)
   document.getElementById('callout-kicker').textContent = place.teaser // If the place has a teaser...
@@ -117,7 +129,7 @@ async function selectPlace(place) {
     document.getElementById('step-map').textContent = "The detailed map couldn't load in this browser."; // Say so in the panel
     return; // And stop here, staying on the globe
   } // End of the failure check
-  document.getElementById('step-map').classList.add('done'); // Tick off step 2
+  await wait(HOLD_MS); // Everything is done: pause briefly so people see all steps completed
 
   // Fill in the result panel
   document.getElementById('result-kicker').textContent = `${formatCoords(place.lon, place.lat)} · 2017 → TODAY`; // Coordinates and period
@@ -127,10 +139,10 @@ async function selectPlace(place) {
   document.getElementById('callout').classList.remove('visible'); // Fade the callout out
   stage.classList.add('show-map'); // Fade the globe out and the map in (the fading is done by style.css)
   showPanel('panel-result'); // Swap the locating panel for the result panel
+  mode = 'result'; // From now on "← New place" works, even while the crossfade is still running
   document.getElementById('back').focus(); // Move keyboard focus to "← New place", so keyboard users land somewhere useful
   await wait(CROSSFADE_MS); // Wait until the crossfade has finished
-  globe.setVisible(false); // The globe is now hidden: stop drawing it, to save battery
-  mode = 'result'; // We're now showing the result
+  if (mode === 'result') globe.setVisible(false); // Still showing the map? Then stop drawing the hidden globe, to save battery (skip if the user already went back)
 } // End of selectPlace
 
 // ---------- Going back to the globe ----------

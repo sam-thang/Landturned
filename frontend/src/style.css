@@ -333,23 +333,72 @@ h1 {
   color: var(--gain); /* Green, the "gain" change color */
 } /* End of the check mark rule */
 
+/* A step that is in progress (loading.js adds the "running" class) */
+.steps li.running {
+  color: var(--muted); /* Grey: brighter than "not started", dimmer than "done" */
+} /* End of the running step rule */
+
+/* A pulsing "…" after a running step */
+.steps li.running::after {
+  content: ' …'; /* A space and an ellipsis, added by CSS */
+  animation: pulse 1.2s ease-in-out infinite; /* Fade in and out forever, 1.2 s per cycle (see @keyframes pulse) */
+} /* End of the ellipsis rule */
+
+/* The pulse animation: from faint to bright and back */
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 0.3; /* Faint at the start and end of each cycle */
+  } /* End of the faint keyframe */
+  50% {
+    opacity: 1; /* Bright in the middle */
+  } /* End of the bright keyframe */
+} /* End of the pulse animation */
+
+/* The progress bar: one thin track */
+.progress {
+  height: 2px; /* A thin line */
+  margin-top: 16px; /* Space above, under the step list */
+  background: var(--line); /* Dark grey track */
+} /* End of the progress bar rule */
+
+/* The fill inside the bar (loading.js sets its width and animation) */
+.progress i {
+  display: block; /* A block, so it can have a width and height */
+  width: 0; /* Empty to start with */
+  height: 100%; /* As tall as the segment */
+  background: var(--ink); /* Off-white fill */
+} /* End of the fill rule */
+
+/* For people who turned on "reduce motion": no pulsing, no filling animation */
+@media (prefers-reduced-motion: reduce) {
+  .steps li.running::after {
+    animation: none; /* The "…" stays still */
+  } /* End of the still-ellipsis rule */
+
+  .progress i {
+    transition: none !important; /* Fill instantly; "!important" beats the animation loading.js sets */
+  } /* End of the instant-fill rule */
+} /* End of the reduced-motion rules */
+
 /* ---------- Result panel ---------- */
 
-/* The "← New place" button: looks like a quiet text link */
+/* The "← New place" button: an outlined button, matching the place buttons */
 .back {
-  margin-bottom: 16px; /* Space below */
-  padding: 0; /* No padding, so it lines up with the text below */
-  background: none; /* No button background */
-  border: 0; /* No button border */
-  color: var(--muted); /* Grey */
+  margin-bottom: 20px; /* Space below */
+  padding: 8px 14px; /* Space inside the button, around the text */
+  background: none; /* No fill */
+  border: 1px solid var(--line); /* Thin outline, like the place buttons */
+  color: var(--ink); /* Off-white text, so it stands out */
   font: inherit; /* Same font as the panel */
-  font-size: 13px; /* Small */
+  font-size: 14px; /* A little bigger than before */
+  font-weight: 500; /* Medium weight */
   cursor: pointer; /* Pointing hand on hover */
 } /* End of the back button rule */
 
 /* The back button when hovered */
 .back:hover {
-  color: var(--ink); /* Brighter */
+  border-color: var(--muted); /* Brighter outline, like the place buttons */
 } /* End of the hover rule */
 
 /* Blue outline for keyboard users */
