@@ -32,7 +32,7 @@ Landturn is a web app that shows how the land around any address in the world ha
   - **blue**: new water
 - a side panel with stats, such as hectares of green space lost
 
-The design is dark, minimal, and image-led. `docs/mockup.html` is the design reference.
+The design is dark, minimal, and image-led. `docs/mockup-v2.html` is the design reference. It replaces the older `docs/mockup.html`. The mockup uses simulated data, and its code is a design reference only: don't copy it into the app.
 
 ### How change is detected
 
@@ -66,7 +66,14 @@ The design is dark, minimal, and image-led. `docs/mockup.html` is the design ref
 These override the mockup where the two differ:
 
 - **Global search:** the search box says "Enter any address", with no country named.
-- **Year slider:** runs from 1985 to the latest available year. Years before 2017 (GLC_FCS30D data) are visibly marked as coarser.
+- **Landing:** a linework globe drawn with D3 (orthographic projection on a canvas), *not* MapLibre's built-in globe (the user rejected that one as tacky). It spins slowly and can be dragged. Glowing hotspots mark a hand-picked list of places with dramatic land change, colored by change type, with a hover teaser. The search box sits in a side panel (desktop) or bottom panel (mobile), together with place buttons.
+- **Two-stage transition:**
+  1. The globe turns and zooms only to a regional view and shows a coordinate callout.
+  2. Meanwhile, the detailed MapLibre map loads hidden at the location, and the backend computes the change. When MapLibre fires its `idle` event, crossfade from the globe to the map.
+  - Never fly MapLibre from world zoom down to street level.
+- **Reveal:** one sentence leads the results, e.g. "Since 1985, Fontana turned X hectares of open land into buildings within 1 km."
+- **Timeline:** from 1985 to the latest available year. The coarse 30 m era (GLC_FCS30D) is visually marked. Before 2000 it moves in 5-year steps.
+- **Planning-drawing identity:** a title block with site, coordinates, period, and data source; a scale bar; a north arrow. The four change colors (red, green, orange, blue) are the only accent colors.
 
 ### Later features
 

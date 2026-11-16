@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Landturn mockup v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+<style>
+:root{
+  --bg:#0a0c0f; --panel:#0e1115; --line:#1f252d; --ink:#e6e9ee; --muted:#8c96a3; --faint:#5b6470;
+  --loss:#ff5a4f; --gain:#4fd98a; --built:#ffa01f; --water:#3db8f5;
+  --sans:"Space Grotesk",system-ui,-apple-system,sans-serif; --mono:"JetBrains Mono",ui-monospace,monospace;
+}
+*{box-sizing:border-box;margin:0}
+html{color-scheme:dark}
+html,body{height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);overflow:hidden}
+.mono{font-family:var(--mono)}
+#app{display:flex;flex-direction:column;height:100vh;height:100dvh}
+.stage{position:relative;flex:0 0 56%;overflow:hidden;background:var(--bg)}
+.panel{flex:1;overflow-y:auto;background:var(--panel);border-top:1px solid var(--line);padding:20px 16px 28px}
+@media(min-width:900px){
+  #app{flex-direction:row-reverse}
+  .stage{flex:1}
+  .panel{flex:0 0 400px;border-top:0;border-right:1px solid var(--line);padding:32px 28px}
+}
+canvas.fill{position:absolute;inset:0;width:100%;height:100%;display:block}
+#globe{transition:opacity .9s ease;touch-action:none;cursor:grab}
+#globe.dragging{cursor:grabbing}
+#mapLayer{position:absolute;inset:0;opacity:0;pointer-events:none;transition:opacity .9s ease}
+#mapLayer.show{opacity:1;pointer-events:auto}
+
+/* callout on arrival */
+.callout{position:absolute;left:50%;top:50%;transform:translate(-6px,-64px);pointer-events:none;opacity:0;transition:opacity .4s}
+.callout.show{opacity:1}
+.cbox{position:absolute;left:66px;top:-16px;background:rgba(10,12,15,.85);border:1px solid rgba(220,228,238,.35);padding:7px 10px;white-space:nowrap}
+.cbox b{display:block;font-family:var(--sans);font-weight:500;font-size:15px}
+.cbox span{font-size:11px;color:var(--muted)}
+
+.tip{position:absolute;pointer-events:none;background:rgba(10,12,15,.92);border:1px solid var(--line);padding:6px 9px;font-size:13px;display:none;white-space:nowrap}
+.tip small{display:block;color:var(--muted);font-size:12px}
+
+/* map overlays */
+.tag{position:absolute;top:12px;font-size:11px;padding:4px 8px;background:rgba(0,0,0,.6);letter-spacing:.06em}
+.tag.l{left:12px}.tag.r{right:12px}
+.swipe{position:absolute;inset:0;touch-action:none;cursor:ew-resize}
+.sbar{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.knob{position:absolute;top:50%;left:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:#fff;color:#000;display:grid;place-items:center;font-size:13px}
+.north{position:absolute;left:14px;bottom:44px;width:22px;height:34px}
+.scale{position:absolute;left:14px;bottom:14px;display:flex;align-items:center;gap:8px;font-size:11px}
+.sb{height:6px;border:1px solid #e6e9ee;border-top:0;background:linear-gradient(90deg,#e6e9ee 50%,transparent 50%)}
+.tblock{position:absolute;right:12px;bottom:12px;width:min(230px,58%);border:1px solid rgba(230,233,238,.55);background:rgba(10,12,15,.82);font-size:10px;line-height:1.35}
+.tblock div{display:flex;border-top:1px solid rgba(230,233,238,.25);padding:4px 7px;gap:8px}
+.tblock div:first-child{border-top:0;font-family:var(--sans);font-size:13px;font-weight:600;letter-spacing:.08em}
+.tblock dt{color:var(--faint);width:46px;flex:none}
+.tblock dd{margin:0;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* panel */
+.kicker{font-size:11px;letter-spacing:.12em;color:var(--muted)}
+h1{font-size:clamp(30px,6vw,40px);font-weight:500;line-height:1.05;letter-spacing:-.02em;margin:10px 0 12px}
+.lede{color:var(--muted);line-height:1.5;font-size:15px}
+.search{display:flex;margin:22px 0 22px;border:1px solid var(--line);background:var(--bg)}
+.search input{flex:1;min-width:0;background:none;border:0;color:var(--ink);font:inherit;font-size:16px;padding:14px}
+.search button,.btn{background:var(--ink);color:var(--bg);border:0;font:inherit;font-weight:600;padding:0 16px;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.chip{display:flex;align-items:center;gap:7px;background:none;border:1px solid var(--line);color:var(--ink);font:inherit;font-size:13px;padding:7px 11px;cursor:pointer}
+.chip:hover{border-color:var(--muted)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--c);flex:none}
+.note{font-size:12px;color:var(--faint);line-height:1.5;margin-top:22px}
+button:focus-visible,input:focus-visible{outline:2px solid var(--water);outline-offset:2px}
+
+h2.place{font-size:28px;font-weight:500;margin:10px 0 4px}
+.coord{font-size:12px;color:var(--muted)}
+.steps{margin:22px 0 14px;display:grid;gap:9px;font-size:13px}
+.steps div{color:var(--faint);transition:color .3s}
+.steps div.on{color:var(--ink)}
+.steps div.on::before{content:"✓ ";color:var(--gain)}
+.bar{height:2px;background:var(--line)}
+.bar i{display:block;height:100%;width:0;background:var(--ink);transition:width 2s linear}
+
+.back{background:none;border:0;color:var(--muted);font:inherit;font-size:13px;padding:0;cursor:pointer;margin-bottom:16px}
+.reveal{font-size:clamp(24px,5vw,30px);font-weight:500;line-height:1.15;letter-spacing:-.01em;margin:10px 0 22px}
+.reveal em{font-style:normal;border-bottom:1px solid var(--muted)}
+.tl{border-top:1px solid var(--line);padding-top:16px}
+.tlhead{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.play{width:30px;height:30px;border:1px solid var(--line);background:none;color:var(--ink);cursor:pointer;font-size:11px}
+.yr{font-size:22px;font-weight:500;margin-left:auto}
+.yr small{font-family:var(--mono);font-size:11px;color:var(--muted);margin-left:6px}
+input[type=range]{width:100%;accent-color:#e6e9ee}
+.eras{display:flex;gap:3px;margin-top:4px;font-size:10px;font-family:var(--mono);color:var(--muted)}
+.eras span{padding:4px 6px;border-top:2px solid}
+.eras .c{flex:32;border-color:var(--faint);background:repeating-linear-gradient(135deg,transparent 0 4px,rgba(140,150,163,.12) 4px 6px)}
+.eras .d{flex:8;border-color:var(--ink);color:var(--ink)}
+.rows{margin-top:20px;border-top:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:14px;cursor:pointer}
+.row input{accent-color:#e6e9ee}
+.row .sw{width:12px;height:12px;background:var(--c);flex:none}
+.row b{margin-left:auto;font-weight:500;font-variant-numeric:tabular-nums}
+[hidden]{display:none!important}
+@media(prefers-reduced-motion:reduce){#globe,#mapLayer,.bar i{transition:none}}
+</style>
+</head>
+<body>
+<div id="app">
+  <div class="stage" id="stage">
+    <canvas id="globe" class="fill" aria-label="Globe with places where land changed"></canvas>
+
+    <div class="callout" id="callout">
+      <svg width="120" height="70" aria-hidden="true">
+        <circle cx="6" cy="64" r="5" fill="none" stroke="#e6e9ee" stroke-width="1.5"/>
+        <circle cx="6" cy="64" r="1.5" fill="#e6e9ee"/>
+        <polyline points="10,60 60,12 118,12" fill="none" stroke="rgba(230,233,238,.6)" stroke-width="1"/>
+      </svg>
+      <div class="cbox"><span class="mono" id="cKick">SITE 01</span><b id="cName"></b><span class="mono" id="cCoord"></span></div>
+    </div>
+    <div class="tip" id="tip"></div>
+
+    <div id="mapLayer">
+      <canvas id="map" class="fill"></canvas>
+      <div class="swipe" id="swipe"><div class="sbar" id="sbar"><div class="knob">↔</div></div></div>
+      <span class="tag l mono">1985</span><span class="tag r mono" id="tagR">2024</span>
+      <svg class="north" viewBox="0 0 22 34" aria-label="North arrow">
+        <path d="M11 2 L18 22 L11 18 L4 22 Z" fill="#e6e9ee"/><path d="M11 2 L11 18 L4 22 Z" fill="#0a0c0f" stroke="#e6e9ee"/>
+        <text x="11" y="33" text-anchor="middle" fill="#e6e9ee" font-size="9" font-family="JetBrains Mono,monospace">N</text>
+      </svg>
+      <div class="scale mono"><div class="sb" id="sb"></div><span id="sbl">500 m</span></div>
+      <dl class="tblock mono" id="tblock"></dl>
+    </div>
+  </div>
+
+  <section class="panel">
+    <div id="pLanding">
+      <p class="kicker mono">LANDTURN · SHEET 00 · WORLD</p>
+      <h1>Every place on Earth has turned.</h1>
+      <p class="lede">Enter any address to see how its land changed since 1985: what was built, what was cleared, what went under water.</p>
+      <form class="search" id="search">
+        <input id="q" placeholder="Enter any address" aria-label="Address" autocomplete="off">
+        <button type="submit">Show change</button>
+      </form>
+      <p class="kicker mono">OR START WITH A PLACE THAT TURNED</p>
+      <div class="chips" id="chips"></div>
+      <p class="note">Mockup v2: sample places only, simulated data. Drag the globe to spin it, tap a glowing point to fly there.</p>
+    </div>
+
+    <div id="pLoading" hidden>
+      <p class="kicker mono">LOCATING</p>
+      <h2 class="place" id="lName"></h2>
+      <p class="coord mono" id="lCoord"></p>
+      <div class="steps mono" id="lSteps">
+        <div>Reading land cover · 1985 · 30 m</div>
+        <div>Reading land cover · 2024 · 10 m</div>
+        <div>Comparing 26,000 pixels</div>
+        <div>Loading detailed map</div>
+      </div>
+      <div class="bar"><i id="lBar"></i></div>
+    </div>
+
+    <div id="pResult" hidden>
+      <button class="back" id="back">← New place</button>
+      <p class="kicker mono" id="rKick"></p>
+      <h2 class="reveal" id="reveal"></h2>
+      <div class="tl">
+        <div class="tlhead">
+          <button class="play" id="play" aria-label="Play years">▶</button>
+          <span class="kicker mono">AFTER</span>
+          <output class="yr" id="yr">2024</output>
+        </div>
+        <input type="range" id="year" min="1985" max="2024" value="2024" aria-label="Year">
+        <div class="eras"><span class="c">30 m · coarse · every 5 yrs to 2000</span><span class="d">10 m</span></div>
+      </div>
+      <div class="rows">
+        <label class="row"><input type="checkbox" data-l="built" checked><i class="sw" style="--c:var(--built)"></i>Newly built<b id="vBuilt">–</b></label>
+        <label class="row"><input type="checkbox" data-l="loss" checked><i class="sw" style="--c:var(--loss)"></i>Green space lost<b id="vLoss">–</b></label>
+        <label class="row"><input type="checkbox" data-l="gain" checked><i class="sw" style="--c:var(--gain)"></i>Green space gained<b id="vGain">–</b></label>
+        <label class="row"><input type="checkbox" data-l="water" checked><i class="sw" style="--c:var(--water)"></i>New water<b id="vWater">–</b></label>
+      </div>
+      <p class="note">Left of the line: 1985. Right: the year you pick. Drag the line to compare. Area: about 1 km around the address. Simulated data for design purposes.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+// ===================== sample places (hotspots) =====================
+const PLACES=[
+  {id:'fontana',  name:'Fontana, California', lon:-117.435,lat:34.092, type:'built',base:'farm',  teaser:'Farmland → warehouses'},
+  {id:'vegas',    name:'Las Vegas, Nevada',   lon:-115.14, lat:36.17,  type:'built',base:'desert',teaser:'Desert → suburbs'},
+  {id:'dubai',    name:'Dubai, UAE',          lon:55.14,   lat:25.11,  type:'built',base:'coast', teaser:'Sea and sand → city'},
+  {id:'shenzhen', name:'Shenzhen, China',     lon:114.06,  lat:22.54,  type:'built',base:'farm',  teaser:'Fields → megacity'},
+  {id:'rondonia', name:'Rondônia, Brazil',    lon:-62.9,   lat:-10.4,  type:'loss', base:'forest',teaser:'Rainforest → pasture'},
+  {id:'gorges',   name:'Three Gorges, China', lon:110.98,  lat:30.82,  type:'water',base:'valley',teaser:'Valley → reservoir'},
+  {id:'stavanger',name:'Stavanger, Norway',   lon:5.73,    lat:58.97,  type:'built',base:'nordic',teaser:'Quiet, steady growth'},
+];
+const TYPE_COL={built:'#ffa01f',loss:'#ff5a4f',water:'#3db8f5',gain:'#4fd98a'};
+const W=200,H=130,START=1985,END=2024;
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $=id=>document.getElementById(id);
+const short=p=>p.name.split(',')[0];
+const coordStr=p=>`${Math.abs(p.lat).toFixed(4)}° ${p.lat>=0?'N':'S'}, ${Math.abs(p.lon).toFixed(4)}° ${p.lon>=0?'E':'W'}`;
+
+if(!window.d3||!window.topojson){
+  $('pLanding').insertAdjacentHTML('beforeend','<p class="note">Could not load the globe library. Check your internet connection and reload.</p>');
+  throw new Error('d3 missing');
+}
+
+// ===================== simulated land-cover site =====================
+// classes: 0 water, 1 trees, 2 grass/farmland, 3 built, 4 bare
+function hashStr(s){let h=2166136261;for(const c of s){h^=c.charCodeAt(0);h=Math.imul(h,16777619)}return h>>>0}
+function rng(seed){let s=seed||1;return()=>{s=(Math.imul(s,1664525)+1013904223)>>>0;return s/4294967296}}
+function h2(x,y){let h=(Math.imul(x,374761393)+Math.imul(y,668265263))|0;h=Math.imul(h^(h>>>13),1274126177);return (h^(h>>>16))>>>0}
+const noise=(x,y,s)=>Math.sin(x*s+1.3)*Math.cos(y*s*1.1+.7)+Math.sin((x+y)*s*.6);
+const riverY=x=>H/2+18*Math.sin(x*.04)+6*Math.sin(x*.11);
+
+function makeSite(p){
+  const R=rng(hashStr(p.id)),o=R()*200;
+  const base=new Uint8Array(W*H),evY=new Uint16Array(W*H),evT=new Uint8Array(W*H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const n=noise(x+o,y+o,.09);let t=2;
+    if(p.base==='farm'){t=2;if(y<12+4*Math.sin(x*.07))t=4;else if(x<40+6*Math.sin(y*.1))t=3;else if(((x>>4)+(y>>4))%7===0)t=1;}
+    else if(p.base==='desert'){t=4;if(x<55+10*Math.sin(y*.06))t=3;else if(n>1.3)t=2;}
+    else if(p.base==='coast'){const wy=34+8*Math.sin(x*.05);t=y<wy?0:(y>H-30&&x<80?3:4);}
+    else if(p.base==='forest'){t=Math.abs(y-riverY(x))<2.5?0:1;}
+    else if(p.base==='valley'){const d=Math.abs(y-riverY(x));t=d<2.2?0:d<14?2:1;}
+    else if(p.base==='nordic'){const fy=24+7*Math.sin(x*.06)+4*Math.sin(x*.17);
+      t=y<fy?0:n>.6?1:(x>70&&x<140&&y>50&&y<100)?3:n>-.4?2:1;}
+    base[y*W+x]=t;
+  }
+  const set=(x,y,yr,to,from)=>{if(x<0||y<0||x>=W||y>=H)return;const i=y*W+x;if(evY[i]||!from.includes(base[i]))return;evY[i]=Math.min(END,Math.max(START+1,yr));evT[i]=to};
+  const rect=(x,y,w,h,yr,to,from)=>{for(let j=y;j<y+h;j++)for(let i=x;i<x+w;i++)set(i,j,yr,to,from)};
+  const blob=(cx,cy,r,y0,spread,to,from)=>{for(let j=cy-r;j<=cy+r;j++)for(let i=cx-r;i<=cx+r;i++){const d=Math.hypot(i-cx,j-cy)+R()*2;if(d<=r)set(i,j,y0+Math.floor(d/r*spread),to,from)}};
+  const land=[1,2,4];
+  if(p.type==='built'){
+    const small=p.base==='nordic';
+    if(p.base==='coast')for(let k=0;k<3;k++)blob(30+R()*140|0,8+R()*16|0,5+R()*6|0,2001+R()*8|0,3,3,[0]);
+    for(let k=0;k<(small?3:12);k++){const w=10+R()*18|0,h=8+R()*14|0;rect(R()*(W-w)|0,R()*(H-h)|0,w,h,1987+R()*36|0,3,land)}
+    for(let k=0;k<(small?1:3);k++)blob(R()*W|0,30+R()*(H-40)|0,(small?6:8)+R()*12|0,1988+R()*20|0,14,3,land);
+    for(let k=0;k<2;k++)rect(R()*(W-8)|0,R()*(H-8)|0,8,8,2006+R()*15|0,1,[2,4]);
+    if(p.base!=='coast')rect(R()*(W-10)|0,20+R()*(H-30)|0,10,6,1996+R()*20|0,0,[2,4]);
+  }else if(p.type==='loss'){
+    const y0=62;for(let x=0;x<W;x++)for(let d=-1;d<=1;d++)set(x,y0+d,1988,4,[1]);
+    for(let bx=8;bx<W;bx+=16){const yr=1990+((bx/W)*20|0)+(R()*4|0);
+      const a=20+R()*40|0,b=20+R()*40|0;rect(bx-4,y0-a,8,a,yr,2,[1]);rect(bx-4,y0+2,8,b,yr+2,2,[1]);}
+  }else if(p.type==='water'){
+    for(let y=0;y<H;y++)for(let x=0;x<W;x++){const d=Math.abs(y-riverY(x));if(d>=2.2&&d<16)set(x,y,2003+Math.floor((d-2)/14*6),0,[1,2])}
+    rect(150,96,26,18,1998,3,[1,2]);
+  }
+  return{p,base,evY,evT};
+}
+function idx(x,y,Y){if(Y<2017){x=Math.min(W-1,(x/3|0)*3+1);y=Math.min(H-1,(y/3|0)*3+1)}return y*W+x}
+function state(s,x,y,Y){const i=idx(x,y,Y),e=s.evY[i];return e&&Y>=e?s.evT[i]:s.base[i]}
+const veg=t=>t===1||t===2;
+function cat(a,b){if(a===b)return null;if(b===3)return'built';if(b===0)return'water';
+  if((a===1&&b!==1)||(veg(a)&&!veg(b)))return'loss';if((b===1&&a!==1)||(!veg(a)&&veg(b)))return'gain';return null}
+function stats(s,Y){const c={built:0,loss:0,gain:0,water:0};
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){const a=state(s,x,y,START),b=state(s,x,y,Y);if(a===b)continue;
+    if(b===3&&a!==3)c.built++;if(b===0&&a!==0)c.water++;
+    if((a===1&&b!==1)||(veg(a)&&!veg(b)))c.loss++;if((b===1&&a!==1)||(!veg(a)&&veg(b)))c.gain++;}
+  for(const k in c)c[k]/=100; // 10 m pixels: 100 m² each, 100 pixels = 1 ha
+  return c}
+const ha=v=>(v>=10?Math.round(v):v.toFixed(1))+' ha';
+
+// ===================== map rendering =====================
+const BASE={0:[26,50,68],1:[36,64,42],2:[106,100,66],3:[124,122,118],4:[148,130,102]};
+const OVER={built:[255,160,31],loss:[255,90,79],gain:[79,217,138],water:[61,184,245]};
+let layers={built:1,loss:1,gain:1,water:1};
+const before=document.createElement('canvas'),after=document.createElement('canvas');
+before.width=after.width=W;before.height=after.height=H;
+function render(cv,s,Y,overlay){
+  const g=cv.getContext('2d'),im=g.createImageData(W,H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const t=state(s,x,y,Y),r=h2(x,y);let j=(r&15)-8,c=BASE[t];
+    if(t===3&&(x%7===0||y%7===0))j-=22;
+    if(t===2)j+=(((x>>3)+(y>>3))&1?6:-6)+(y%3===0?-5:0);
+    if(t===1)j+=((r>>4)&15)-8;
+    if(t===0)j=j>>1;
+    let px=[c[0]+j,c[1]+j,c[2]+j];
+    if(overlay){const k=cat(state(s,x,y,START),t);if(k&&layers[k]){const o=OVER[k];px=[px[0]*.3+o[0]*.7,px[1]*.3+o[1]*.7,px[2]*.3+o[2]*.7]}}
+    const q=(y*W+x)*4;im.data[q]=px[0];im.data[q+1]=px[1];im.data[q+2]=px[2];im.data[q+3]=255;
+  }
+  g.putImageData(im,0,0);
+}
+const mapC=$('map');let mx;let swipe=.5,site=null,year=END;
+function sizeCanvas(cv){const d=devicePixelRatio||1,r=cv.getBoundingClientRect();cv.width=Math.round(r.width*d);cv.height=Math.round(r.height*d);const g=cv.getContext('2d');g.setTransform(d,0,0,d,0,0);return g}
+function drawMap(){
+  if(!site)return;
+  const cw=mapC.clientWidth,ch=mapC.clientHeight;mx.imageSmoothingEnabled=false;
+  const sc=Math.max(cw/W,ch/H),dw=W*sc,dh=H*sc,ox=(cw-dw)/2,oy=(ch-dh)/2;
+  mx.clearRect(0,0,cw,ch);mx.drawImage(after,ox,oy,dw,dh);
+  mx.save();mx.beginPath();mx.rect(0,0,swipe*cw,ch);mx.clip();mx.drawImage(before,ox,oy,dw,dh);mx.restore();
+  $('sbar').style.left=swipe*100+'%';
+  const mpp=10/sc,len=mpp*120>800?1000:mpp*120>350?500:200;
+  $('sb').style.width=len/mpp+'px';$('sbl').textContent=len>=1000?'1 km':len+' m';
+}
+function updateYear(){
+  render(after,site,year,true);drawMap();
+  $('yr').innerHTML=`${year}<small>${year<2017?'30 m':'10 m'}</small>`;$('tagR').textContent=year;
+  const c=stats(site,year);
+  $('vBuilt').textContent=ha(c.built);$('vLoss').textContent=ha(c.loss);$('vGain').textContent=ha(c.gain);$('vWater').textContent=ha(c.water);
+}
+
+// swipe drag
+const sw=$('swipe');let sdrag=false;
+const smove=e=>{const r=sw.getBoundingClientRect();swipe=Math.min(.98,Math.max(.02,(e.clientX-r.left)/r.width));drawMap()};
+sw.addEventListener('pointerdown',e=>{sdrag=true;sw.setPointerCapture(e.pointerId);smove(e)});
+sw.addEventListener('pointermove',e=>{if(sdrag)smove(e)});
+sw.addEventListener('pointerup',()=>sdrag=false);
+
+// year slider: before 2000 the long-view data only exists every 5 years
+$('year').addEventListener('input',e=>{let y=+e.target.value;if(y<2000)y=START+Math.round((y-START)/5)*5;e.target.value=y;year=y;updateYear()});
+document.querySelectorAll('[data-l]').forEach(c=>c.addEventListener('change',()=>{layers[c.dataset.l]=c.checked?1:0;updateYear()}));
+let playT=null;
+function stopPlay(){clearInterval(playT);playT=null;$('play').textContent='▶'}
+$('play').addEventListener('click',()=>{
+  if(playT)return stopPlay();
+  if(year>=END)year=START;$('play').textContent='❚❚';
+  playT=setInterval(()=>{year=year<2000?year+5:year+1;if(year>=END){year=END;stopPlay()}$('year').value=year;updateYear()},reduce?50:380);
+});
+
+// ===================== globe =====================
+const gC=$('globe');let gx;
+const proj=d3.geoOrthographic().clipAngle(90).precision(.6);
+const grat=d3.geoGraticule10();let land=null;
+fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/land-110m.json').then(r=>r.json()).then(t=>{land=topojson.feature(t,t.objects.land)}).catch(()=>{});
+let view={lon:-60,lat:20,k:1},mode='globe',flight=null,visible=[],hover=null;
+let dragging=false,moved=false,last=null,lastInteract=0;
+function drawGlobe(t){
+  const w=gC.clientWidth,h=gC.clientHeight,r=Math.min(w,h)*.4*view.k,path=d3.geoPath(proj,gx);
+  proj.translate([w/2,h/2]).scale(r).rotate([-view.lon,-view.lat]);
+  gx.clearRect(0,0,w,h);
+  const g=gx.createRadialGradient(w/2,h/2,r*.92,w/2,h/2,r*1.22);
+  g.addColorStop(0,'rgba(120,150,190,.18)');g.addColorStop(1,'rgba(120,150,190,0)');
+  gx.fillStyle=g;gx.beginPath();gx.arc(w/2,h/2,r*1.22,0,Math.PI*2);gx.fill();
+  gx.beginPath();path({type:'Sphere'});gx.fillStyle='#0c1015';gx.fill();
+  gx.beginPath();path(grat);gx.strokeStyle='rgba(190,205,225,.09)';gx.lineWidth=.6;gx.stroke();
+  if(land){gx.beginPath();path(land);gx.fillStyle='rgba(190,205,225,.045)';gx.fill();gx.strokeStyle='rgba(220,228,238,.62)';gx.lineWidth=.7;gx.stroke();}
+  gx.beginPath();path({type:'Sphere'});gx.strokeStyle='rgba(220,228,238,.28)';gx.lineWidth=1;gx.stroke();
+  visible=[];
+  for(const p of PLACES){
+    if(d3.geoDistance([p.lon,p.lat],[view.lon,view.lat])>1.5)continue;
+    const [px,py]=proj([p.lon,p.lat]),c=TYPE_COL[p.type],ph=(((t/1800)+p.lon*.01)%1+1)%1;
+    gx.beginPath();gx.arc(px,py,3+ph*16,0,Math.PI*2);gx.strokeStyle=c;gx.globalAlpha=(1-ph)*.8;gx.lineWidth=1.2;gx.stroke();gx.globalAlpha=1;
+    gx.beginPath();gx.arc(px,py,hover===p?4.5:3,0,Math.PI*2);gx.fillStyle=c;gx.fill();
+    visible.push({p,px,py});
+  }
+}
+let prevT=0;
+function loop(t){
+  const dt=Math.min(50,t-prevT);prevT=t;
+  if(mode==='globe'&&!dragging&&!reduce&&t-lastInteract>2500){view.lon+=dt*.004;if(view.lon>180)view.lon-=360}
+  if(flight){
+    const raw=Math.min(1,(t-flight.t0)/flight.dur),e=d3.easeCubicInOut(raw),[lo,la]=flight.interp(e);
+    view.lon=lo;view.lat=la;view.k=flight.k0+(flight.k1-flight.k0)*e;
+    if(raw>=1){const f=flight;flight=null;f.done()}
+  }
+  if(mode!=='result')drawGlobe(t);
+  requestAnimationFrame(loop);
+}
+
+// globe interaction
+function hit(e){const r=gC.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  let best=null,bd=18;for(const v of visible){const d=Math.hypot(v.px-x,v.py-y);if(d<bd){bd=d;best=v}}return best}
+gC.addEventListener('pointerdown',e=>{if(mode!=='globe')return;dragging=true;moved=false;last=[e.clientX,e.clientY];gC.setPointerCapture(e.pointerId);gC.classList.add('dragging')});
+gC.addEventListener('pointermove',e=>{
+  if(mode!=='globe')return;
+  if(dragging){const dx=e.clientX-last[0],dy=e.clientY-last[1];if(Math.abs(dx)+Math.abs(dy)>3)moved=true;
+    view.lon-=dx*.3;view.lat=Math.max(-70,Math.min(70,view.lat+dy*.3));last=[e.clientX,e.clientY];lastInteract=performance.now();return}
+  const v=hit(e),tip=$('tip');hover=v?v.p:null;gC.style.cursor=v?'pointer':'grab';
+  if(v){tip.style.display='block';tip.style.left=v.px+14+'px';tip.style.top=v.py-12+'px';
+    tip.innerHTML=`${v.p.name}<small>${v.p.teaser}</small>`}else tip.style.display='none';
+});
+gC.addEventListener('pointerup',e=>{if(mode!=='globe')return;dragging=false;gC.classList.remove('dragging');lastInteract=performance.now();
+  if(!moved){const v=hit(e);if(v)go(v.p)}});
+
+// ===================== the two-stage journey =====================
+function show(id){['pLanding','pLoading','pResult'].forEach(p=>$(p).hidden=p!==id)}
+function go(p){
+  if(mode!=='globe')return;
+  mode='flying';hover=null;$('tip').style.display='none';
+  show('pLoading');$('lName').textContent=p.name;$('lCoord').textContent=coordStr(p);
+  document.querySelectorAll('#lSteps div').forEach(d=>d.classList.remove('on'));
+  const bar=$('lBar');bar.style.transition='none';bar.style.width='0';
+  // stage 1: globe turns to the place and zooms to a regional view (no detailed tiles needed)
+  flight={t0:performance.now(),dur:reduce?10:2600,interp:d3.geoInterpolate([view.lon,view.lat],[p.lon,p.lat]),k0:view.k,k1:3.4,done:()=>arrive(p)};
+}
+function arrive(p){
+  $('cKick').textContent='SITE · '+p.teaser.toUpperCase();$('cName').textContent=p.name;$('cCoord').textContent=coordStr(p);
+  $('callout').classList.add('show');
+  void $('lBar').offsetWidth;$('lBar').style.transition='';$('lBar').style.width='100%';
+  // behind the scenes: build the detailed map while the user reads the callout
+  site=makeSite(p);year=END;$('year').value=END;render(before,site,START,false);
+  const steps=[...document.querySelectorAll('#lSteps div')];
+  steps.forEach((d,i)=>setTimeout(()=>d.classList.add('on'),reduce?0:350+i*450));
+  setTimeout(()=>reveal(p),reduce?50:2300);
+}
+function reveal(p){
+  // stage 2: crossfade from globe to the ready map
+  mode='result';$('callout').classList.remove('show');
+  mx=sizeCanvas(mapC);swipe=.5;updateYear();
+  $('mapLayer').classList.add('show');gC.style.opacity=0;
+  const c=stats(site,END),n=short(p);
+  $('rKick').textContent=`${coordStr(p)} · 1985 → 2024`;
+  $('reveal').innerHTML=p.type==='loss'
+    ?`Since 1985, <em>${n}</em> lost <b style="color:var(--loss)">${ha(c.loss).replace(" ha"," hectares")}</b> of forest within 1 km.`
+    :p.type==='water'
+    ?`Since 1985, <b style="color:var(--water)">${ha(c.water).replace(" ha"," hectares")}</b> around <em>${n}</em> went under water.`
+    :`Since 1985, <em>${n}</em> turned <b style="color:var(--built)">${ha(c.built).replace(" ha"," hectares")}</b> of open land into buildings within 1 km.`;
+  $('tblock').innerHTML=[
+    ['','LANDTURN'],['SITE',p.name],['COORD',coordStr(p)],['PERIOD','1985 – 2024'],
+    ['DATA','GLC_FCS30D 30 m · IO 10 m'],['SHEET','01 · SIMULATED']
+  ].map(([k,v])=>k?`<div><dt>${k}</dt><dd>${v}</dd></div>`:`<div>${v}</div>`).join('');
+  show('pResult');
+}
+$('back').addEventListener('click',()=>{
+  stopPlay();$('mapLayer').classList.remove('show');gC.style.opacity=1;mode='returning';show('pLanding');
+  flight={t0:performance.now(),dur:reduce?10:1800,interp:d3.geoInterpolate([view.lon,view.lat],[view.lon,15]),k0:view.k,k1:1,done:()=>{mode='globe';lastInteract=performance.now()}};
+});
+$('search').addEventListener('submit',e=>{
+  e.preventDefault();const q=$('q').value.trim().toLowerCase();if(!q)return;
+  go(PLACES.find(p=>p.name.toLowerCase().includes(q)||q.includes(p.id))||PLACES[0]);
+});
+$('chips').innerHTML=PLACES.map((p,i)=>`<button class="chip" data-i="${i}"><i class="dot" style="--c:${TYPE_COL[p.type]}"></i>${short(p)}</button>`).join('');
+$('chips').addEventListener('click',e=>{const b=e.target.closest('.chip');if(b)go(PLACES[+b.dataset.i])});
+
+function resize(){gx=sizeCanvas(gC);if(mode==='result'){mx=sizeCanvas(mapC);drawMap()}}
+addEventListener('resize',resize);resize();requestAnimationFrame(loop);
+</script>
+</body>
+</html>
