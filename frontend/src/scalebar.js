@@ -6,8 +6,12 @@ const EARTH_CIRCUMFERENCE = 40075016.686;
 // MapLibre's zoom levels are based on a world that is 512 pixels wide at zoom 0, doubling with each zoom level
 const WORLD_SIZE_AT_ZOOM_0 = 512;
 // The longest the bar may be on screen, in pixels. The nice lengths below are at most 2.5× apart,
-// so the bar is always between 64 and 160 px: long enough that its three labels never collide.
+// so on wide maps the bar is always between 64 and 160 px: long enough that its three labels never collide.
 const MAX_BAR_PIXELS = 160;
+// The longest the bar may be on a narrow map (phones): between 40 and 100 px. Only "0" and the end label are shown there.
+const MAX_BAR_PIXELS_NARROW = 100;
+// Maps this wide or narrower count as narrow; must match the @container (max-width: 700px) rule in style.css
+const NARROW_MAP_WIDTH = 700;
 // The "nice" lengths the bar may show, in meters. Each one's half is also a round number (the middle label).
 const NICE_LENGTHS = [10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
 
@@ -32,7 +36,9 @@ function inUnit(meters, useKilometers) {
 // Redraw the scale bar for the map's current center latitude and zoom
 export function updateScaleBar(lat, zoom) {
   const mpp = metersPerPixel(lat, zoom); // Meters per pixel right now
-  const maxMeters = MAX_BAR_PIXELS * mpp; // The longest distance that fits in the allowed bar length
+  const narrow = scale.closest('.stage').clientWidth <= NARROW_MAP_WIDTH; // Is the map area narrow (a phone)?
+  const maxPixels = narrow ? MAX_BAR_PIXELS_NARROW : MAX_BAR_PIXELS; // A shorter bar on narrow maps
+  const maxMeters = maxPixels * mpp; // The longest distance that fits in the allowed bar length
 
   let meters = NICE_LENGTHS[0]; // Start with the shortest nice length
   for (const length of NICE_LENGTHS) { // Try each nice length, shortest first

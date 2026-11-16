@@ -28,6 +28,10 @@
               </div> <!-- End of the labels -->
             </div> <!-- End of the scale bar -->
           </div> <!-- End of the drawing marks -->
+          <div id="map-credit" class="map-credit"> <!-- The imagery credit the licence requires, in our own small dark style -->
+            <button id="credit-toggle" class="credit-toggle" type="button" aria-expanded="false" aria-controls="credit-text" aria-label="Image credits">i</button> <!-- On phones: the small ⓘ that opens and closes the credit (hidden on wide screens); aria-expanded tells screen readers whether it's open -->
+            <span id="credit-text" class="credit-text">Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community</span> <!-- The credit text itself -->
+          </div> <!-- End of the credit -->
         </div> <!-- End of the map wrapper -->
         <div id="teaser" class="teaser" hidden><strong></strong><small></small></div> <!-- The hover box for hotspots; globe.js fills in the name and teaser, and shows it -->
         <div id="callout" class="callout" aria-hidden="true"> <!-- The annotation shown at a chosen place; aria-hidden because the panel says the same for screen readers -->

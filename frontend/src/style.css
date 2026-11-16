@@ -209,6 +209,125 @@ body {
 
 /* (The room to the right of the bar for the end label's right half is set exactly by scalebar.js.) */
 
+/* ---------- Imagery credit ---------- */
+
+/* The credit in the bottom-right corner of the map (wide screens: always open as a small label) */
+.map-credit {
+  position: absolute; /* Placed freely over the map */
+  right: 0; /* Against the right edge */
+  bottom: 0; /* Against the bottom edge */
+  padding: 3px 8px; /* A little space around the text */
+  background: rgba(10, 12, 15, 0.7); /* Same dark backing as the drawing marks */
+  color: var(--muted); /* Grey: present but quiet */
+  font: 10px / 1.3 var(--sans); /* Small text, 1.3 line spacing */
+} /* End of the credit rule */
+
+/* The ⓘ button: only used on narrow screens, so hidden by default */
+.credit-toggle {
+  display: none; /* Not shown on wide screens */
+} /* End of the hidden toggle rule */
+
+/* ---------- Narrow map (phones): smaller marks, collapsible credit ---------- */
+@container (max-width: 700px) {
+  /* The credit, collapsed: just the ⓘ button in the corner */
+  .map-credit {
+    right: 8px; /* A little in from the right edge */
+    bottom: 8px; /* A little up from the bottom edge */
+    padding: 0; /* The button brings its own size */
+    background: none; /* No backing while collapsed (the button has its own) */
+    font-size: 9px; /* Slightly smaller text for phones */
+  } /* End of the collapsed credit rule */
+
+  /* The ⓘ button */
+  .credit-toggle {
+    display: grid; /* Shown on narrow screens; grid makes centering the "i" easy */
+    place-items: center; /* Center the "i" */
+    width: 24px; /* Small, round button... */
+    height: 24px; /* ...24 px across */
+    border: 1px solid var(--muted); /* Thin grey ring */
+    border-radius: 50%; /* Fully round */
+    background: rgba(10, 12, 15, 0.7); /* Same dark backing as everything else */
+    color: var(--ink); /* Off-white "i" */
+    font: italic 600 12px / 1 Georgia, serif; /* A classic italic "i", the usual information symbol */
+    padding: 0; /* No extra space */
+    cursor: pointer; /* Pointing hand */
+  } /* End of the toggle rule */
+
+  /* The text is hidden while collapsed */
+  .credit-text {
+    display: none; /* Hidden until opened */
+  } /* End of the collapsed text rule */
+
+  /* The credit, opened (main.js adds the "open" class): the dark strip along the whole bottom edge */
+  .map-credit.open {
+    left: 0; /* Stretch from the left edge... */
+    right: 0; /* ...to the right edge */
+    bottom: 0; /* Down at the very bottom */
+    display: flex; /* Text and button in a row */
+    align-items: center; /* Vertically centered */
+    justify-content: flex-end; /* Pushed to the right */
+    gap: 8px; /* Space between the text and the button */
+    padding: 3px 8px; /* A little space around everything */
+    background: rgba(10, 12, 15, 0.7); /* The dark strip */
+  } /* End of the open credit rule */
+
+  /* Show the text when open */
+  .map-credit.open .credit-text {
+    display: inline; /* Visible */
+  } /* End of the open text rule */
+
+  /* A smaller button inside the open strip, so the strip stays thin */
+  .map-credit.open .credit-toggle {
+    order: 1; /* Put it after the text, at the right edge, close to where it was when collapsed (so the same thumb tap closes it) */
+    width: 16px; /* Smaller... */
+    height: 16px; /* ...16 px across */
+    font-size: 10px; /* Smaller "i" */
+  } /* End of the small toggle rule */
+
+  /* While the credit strip is open, lift the north arrow and scale bar above it */
+  .map-layer.credit-open .map-marks {
+    bottom: 30px; /* Above the open strip (about 22 px tall) with a gap */
+  } /* End of the lifted marks rule */
+
+  /* Smaller marks on phones: tighter backing... */
+  .map-marks {
+    gap: 8px; /* Less space between arrow and scale bar */
+    padding: 4px 6px; /* Less padding around them */
+  } /* End of the smaller marks rule */
+
+  /* ...a smaller north arrow (only its drawn size changes; the drawing scales with it)... */
+  .north-arrow {
+    width: 8.5px; /* Narrower (keeps the drawing's 11 : 26 proportions) */
+    height: 20px; /* Shorter: measured to match the visible height of the smaller scale bar block */
+  } /* End of the smaller arrow rule */
+
+  /* ...a thinner bar... */
+  .scale-blocks {
+    height: 7px; /* Thinner than the 10 px desktop bar */
+  } /* End of the thinner bar rule */
+
+  /* ...and smaller numbers */
+  .scale-labels {
+    height: 8px; /* Ends at the bottom of the smaller numbers */
+    margin-top: 4px; /* Less space under the bar */
+    font-size: 9px; /* Smaller numbers, still readable on a phone */
+  } /* End of the smaller labels rule */
+
+  /* Only "0" and the end label on phones, so a short bar never has colliding numbers */
+  .scale-labels span:nth-child(2) {
+    display: none; /* Hide the middle number */
+  } /* End of the hidden middle rule */
+} /* End of the narrow-map rules */
+
+/* ---------- Touch screens ---------- */
+
+/* Hide the zoom buttons when the main pointer is a finger: people pinch to zoom instead */
+@media (pointer: coarse) {
+  .maplibregl-ctrl-top-right {
+    display: none; /* Not shown */
+  } /* End of the hidden zoom buttons rule */
+} /* End of the touch screen rules */
+
 /* After the crossfade (main.js adds "show-map" to the stage): the map is visible and usable... */
 .stage.show-map .map-layer {
   opacity: 1; /* Fully visible */

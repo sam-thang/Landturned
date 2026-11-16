@@ -63,6 +63,7 @@ export async function showPlace(container, lon, lat) {
       pitchWithRotate: false, // No tilting the map while dragging
       touchPitch: false, // No tilting with two fingers on touch screens
       maxPitch: 0, // Never allow any tilt: always look straight down, like a plan
+      attributionControl: false, // Hide MapLibre's own white credit box; we show the imagery credit ourselves, in our style (see .map-credit in index.html)
       style: { // What the map shows: its data sources and how to draw them
         version: 8, // The version of MapLibre's style format
         sources: { // Where the map gets its data from
@@ -71,7 +72,7 @@ export async function showPlace(container, lon, lat) {
             tiles: [SATELLITE_TILES], // Where to download the image tiles from
             tileSize: 256, // Each tile is 256 × 256 pixels
             maxzoom: 19, // Esri has no sharper tiles past zoom 19
-            attribution: 'Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community', // Credit line the imagery licence requires
+            attribution: 'Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community', // Credit the imagery licence requires (displayed by our own .map-credit line in index.html)
           }, // End of the satellite source
         }, // End of the sources
         layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite' }], // Draw the satellite images as one layer
@@ -81,6 +82,7 @@ export async function showPlace(container, lon, lat) {
     map.keyboard.disableRotation(); // Keyboard arrows still pan, but Shift + arrows no longer rotate
     map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'top-right'); // Zoom buttons only (no compass: the map is always north-up)
     map.on('move', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // Whenever the map moves or zooms, redraw the scale bar
+    map.on('resize', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // ...and when the map changes size (e.g. a phone turned sideways), since the maximum bar length depends on the width
     updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
   } else { // The map already exists: move it straight to the new square
     map.fitBounds(bounds, { padding: FIT_PADDING, animate: false }); // Jump, don't fly (this also fires "move", which updates the scale bar)

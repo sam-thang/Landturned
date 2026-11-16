@@ -145,6 +145,18 @@ async function selectPlace(place) {
   if (mode === 'result') globe.setVisible(false); // Still showing the map? Then stop drawing the hidden globe, to save battery (skip if the user already went back)
 } // End of selectPlace
 
+// ---------- Imagery credit (phones: opened and closed with the ⓘ button) ----------
+
+const credit = document.getElementById('map-credit'); // The credit element
+const creditToggle = document.getElementById('credit-toggle'); // The ⓘ button inside it
+
+// When the ⓘ button is tapped, open or close the credit
+creditToggle.addEventListener('click', () => {
+  const open = credit.classList.toggle('open'); // Switch the "open" class on or off; "toggle" returns true if it's now on
+  creditToggle.setAttribute('aria-expanded', String(open)); // Tell screen readers whether it's open
+  document.querySelector('.map-layer').classList.toggle('credit-open', open); // Lets CSS lift the north arrow and scale bar above the open strip
+}); // End of the credit toggle handler
+
 // ---------- Going back to the globe ----------
 
 // When "← New place" is clicked
