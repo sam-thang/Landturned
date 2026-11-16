@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Neighborhood change viewer – mockup</title>
+<style>
+:root{
+  --bg:#080b10; --panel:#0f141b; --line:#1e2631; --text:#e8ecf1; --muted:#8a95a5;
+  --loss:#ff5a4f; --gain:#4fd98a; --built:#ffa01f; --water:#3db8f5;
+  --serif:Georgia,"Times New Roman",serif; --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0}
+html{color-scheme:dark}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;display:flex;flex-direction:column}
+.steps{display:flex;gap:4px;padding:10px 12px;border-bottom:1px solid var(--line);overflow-x:auto}
+.steps button{background:none;border:1px solid transparent;color:var(--muted);padding:7px 12px;border-radius:999px;font:inherit;font-size:13px;white-space:nowrap;cursor:pointer}
+.steps button[aria-current="true"]{color:var(--text);border-color:var(--line);background:var(--panel)}
+.steps button:focus-visible,.go:focus-visible,input:focus-visible{outline:2px solid var(--water);outline-offset:2px}
+main{flex:1;display:flex}
+.screen{display:none;flex:1;width:100%}
+.screen.on{display:flex}
+
+/* 1 landing */
+#s1{flex-direction:column;justify-content:center;align-items:flex-start;padding:8vh 7vw;max-width:900px;margin:0 auto}
+#s1 h1{font-family:var(--serif);font-weight:400;font-size:clamp(34px,7vw,68px);line-height:1.05;letter-spacing:-.02em;max-width:12em}
+#s1 p{color:var(--muted);margin:18px 0 32px;max-width:32em;line-height:1.5}
+.search{display:flex;width:100%;max-width:560px;border:1px solid var(--line);border-radius:12px;background:var(--panel);overflow:hidden}
+.search input{flex:1;background:none;border:0;color:var(--text);font:inherit;font-size:17px;padding:17px 18px;min-width:0}
+.go{background:var(--text);color:var(--bg);border:0;font:inherit;font-weight:600;padding:0 22px;cursor:pointer}
+.hint{font-size:13px;color:var(--muted);margin-top:14px}
+
+/* 2 loading */
+#s2{align-items:center;justify-content:center;flex-direction:column;gap:22px;text-align:center;padding:24px}
+.scan{width:min(420px,80vw);height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.scan i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--water),var(--gain));transition:width 2.4s ease}
+#s2 .msg{font-family:var(--serif);font-size:22px}
+#s2 small{color:var(--muted)}
+
+/* 3 map */
+#s3{flex-direction:column}
+@media(min-width:900px){#s3{flex-direction:row}}
+.mapwrap{flex:1;position:relative;min-height:46vh;background:#05070a}
+canvas{width:100%;height:100%;display:block;image-rendering:pixelated}
+.swipe{position:absolute;inset:0;touch-action:none;cursor:ew-resize}
+.swipe .bar{position:absolute;top:0;bottom:0;width:2px;background:#fff;box-shadow:0 0 0 1px #0006}
+.swipe .knob{position:absolute;top:50%;width:34px;height:34px;margin:-17px 0 0 -16px;border-radius:50%;background:#fff;color:#000;display:grid;place-items:center;font-size:14px}
+.tag{position:absolute;top:12px;padding:4px 9px;background:#000a;border-radius:6px;font-size:12px}
+.tag.l{left:12px}.tag.r{right:12px}
+.side{width:100%;background:var(--panel);border-top:1px solid var(--line);padding:20px;display:flex;flex-direction:column;gap:22px}
+@media(min-width:900px){.side{width:340px;border-top:0;border-left:1px solid var(--line)}}
+.side h2{font-family:var(--serif);font-weight:400;font-size:24px}
+.addr{color:var(--muted);font-size:13px;margin-top:3px}
+.yr{display:flex;flex-direction:column;gap:8px}
+.yr label{display:flex;justify-content:space-between;font-size:14px}
+.yr output{font-weight:600}
+input[type=range]{width:100%;accent-color:#fff}
+.legend{display:flex;flex-direction:column;gap:9px;font-size:14px}
+.legend label{display:flex;align-items:center;gap:10px;cursor:pointer}
+.sw{width:14px;height:14px;border-radius:3px}
+.stats{display:grid;gap:14px}
+.stat b{font-family:var(--serif);font-weight:400;font-size:30px;display:block;line-height:1.1}
+.stat span{font-size:13px;color:var(--muted)}
+.note{font-size:12px;color:var(--muted);line-height:1.5;border-top:1px solid var(--line);padding-top:14px}
+
+/* 4 share */
+#s4{flex-direction:column;align-items:center;justify-content:center;gap:22px;padding:24px;text-align:center}
+.card{width:min(640px,100%);background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px}
+.card .pair{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.card canvas{aspect-ratio:8/5;border-radius:6px;width:100%;height:auto}
+.card h3{font-family:var(--serif);font-weight:400;font-size:22px;margin:14px 0 4px;text-align:left}
+.card p{color:var(--muted);font-size:14px;text-align:left}
+.btns{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.btns button{background:var(--panel);color:var(--text);border:1px solid var(--line);padding:11px 18px;border-radius:10px;font:inherit;cursor:pointer}
+.btns button.pri{background:var(--text);color:var(--bg);border-color:var(--text);font-weight:600}
+.fake{font-size:12px;color:var(--muted)}
+@media(prefers-reduced-motion:reduce){.scan i{transition:none}}
+</style>
+</head>
+<body>
+<nav class="steps" aria-label="Screens">
+  <button data-s="1" aria-current="true">1 Landing</button>
+  <button data-s="2">2 Loading</button>
+  <button data-s="3">3 Map and summary</button>
+  <button data-s="4">4 Share</button>
+</nav>
+<main>
+
+<section class="screen on" id="s1">
+  <h1>How has your neighborhood changed?</h1>
+  <p>Enter an address. See where green space disappeared, where new buildings went up, and where water moved, from 2018 to today.</p>
+  <form class="search" id="form">
+    <input id="addr" aria-label="Address" placeholder="Address or place in Norway" value="Hillevåg, Stavanger">
+    <button class="go" type="submit">Show changes</button>
+  </form>
+  <div class="hint">Mockup with simulated data. Click "Show changes".</div>
+</section>
+
+<section class="screen" id="s2">
+  <div class="msg" id="loadmsg">Finding satellite images...</div>
+  <div class="scan"><i id="bar"></i></div>
+  <small>Comparing summer 2018 to summer 2025</small>
+</section>
+
+<section class="screen" id="s3">
+  <div class="mapwrap" id="mapwrap">
+    <canvas id="map" width="160" height="100"></canvas>
+    <div class="swipe" id="swipe">
+      <div class="bar" id="bar2"></div><div class="knob" id="knob">↔</div>
+    </div>
+    <span class="tag l">2018</span><span class="tag r" id="rtag">2025</span>
+  </div>
+  <aside class="side">
+    <div><h2>Hillevåg, Stavanger</h2><div class="addr">1.6 km × 1.0 km area</div></div>
+    <div class="yr">
+      <label for="year">Year <output id="yout">2025</output></label>
+      <input type="range" id="year" min="2018" max="2025" step="1" value="2025">
+    </div>
+    <div class="legend" role="group" aria-label="Layers">
+      <label><input type="checkbox" data-l="loss" checked><i class="sw" style="background:var(--loss)"></i>Green space lost</label>
+      <label><input type="checkbox" data-l="gain" checked><i class="sw" style="background:var(--gain)"></i>Green space gained</label>
+      <label><input type="checkbox" data-l="built" checked><i class="sw" style="background:var(--built)"></i>Newly built or cleared</label>
+      <label><input type="checkbox" data-l="water" checked><i class="sw" style="background:var(--water)"></i>More water</label>
+    </div>
+    <div class="stats">
+      <div class="stat"><b id="st1">–</b><span>of green space lost since 2018</span></div>
+      <div class="stat"><b id="st2">–</b><span>newly built or cleared area</span></div>
+      <div class="stat"><b id="st3">–</b><span>new construction sites found</span></div>
+    </div>
+    <div class="note">Simulated data for design purposes. Real version: 10 m satellite pixels, summer-to-summer comparison.</div>
+  </aside>
+</section>
+
+<section class="screen" id="s4">
+  <div class="card">
+    <div class="pair"><canvas id="c1" width="160" height="100"></canvas><canvas id="c2" width="160" height="100"></canvas></div>
+    <h3>Hillevåg, 2018 to 2025</h3>
+    <p id="cardtxt"></p>
+  </div>
+  <div class="btns"><button class="pri">Download image</button><button>Download PDF summary</button><button>Copy link</button></div>
+  <div class="fake">Buttons are placeholders in this mockup.</div>
+</section>
+
+</main>
+<script>
+// ---------- fake land-cover data ----------
+const W=160,H=100; let seed=7;
+const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647};
+function noise(x,y,s){return Math.sin(x*s+1.3)*Math.cos(y*s*1.1+.7)+Math.sin((x+y)*s*.6)}
+const base=new Uint8Array(W*H); // 0 water 1 forest 2 field 3 built
+for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+  const fj=y-(18+10*Math.sin(x*.05)+6*Math.sin(x*.13)); // fjord along top
+  let t;
+  if(fj<0) t=0;
+  else{
+    const n=noise(x,y,.11);
+    t=n>.35?1:(n>-.5?2:1);
+    if(x>60&&x<125&&y>45&&y<85&&noise(x,y,.2)>-.9) t=3; // town
+  }
+  base[y*W+x]=t;
+}
+// changes: cell index -> {year,to}
+const chg=new Map();
+function blob(cx,cy,r,to,y0,spread,only){
+  for(let y=cy-r;y<=cy+r;y++)for(let x=cx-r;x<=cx+r;x++){
+    if(x<0||y<0||x>=W||y>=H)continue;
+    const d=Math.hypot(x-cx,y-cy)+rnd()*2; if(d>r)continue;
+    const i=y*W+x; if(!only.includes(base[i]))continue;
+    chg.set(i,{to,year:Math.min(2025,y0+Math.floor(d/r*spread))});
+  }
+}
+blob(40,62,15,3,2018,5,[1,2]);   // new housing on field/forest
+blob(105,35,11,3,2020,4,[1,2]);  // new industrial
+blob(140,70,9,3,2022,3,[1,2]);   // construction
+blob(20,40,10,0,2021,2,[2]);     // flooded field
+blob(95,90,10,1,2019,5,[2]);     // regrowth (field -> forest)
+const green=t=>t===1||t===2;
+function stateAt(i,y){const c=chg.get(i);return c&&y>=c.year?c.to:base[i]}
+
+// ---------- rendering ----------
+const col={0:[31,58,77],1:[40,70,42],2:[108,106,62],3:[138,138,134]};
+const L={loss:[255,90,79],gain:[79,217,138],built:[255,160,31],water:[61,184,245]};
+function draw(cv,year,overlay,layers,x0,x1){
+  const g=cv.getContext('2d'),im=g.createImageData(W,H);
+  for(let y=0;y<H;y++)for(let x=0;x<W;x++){
+    const i=y*W+x,t=stateAt(i,year);
+    let c=col[t].slice(); const j=(noise(x,y,1.7)*7)|0; c=c.map(v=>v+j);
+    if(overlay){
+      const b=base[i];let k=null;
+      if(green(b)&&t===3&&layers.built){k=L.built}
+      else if(green(b)&&t===0&&layers.water){k=L.water}
+      else if(b===2&&t===1&&layers.gain){k=L.gain}
+      if(k)c=[c[0]*.35+k[0]*.65,c[1]*.35+k[1]*.65,c[2]*.35+k[2]*.65];
+      // loss: green -> built/bare shown red at edge cells
+      if(layers.loss&&green(b)&&t===3&&((x+y)%2===0))c=L.loss;
+    }
+    const p=(y*W+x)*4;im.data[p]=c[0];im.data[p+1]=c[1];im.data[p+2]=c[2];im.data[p+3]=255;
+  }
+  g.putImageData(im,0,0);
+}
+const map=document.getElementById('map');
+let swipeX=.5, year=2025, layers={loss:1,gain:1,built:1,water:1};
+function render(){
+  const g=map.getContext('2d');
+  const tmp=document.createElement('canvas');tmp.width=W;tmp.height=H;
+  draw(tmp,year,true,layers);g.drawImage(tmp,0,0);
+  const t2=document.createElement('canvas');t2.width=W;t2.height=H;
+  draw(t2,2018,false,layers);
+  const cut=Math.round(swipeX*W);
+  g.drawImage(t2,0,0,cut,H,0,0,cut,H);
+  const p=swipeX*100+'%';
+  document.getElementById('bar2').style.left=p;document.getElementById('knob').style.left=p;
+  stats();
+}
+function stats(){
+  let g0=0,gl=0,nb=0;
+  for(let i=0;i<W*H;i++){ if(green(base[i])){g0++; if(stateAt(i,year)===3||stateAt(i,year)===0)gl++;} if(stateAt(i,year)===3&&base[i]!==3)nb++; }
+  const lossPct=(gl/g0*100).toFixed(1);
+  document.getElementById('st1').textContent=lossPct+'%';
+  document.getElementById('st2').textContent=(nb*100/10000).toFixed(1)+' ha';
+  document.getElementById('st3').textContent=year>=2022?3:year>=2020?2:1;
+  window.__s={lossPct,ha:(nb*100/10000).toFixed(1)};
+}
+// swipe drag
+const sw=document.getElementById('swipe');
+function mv(e){const r=sw.getBoundingClientRect();const x=(e.touches?e.touches[0].clientX:e.clientX)-r.left;swipeX=Math.max(.02,Math.min(.98,x/r.width));render()}
+let drag=false;
+sw.addEventListener('pointerdown',e=>{drag=true;sw.setPointerCapture(e.pointerId);mv(e)});
+sw.addEventListener('pointermove',e=>{if(drag)mv(e)});
+sw.addEventListener('pointerup',()=>drag=false);
+document.getElementById('year').addEventListener('input',e=>{year=+e.target.value;document.getElementById('yout').textContent=year;document.getElementById('rtag').textContent=year;render()});
+document.querySelectorAll('[data-l]').forEach(c=>c.addEventListener('change',()=>{layers[c.dataset.l]=c.checked?1:0;render()}));
+
+// ---------- screens ----------
+function show(n){
+  document.querySelectorAll('.screen').forEach((s,i)=>s.classList.toggle('on',i+1===n));
+  document.querySelectorAll('.steps button').forEach(b=>b.setAttribute('aria-current',+b.dataset.s===n));
+  if(n===3)render();
+  if(n===4){render();const a=document.getElementById('c1'),b=document.getElementById('c2');draw(a,2018,false,layers);draw(b,2025,true,layers);
+    document.getElementById('cardtxt').textContent=window.__s.lossPct+'% of green space lost. '+window.__s.ha+' ha newly built or cleared.'}
+}
+document.querySelectorAll('.steps button').forEach(b=>b.addEventListener('click',()=>{const n=+b.dataset.s;if(n===2)runLoad(false);else show(n)}));
+function runLoad(auto){
+  show(2);const bar=document.getElementById('bar'),m=document.getElementById('loadmsg');
+  bar.style.transition='none';bar.style.width='0';void bar.offsetWidth;bar.style.transition='';bar.style.width='100%';
+  m.textContent='Finding satellite images...';
+  setTimeout(()=>m.textContent='Comparing 2018 to 2025...',900);
+  setTimeout(()=>m.textContent='Marking what changed...',1800);
+  if(auto)setTimeout(()=>show(3),2500);
+}
+document.getElementById('form').addEventListener('submit',e=>{e.preventDefault();runLoad(true)});
+render();
+</script>
+</body>
+</html>
