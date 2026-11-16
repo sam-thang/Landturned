@@ -6,6 +6,12 @@
     <title>Landturn</title> <!-- The name shown in the browser tab -->
   </head> <!-- End of the head -->
   <body> <!-- The body holds everything you see on the page -->
+    <form id="search" class="search"> <!-- The search form; its id lets our JavaScript find it later -->
+      <input id="address" type="text" placeholder="Enter any address" aria-label="Address" /> <!-- The text box; the placeholder is the grey hint text, and aria-label names it for screen readers -->
+      <button type="submit">Show changes</button> <!-- The button; "submit" means clicking it (or pressing Enter) sends the form -->
+    </form> <!-- End of the search form -->
+    <p id="search-message" class="search-message" hidden></p> <!-- An empty message area under the search box; "hidden" keeps it invisible until there's something to say -->
+    <div id="cover" class="cover" aria-live="polite">Loading imagery…</div> <!-- Dark cover shown while the map moves; aria-live makes screen readers announce it -->
     <div id="map"></div> <!-- An empty box with the id "map"; MapLibre will draw the map inside it -->
     <script type="module" src="/src/main.js"></script> <!-- Load our JavaScript; "module" lets it use import statements -->
   </body> <!-- End of the visible content -->

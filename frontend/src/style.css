@@ -6,6 +6,105 @@ body {
   background: #080b10; /* Near-black background, the same color as the mockup */
 }
 
+/* Rules for the search form floating over the map */
+.search {
+  position: absolute; /* Place it freely, on top of the map */
+  top: 16px; /* 16 pixels down from the top of the window */
+  left: 16px; /* 16 pixels in from the left edge */
+  z-index: 2; /* Draw it above the map and the loading cover (higher numbers sit on top) */
+  display: flex; /* Put the text box and button side by side in a row */
+  width: min(420px, calc(100% - 32px)); /* 420 px wide, but shrink on narrow phone screens so it never touches the edges */
+  background: #0f141b; /* Dark panel color from the mockup */
+  border: 1px solid #1e2631; /* Thin, slightly lighter outline from the mockup */
+  border-radius: 12px; /* Rounded corners */
+  overflow: hidden; /* Clip the button's corners so they follow the rounded outline */
+  font-family: system-ui, sans-serif; /* Use the computer's standard interface font */
+}
+
+/* Rules for the text box inside the search form */
+.search input {
+  flex: 1; /* Let the text box take up all the space the button doesn't need */
+  min-width: 0; /* Allow the text box to shrink on small screens instead of pushing the button out */
+  background: none; /* No background of its own, so the dark panel shows through */
+  border: 0; /* Remove the browser's default box outline */
+  color: #e8ecf1; /* Light text color from the mockup */
+  font: inherit; /* Use the same font as the form instead of the browser's default */
+  font-size: 16px; /* 16 px text; smaller sizes make phones zoom in when you tap the box */
+  padding: 14px 16px; /* Space inside the box around the text (top/bottom, left/right) */
+}
+
+/* Rules for the grey hint text shown when the box is empty */
+.search input::placeholder {
+  color: #8a95a5; /* Muted grey from the mockup */
+}
+
+/* Rules for the "Show changes" button */
+.search button {
+  background: #e8ecf1; /* Light button on the dark panel, as in the mockup */
+  color: #080b10; /* Dark text on the light button */
+  border: 0; /* Remove the browser's default button border */
+  font: inherit; /* Use the form's font */
+  font-weight: 600; /* Semi-bold text */
+  padding: 0 18px; /* Space to the left and right of the button text */
+  cursor: pointer; /* Show the pointing-hand cursor when hovering, to signal it's clickable */
+}
+
+/* A visible outline when the text box or button is selected with the keyboard (Tab key) */
+.search input:focus-visible,
+.search button:focus-visible {
+  outline: 2px solid #3db8f5; /* Blue outline, the mockup's "water" color */
+  outline-offset: -2px; /* Draw the outline just inside the edge so the rounded panel doesn't clip it */
+}
+
+/* How the button looks while a search is running (greyed out) */
+.search button:disabled {
+  opacity: 0.6; /* Make it partly see-through so it looks inactive */
+  cursor: progress; /* Show the "busy" cursor when hovering */
+}
+
+/* Rules for the message shown under the search box (e.g. "Couldn't find that address") */
+.search-message {
+  position: absolute; /* Place it freely, on top of the map */
+  top: 72px; /* Just below the search box */
+  left: 16px; /* Lined up with the left edge of the search box */
+  z-index: 2; /* Draw it above the map and the loading cover */
+  margin: 0; /* Remove the browser's default spacing around paragraphs */
+  max-width: calc(100% - 32px); /* Never wider than the window minus the side gaps */
+  padding: 8px 12px; /* Space inside the message around the text */
+  background: #0f141b; /* Same dark panel color as the search box */
+  border-radius: 8px; /* Slightly rounded corners */
+  color: #e8ecf1; /* Light text color */
+  font: 14px system-ui, sans-serif; /* Slightly smaller text in the standard interface font */
+}
+
+/* The dark cover that hides the map while it moves and loads imagery */
+.cover {
+  position: absolute; /* Place it freely, on top of the map */
+  inset: 0; /* Stretch it over the whole window */
+  z-index: 1; /* Above the map, but below the search box (which is 2) */
+  display: grid; /* Use a grid layout so the text can be centered easily */
+  place-items: center; /* Center the text both horizontally and vertically */
+  background: #080b10; /* Same near-black as the page background */
+  color: #8a95a5; /* Muted grey text from the mockup */
+  font: 20px Georgia, 'Times New Roman', serif; /* Serif font, like the mockup's loading screen */
+  opacity: 0; /* Fully see-through by default, so the map shows */
+  pointer-events: none; /* While invisible, let clicks and drags pass through to the map */
+  transition: opacity 300ms ease; /* When opacity changes, fade smoothly over 300 ms (matches FADE_MS in main.js) */
+}
+
+/* The cover while it's showing (main.js adds the "visible" class) */
+.cover.visible {
+  opacity: 1; /* Fully solid, hiding the map */
+  pointer-events: auto; /* Block clicks on the map while it's loading */
+}
+
+/* For people who turned on "reduce motion" in their computer settings: no fading, just switch */
+@media (prefers-reduced-motion: reduce) {
+  .cover {
+    transition: none; /* Remove the fade animation */
+  } /* End of the .cover rule */
+} /* End of the reduced-motion rule */
+
 /* Rules for the box that holds the map (the div with id="map") */
 #map {
   position: absolute; /* Place the box freely instead of in the normal page flow */
