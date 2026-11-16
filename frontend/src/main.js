@@ -164,7 +164,8 @@ document.getElementById('back').addEventListener('click', async () => {
   if (mode !== 'result') return; // Only works once the result is fully shown
   mode = 'returning'; // We're busy going back: ignore place clicks until we're done
   showPanel('panel-landing'); // Show the landing panel again (headline, search, place buttons)
-  document.getElementById('address').focus(); // Put the cursor in the search box, ready to type
+  document.querySelector('.panel').scrollTop = 0; // Scroll the panel back to the top, so the landing page starts at the headline
+  document.getElementById('landing-title').focus({ preventScroll: true }); // Move focus to the headline: screen readers announce it, Tab reaches the search box next, and phones don't pop up the keyboard (which focusing the search box would)
   globe.setVisible(true); // Start drawing the globe again (it's still zoomed in on the place)
   stage.classList.remove('show-map'); // Fade the map out and the globe in
   await wait(CROSSFADE_MS); // Wait until the crossfade has finished

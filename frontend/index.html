@@ -51,7 +51,7 @@
       <section class="panel"> <!-- The text panel: left side on computers, bottom on phones -->
         <div id="panel-landing"> <!-- Panel contents for the landing page; only one panel section is shown at a time -->
         <p class="kicker">LANDTURN · SHEET 00 · WORLD</p> <!-- Small label above the headline, styled like a drawing sheet number -->
-        <h1>Every place on Earth has turned.</h1> <!-- The main headline -->
+        <h1 id="landing-title" tabindex="-1">Every place on Earth has turned.</h1> <!-- The main headline; tabindex="-1" lets code move focus here (e.g. after "← New place") without adding it to the Tab order -->
         <p class="lede">Enter any address to see how its land changed since 2017: what was built, what was cleared, what went under water.</p> <!-- The intro text ("lede" is a newspaper word for the opening lines) -->
         <form id="search" class="search"> <!-- The search form; its id lets main.js find it -->
           <input id="address" type="text" placeholder="Enter any address" aria-label="Address" autocomplete="off" /> <!-- The text box; autocomplete="off" stops the browser's own suggestion list covering the panel -->

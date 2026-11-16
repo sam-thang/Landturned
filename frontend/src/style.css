@@ -479,6 +479,11 @@ h1 {
   letter-spacing: -0.02em; /* Letters slightly closer together */
 } /* End of the headline rule */
 
+/* The headline gets focus from code (after "← New place"), but it isn't something you act on, so no focus outline */
+h1:focus {
+  outline: none; /* No outline around the headline */
+} /* End of the headline focus rule */
+
 /* The intro text */
 .lede {
   margin: 0; /* Remove the default paragraph spacing */
