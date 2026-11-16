@@ -32,12 +32,58 @@ function hideMessage() {
   message.hidden = true; // Make it invisible
 } // End of hideMessage
 
+// ---------- Helpers ----------
+
+// Turn coordinates into readable text, e.g. "34.0920° N, 117.4350° W"
+function formatCoords(lon, lat) {
+  const latText = `${Math.abs(lat).toFixed(4)}° ${lat >= 0 ? 'N' : 'S'}`; // 4 decimals (about 10 m); N for north of the equator, S for south
+  const lonText = `${Math.abs(lon).toFixed(4)}° ${lon >= 0 ? 'E' : 'W'}`; // E for east of Greenwich, W for west
+  return `${latText}, ${lonText}`; // Latitude first, as people usually say it
+} // End of formatCoords
+
+// Show one panel section (by its id) and hide the others
+function showPanel(id) {
+  for (const sectionId of ['panel-landing', 'panel-locating']) { // Go through all panel sections
+    document.getElementById(sectionId).hidden = sectionId !== id; // Hide every section except the chosen one
+  } // End of the sections loop
+} // End of showPanel
+
 // ---------- Choosing a place ----------
 
-// What happens when a place is chosen (button or hotspot). For now: turn the globe to face it.
-function selectPlace(place) {
+// How far the globe zooms in when a place is chosen: 3.4 times the whole-globe view, roughly a country-sized region
+const REGIONAL_ZOOM = 3.4;
+
+// Which state the app is in: 'landing' (choosing a place) or 'locating' (zooming in and loading)
+let mode = 'landing';
+
+// What happens when a place is chosen (button, hotspot, or search).
+// "place" has a name, lon, and lat, and sometimes a teaser.
+async function selectPlace(place) {
+  if (mode !== 'landing') return; // Already busy with a place: ignore extra clicks
+  mode = 'locating'; // Now we're busy
   hideMessage(); // Clear any old message
-  globe.turnTo(place.lon, place.lat); // Turn the globe to the place
+
+  // Fill in and show the "locating" panel
+  document.getElementById('locating-name').textContent = place.name; // The place name
+  document.getElementById('locating-coords').textContent = formatCoords(place.lon, place.lat); // Its coordinates
+  document.getElementById('step-locate').classList.remove('done'); // Reset the steps (in case of an earlier visit)
+  document.getElementById('step-map').classList.remove('done'); // ...
+  showPanel('panel-locating'); // Swap the landing panel for the locating panel
+
+  // Stage 1: lock the globe, then turn and zoom to a regional view
+  globe.setInteractive(false); // No dragging or clicking while we zoom
+  await globe.turnTo(place.lon, place.lat, REGIONAL_ZOOM); // Wait until the globe has finished turning and zooming
+  document.getElementById('step-locate').classList.add('done'); // Tick off step 1
+
+  // Show the callout at the place (which is now in the middle of the globe area)
+  document.getElementById('callout-kicker').textContent = place.teaser // If the place has a teaser...
+    ? `SITE · ${place.teaser.toUpperCase()}` // ...show it in capitals, e.g. "SITE · FARMLAND → WAREHOUSES"
+    : 'SITE · SEARCHED ADDRESS'; // ...otherwise a general label
+  document.getElementById('callout-name').textContent = place.name; // The place name
+  document.getElementById('callout-coords').textContent = formatCoords(place.lon, place.lat); // The coordinates
+  document.getElementById('callout').classList.add('visible'); // Fade the callout in
+
+  // Next step (3b): load the detailed map here, then crossfade to it
 } // End of selectPlace
 
 // ---------- Place buttons ----------
@@ -88,7 +134,7 @@ form.addEventListener('submit', async (event) => {
       showMessage("Couldn't find that address. Try adding a city or country."); // Helpful hint
       return; // Stop here (the "finally" part still runs)
     } // End of the not-found check
-    globe.turnTo(result.lng, result.lat); // Found it: turn the globe to face it
+    selectPlace({ name: address, lon: result.lng, lat: result.lat }); // Found it: choose it, named as the user typed it
   } catch (error) { // If something went wrong:
     console.error(error); // Print the details in the developer console (F12), for us
     showMessage('The address search is not responding. Please try again in a moment.'); // Friendly message

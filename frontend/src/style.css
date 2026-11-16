@@ -50,6 +50,7 @@ body {
 /* The stage (globe area) on phones: the top 56% of the screen */
 .stage {
   position: relative; /* Lets the canvas inside be positioned relative to the stage */
+  container-type: inline-size; /* Make the stage a "container", so rules can react to the stage's own width (see the callout) */
   flex: 0 0 56%; /* Don't grow, don't shrink, take 56% of the height */
   overflow: hidden; /* Cut off anything that sticks out of the stage */
 } /* End of the stage rule */
@@ -69,6 +70,11 @@ body {
 .globe.over-hotspot {
   cursor: pointer; /* Pointing hand, to hint the hotspot can be clicked (clicking comes in a later step) */
 } /* End of the over-hotspot rule */
+
+/* While the globe is locked because the app is busy (globe.js adds the "locked" class) */
+.globe.locked {
+  cursor: default; /* Normal arrow: nothing to grab right now */
+} /* End of the locked rule */
 
 /* While the globe is being dragged (globe.js adds the "dragging" class) */
 .globe.dragging {
@@ -130,6 +136,84 @@ body {
   color: var(--muted); /* Grey */
 } /* End of the teaser line rule */
 
+/* ---------- Callout (annotation at a chosen place) ---------- */
+
+/* The whole callout. Its anchor point is the middle of the stage, where the chosen place ends up. */
+.callout {
+  position: absolute; /* Placed at an exact spot inside the stage */
+  left: 50%; /* Start at the horizontal middle of the stage... */
+  top: 50%; /* ...and the vertical middle */
+  transform: translate(-6px, -64px); /* Shift so the ring (drawn at 6, 64 inside the drawing) sits exactly on the middle */
+  pointer-events: none; /* Never block the mouse */
+  opacity: 0; /* Invisible by default */
+  transition: opacity 0.4s ease; /* Fade in and out over 0.4 seconds */
+} /* End of the callout rule */
+
+/* The callout while showing (main.js adds the "visible" class) */
+.callout.visible {
+  opacity: 1; /* Fully visible */
+} /* End of the visible callout rule */
+
+/* The ring and leader line: thin off-white lines, no fill */
+.callout-mark circle,
+.callout-mark polyline {
+  fill: none; /* No fill inside the shapes */
+  stroke: var(--ink); /* Off-white lines */
+  stroke-width: 1.2; /* Thin lines */
+} /* End of the line rule */
+
+/* The tiny dot in the middle of the ring is filled */
+.callout-mark .callout-dot {
+  fill: var(--ink); /* Solid off-white */
+  stroke: none; /* No outline */
+} /* End of the dot rule */
+
+/* The label box at the end of the leader line */
+.callout-label {
+  position: absolute; /* Placed relative to the callout's corner */
+  left: 122px; /* Just past the end of the leader line (which ends at x = 118) */
+  top: -6px; /* So the line meets the label near its top */
+  padding: 7px 10px; /* Space inside the box */
+  background: rgba(10, 12, 15, 0.85); /* Mostly solid dark background */
+  border: 1px solid rgba(220, 228, 238, 0.35); /* Faint light outline */
+  white-space: nowrap; /* Keep each line on one line */
+} /* End of the label rule */
+
+/* Each line of the label on its own row */
+.callout-label span,
+.callout-label strong {
+  display: block; /* Stack the lines */
+} /* End of the label lines rule */
+
+/* The small label and the coordinates */
+.callout-label span {
+  font-size: 11px; /* Small */
+  color: var(--muted); /* Grey */
+} /* End of the small text rule */
+
+/* The place name */
+.callout-label strong {
+  font-size: 15px; /* A bit bigger */
+  font-weight: 500; /* Medium weight */
+} /* End of the place name rule */
+
+/* Compact callout for a narrow stage (under 700 px wide), where the label wouldn't fit to the right */
+@container (max-width: 700px) {
+  .callout-mark polyline {
+    display: none; /* Hide the diagonal leader line */
+  } /* End of the hidden line rule */
+
+  .callout-label {
+    left: 6px; /* Line the label up with the ring's center (the ring is at x = 6)... */
+    top: 52px; /* ...and put its bottom edge just above the ring (the ring's top is at y = 59) */
+    transform: translate(-50%, -100%); /* Shift it left by half its width (centered) and up by its full height (above) */
+    width: max-content; /* As wide as its text needs, instead of squeezing into the small callout box... */
+    max-width: calc(100cqw - 32px); /* ...but never wider than the stage minus 16 px on each side ("cqw" = 1% of the container's width) */
+    white-space: normal; /* Allow long text to wrap onto a second line */
+    text-align: center; /* Center the text inside the label */
+  } /* End of the compact label rule */
+} /* End of the compact callout rules */
+
 /* Make the "hidden" attribute always win, even over display rules above */
 [hidden] {
   display: none !important; /* "!important" beats any other display rule */
@@ -162,6 +246,54 @@ h1 {
   font-size: 15px; /* Normal reading size */
   line-height: 1.5; /* Comfortable spacing between lines */
 } /* End of the lede rule */
+
+/* Use the monospace font (for coordinates and technical labels) */
+.mono {
+  font-family: var(--mono); /* Every character equally wide, like on a technical drawing */
+} /* End of the mono rule */
+
+/* ---------- Locating panel ---------- */
+
+/* The chosen place's name */
+.place-title {
+  margin: 10px 0 4px; /* Space above and a little below */
+  font-size: 28px; /* Large */
+  font-weight: 500; /* Medium weight */
+} /* End of the place title rule */
+
+/* The coordinates under the name */
+.coords {
+  margin: 0; /* No default paragraph spacing */
+  font-size: 12px; /* Small */
+  color: var(--muted); /* Grey */
+} /* End of the coords rule */
+
+/* The list of loading steps */
+.steps {
+  margin: 22px 0 0; /* Space above */
+  padding: 0; /* Remove the default indent of lists */
+  list-style: none; /* No numbers or bullets (we draw our own check marks) */
+  display: grid; /* Stack the steps... */
+  gap: 9px; /* ...with space between them */
+  font-size: 13px; /* Small text */
+} /* End of the steps rule */
+
+/* A step that hasn't happened yet */
+.steps li {
+  color: var(--faint); /* Dark grey: not done yet */
+  transition: color 0.3s; /* Brighten smoothly when done */
+} /* End of the step rule */
+
+/* A finished step (main.js adds the "done" class) */
+.steps li.done {
+  color: var(--ink); /* Off-white: done */
+} /* End of the done step rule */
+
+/* A check mark in front of each finished step */
+.steps li.done::before {
+  content: '✓ '; /* The check mark and a space, added by CSS */
+  color: var(--gain); /* Green, the "gain" change color */
+} /* End of the check mark rule */
 
 /* ---------- Search ---------- */
 

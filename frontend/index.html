@@ -13,9 +13,22 @@
       <div class="stage"> <!-- The big picture area where the globe is drawn -->
         <canvas id="globe" class="globe" role="img" aria-label="Globe of the Earth"></canvas> <!-- A drawing surface; globe.js paints the Earth on it. role/aria-label describe it for screen readers -->
         <div id="teaser" class="teaser" hidden><strong></strong><small></small></div> <!-- The hover box for hotspots; globe.js fills in the name and teaser, and shows it -->
+        <div id="callout" class="callout" aria-hidden="true"> <!-- The annotation shown at a chosen place; aria-hidden because the panel says the same for screen readers -->
+          <svg class="callout-mark" width="120" height="70"> <!-- A small drawing: a ring at the place and a leader line up to the label -->
+            <circle cx="6" cy="64" r="5" /> <!-- The ring around the place -->
+            <circle cx="6" cy="64" r="1.5" class="callout-dot" /> <!-- A tiny solid dot in the ring's center -->
+            <polyline points="10,60 60,12 118,12" /> <!-- The leader line: diagonally up, then straight right -->
+          </svg> <!-- End of the drawing -->
+          <div class="callout-label"> <!-- The label box at the end of the leader line -->
+            <span id="callout-kicker" class="mono"></span> <!-- Small label, e.g. "SITE · FARMLAND → WAREHOUSES" -->
+            <strong id="callout-name"></strong> <!-- The place name -->
+            <span id="callout-coords" class="mono"></span> <!-- The coordinates -->
+          </div> <!-- End of the label box -->
+        </div> <!-- End of the callout -->
 
       </div> <!-- End of the stage -->
       <section class="panel"> <!-- The text panel: left side on computers, bottom on phones -->
+        <div id="panel-landing"> <!-- Panel contents for the landing page; only one panel section is shown at a time -->
         <p class="kicker">LANDTURN · SHEET 00 · WORLD</p> <!-- Small label above the headline, styled like a drawing sheet number -->
         <h1>Every place on Earth has turned.</h1> <!-- The main headline -->
         <p class="lede">Enter any address to see how its land changed since 2017: what was built, what was cleared, what went under water.</p> <!-- The intro text ("lede" is a newspaper word for the opening lines) -->
@@ -26,6 +39,16 @@
         <p id="search-message" class="message" role="status" hidden></p> <!-- Messages like "Couldn't find that address"; role="status" makes screen readers announce them -->
         <p class="kicker">OR START WITH A PLACE THAT TURNED</p> <!-- Label above the place buttons -->
         <div id="places" class="places"></div> <!-- Empty area; main.js adds one button per place here -->
+        </div> <!-- End of the landing section -->
+        <div id="panel-locating" hidden> <!-- Panel contents while zooming to a place and loading; hidden until then -->
+          <p class="kicker">LOCATING</p> <!-- Small label -->
+          <h2 id="locating-name" class="place-title"></h2> <!-- The chosen place's name -->
+          <p id="locating-coords" class="coords mono"></p> <!-- Its coordinates -->
+          <ol class="steps mono"> <!-- A numbered list of loading steps; main.js ticks them off -->
+            <li id="step-locate">Locating the site</li> <!-- Step 1: the globe turns and zooms -->
+            <li id="step-map">Loading detailed map</li> <!-- Step 2: the satellite map loads (next step, 3b) -->
+          </ol> <!-- End of the steps -->
+        </div> <!-- End of the locating section -->
       </section> <!-- End of the panel -->
     </div> <!-- End of the app -->
     <script type="module" src="/src/main.js"></script> <!-- Load our JavaScript; "module" lets it use import statements -->

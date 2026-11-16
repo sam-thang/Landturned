@@ -7,8 +7,8 @@ import { geoOrthographic, geoPath, geoGraticule10, geoDistance, geoInterpolate, 
 import { PLACES } from './places.js';
 // Bring in the tool that unpacks TopoJSON (the compact map format) into shapes D3 can draw
 import { feature } from 'topojson-client';
-// Bring in the world's land outlines (Natural Earth, 1:110 million scale) from the world-atlas package
-import landTopology from 'world-atlas/land-110m.json';
+// Bring in the world's land outlines (Natural Earth, 1:50 million scale, the more detailed version) from the world-atlas package
+import landTopology from 'world-atlas/land-50m.json';
 
 // Unpack the land outlines from TopoJSON into normal shapes ("GeoJSON")
 const land = feature(landTopology, landTopology.objects.land);
@@ -66,11 +66,12 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
     .clipAngle(90) // Hide everything more than 90° from the center, i.e. the far side of the globe
     .precision(0.6); // How closely curved lines are followed (smaller = smoother but slower)
   const path = geoPath(projection, context); // A drawer that turns map shapes into lines on our canvas, using the projection
-  const view = { ...START_VIEW }; // The current view; "..." makes a copy, so we can change it later without changing START_VIEW
+  const view = { ...START_VIEW, zoom: 1 }; // The current view: a copy of START_VIEW ("..." copies it) plus a zoom factor (1 = whole globe)
   let visibleHotspots = []; // The hotspots drawn in the last frame, with their screen positions, for hover checks
   let hoveredPlace = null; // The place the mouse is currently over, or null for none
-  let turn = null; // The turn in progress ({ startTime, route }), or null when not turning
+  let turn = null; // The turn in progress, or null when not turning
   let focused = false; // True once a place has been chosen; the globe then stops spinning by itself
+  let interactive = true; // False while the app is busy (e.g. zooming to a place): dragging, hovering, and clicking are ignored
 
   // Match the canvas's pixel size to its size on screen, then redraw
   function resize() {
@@ -88,7 +89,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
     const height = canvas.clientHeight; // The canvas height on screen
     const centerX = width / 2; // Horizontal middle of the canvas
     const centerY = height / 2; // Vertical middle of the canvas
-    const radius = Math.min(width, height) * 0.4; // Globe radius: 40% of the shorter side, so it always fits
+    const radius = Math.min(width, height) * 0.4 * view.zoom; // Globe radius: 40% of the shorter side (so it fits), times the zoom factor
 
     projection
       .translate([centerX, centerY]) // Put the globe's center in the middle of the canvas
@@ -207,10 +208,16 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
 
     if (turn) { // If the globe is turning to a chosen place:
       const progress = Math.max(0, Math.min(1, (time - turn.startTime) / TURN_MS)); // How far through the turn we are, kept between 0 and 1
-      const [lon, lat] = turn.route(easeCubicInOut(progress)); // The point on the route for this moment; easing makes it start and stop gently
+      const eased = easeCubicInOut(progress); // Easing makes the movement start and stop gently
+      const [lon, lat] = turn.route(eased); // The point on the route for this moment
       view.lon = lon; // Face that longitude...
       view.lat = lat; // ...and that latitude
-      if (progress === 1) turn = null; // The turn is finished
+      view.zoom = turn.fromZoom + (turn.toZoom - turn.fromZoom) * eased; // Zoom smoothly from the old zoom to the new one
+      if (progress === 1) { // The turn is finished:
+        const finished = turn; // keep hold of it for a moment,
+        turn = null; // mark that no turn is running,
+        finished.resolve(); // and fulfil its Promise, so whoever is waiting (main.js) can continue
+      } // End of the finished check
     } // End of the turning check
 
     const resting = time - lastInteraction > SPIN_PAUSE_MS; // True once the pause after a drag is over
@@ -231,6 +238,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
 
   // When the user presses down on the globe (mouse button, finger, or pen; together called a "pointer")
   canvas.addEventListener('pointerdown', (event) => {
+    if (!interactive) return; // Ignore presses while the app is busy
     dragging = true; // Start dragging
     turn = null; // If the globe was turning to a place, stop: the user has taken over
     movedTotal = 0; // Nothing moved yet
@@ -242,6 +250,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
 
   // When the pointer moves
   canvas.addEventListener('pointermove', (event) => {
+    if (!interactive) return; // Ignore the mouse while the app is busy
     if (!dragging) { // Not dragging, just moving the mouse over the globe:
       showTeaser(hotspotAt(event)); // show the teaser if we're near a hotspot, hide it if not
       return; // and stop here
@@ -262,6 +271,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
   } // End of stopDragging
   // When the button or finger is lifted
   canvas.addEventListener('pointerup', (event) => {
+    if (!dragging) return; // No drag was started (e.g. the app was busy), so there's nothing to finish
     stopDragging(); // The drag is over either way
     if (movedTotal > CLICK_TOLERANCE) return; // It moved: that was a drag, not a click, so stop here
     const hotspot = hotspotAt(event); // It was a click: is there a hotspot under the pointer?
@@ -272,23 +282,38 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
 
   // ---------- Turning to a place ----------
 
-  // Turn the globe smoothly so the given place faces us, then stay there
-  function turnTo(lon, lat) {
+  // Turn the globe smoothly so the given place faces us, zooming to the given zoom factor, then stay there.
+  // Returns a Promise that is fulfilled when the turn has finished, so main.js can "await" it.
+  function turnTo(lon, lat, zoom = view.zoom) { // If no zoom is given, keep the current one
     focused = true; // A place is chosen: stop the automatic spin
     showTeaser(null); // Hide any teaser box
     const target = [lon, limitTilt(lat)]; // Where to end up, with the tilt kept in the allowed range
-    if (REDUCE_MOTION) { // If the user prefers less motion:
-      [view.lon, view.lat] = target; // jump straight there
-      return; // and stop here
-    } // End of the reduced-motion check
-    turn = { // Start a new turn:
-      startTime: performance.now(), // when it began
-      route: geoInterpolate([view.lon, view.lat], target), // a function that gives any point along the shortest route ("great circle") from here to there
-    }; // End of the new turn
+    return new Promise((resolve) => { // Create the Promise; we call "resolve" when the turn is done
+      if (REDUCE_MOTION) { // If the user prefers less motion:
+        [view.lon, view.lat] = target; // jump straight there,
+        view.zoom = zoom; // at the new zoom,
+        resolve(); // finish right away,
+        return; // and stop here
+      } // End of the reduced-motion check
+      turn = { // Start a new turn:
+        startTime: performance.now(), // when it began
+        route: geoInterpolate([view.lon, view.lat], target), // a function that gives any point along the shortest route ("great circle") from here to there
+        fromZoom: view.zoom, // the zoom at the start
+        toZoom: zoom, // the zoom at the end
+        resolve, // the function to call when finished (the frame loop calls it)
+      }; // End of the new turn
+    }); // End of the Promise
   } // End of turnTo
+
+  // Switch the globe's mouse and touch handling on (true) or off (false)
+  function setInteractive(value) {
+    interactive = value; // Remember the new setting
+    canvas.classList.toggle('locked', !value); // Normal arrow cursor while locked (see style.css)
+    if (!value) showTeaser(null); // Hide any teaser box when locking
+  } // End of setInteractive
 
   window.addEventListener('resize', resize); // Whenever the browser window changes size, resize and redraw
   resize(); // Size and draw the globe for the first time
   requestAnimationFrame(frame); // Start the animation loop
-  return { turnTo }; // Hand back the turnTo function so main.js can use it
+  return { turnTo, setInteractive }; // Hand back these functions so main.js can use them
 } // End of startGlobe
