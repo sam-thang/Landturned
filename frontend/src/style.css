@@ -162,3 +162,100 @@ h1 {
   font-size: 15px; /* Normal reading size */
   line-height: 1.5; /* Comfortable spacing between lines */
 } /* End of the lede rule */
+
+/* ---------- Search ---------- */
+
+/* The search form: text box and button side by side, with square corners like a drawing */
+.search {
+  display: flex; /* Text box and button in a row */
+  margin: 22px 0; /* Space above and below */
+  border: 1px solid var(--line); /* Thin outline */
+  background: var(--bg); /* Darker than the panel, so the box stands out */
+} /* End of the search rule */
+
+/* The text box */
+.search input {
+  flex: 1; /* Take all the space the button doesn't need */
+  min-width: 0; /* Allow shrinking on small screens instead of pushing the button out */
+  background: none; /* No background of its own */
+  border: 0; /* No outline of its own (the form has one) */
+  color: var(--ink); /* Off-white text */
+  font: inherit; /* Same font as the panel */
+  font-size: 16px; /* 16 px stops phones from zooming in when you tap the box */
+  padding: 14px; /* Space around the text */
+} /* End of the text box rule */
+
+/* The grey hint text in the empty box */
+.search input::placeholder {
+  color: var(--faint); /* Dark grey */
+} /* End of the placeholder rule */
+
+/* The "Show change" button */
+.search button {
+  background: var(--ink); /* Off-white button */
+  color: var(--bg); /* Dark text */
+  border: 0; /* No border */
+  font: inherit; /* Same font as the panel */
+  font-weight: 600; /* Semi-bold */
+  padding: 0 16px; /* Space left and right of the text */
+  cursor: pointer; /* Pointing hand on hover */
+} /* End of the button rule */
+
+/* The button while a search is running */
+.search button:disabled {
+  opacity: 0.6; /* Partly see-through, so it looks inactive */
+  cursor: progress; /* "Busy" cursor */
+} /* End of the disabled button rule */
+
+/* Messages under the search box */
+.message {
+  margin: -10px 0 22px; /* Pull up closer to the search box; space below */
+  font-size: 13px; /* Small text */
+  color: var(--ink); /* Off-white, so it's noticed */
+} /* End of the message rule */
+
+/* ---------- Place buttons ---------- */
+
+/* The area holding the place buttons */
+.places {
+  display: flex; /* Buttons in a row... */
+  flex-wrap: wrap; /* ...continuing on the next line when the row is full */
+  gap: 8px; /* Space between buttons */
+  margin-top: 10px; /* Space below the label */
+} /* End of the places rule */
+
+/* One place button */
+.place-button {
+  display: flex; /* Colored dot and name side by side */
+  align-items: center; /* Line them up vertically */
+  gap: 7px; /* Space between dot and name */
+  background: none; /* No fill */
+  border: 1px solid var(--line); /* Thin outline */
+  color: var(--ink); /* Off-white text */
+  font: inherit; /* Same font as the panel */
+  font-size: 13px; /* Small text */
+  padding: 7px 11px; /* Space inside the button */
+  cursor: pointer; /* Pointing hand on hover */
+} /* End of the place button rule */
+
+/* A place button when hovered */
+.place-button:hover {
+  border-color: var(--muted); /* Brighter outline */
+} /* End of the hover rule */
+
+/* The colored dot inside a place button */
+.place-button .dot {
+  width: 8px; /* 8 px wide */
+  height: 8px; /* 8 px tall */
+  border-radius: 50%; /* Fully rounded: a circle */
+  background: var(--dot-color); /* The color main.js sets for this place's type of change */
+  flex: none; /* Never shrink or grow */
+} /* End of the dot rule */
+
+/* A visible blue outline for keyboard users (Tab key) on the text box and all buttons */
+.search input:focus-visible,
+.search button:focus-visible,
+.place-button:focus-visible {
+  outline: 2px solid var(--water); /* Blue outline */
+  outline-offset: 2px; /* A small gap between the element and the outline */
+} /* End of the focus rule */

@@ -19,6 +19,13 @@
         <p class="kicker">LANDTURN · SHEET 00 · WORLD</p> <!-- Small label above the headline, styled like a drawing sheet number -->
         <h1>Every place on Earth has turned.</h1> <!-- The main headline -->
         <p class="lede">Enter any address to see how its land changed since 2017: what was built, what was cleared, what went under water.</p> <!-- The intro text ("lede" is a newspaper word for the opening lines) -->
+        <form id="search" class="search"> <!-- The search form; its id lets main.js find it -->
+          <input id="address" type="text" placeholder="Enter any address" aria-label="Address" autocomplete="off" /> <!-- The text box; autocomplete="off" stops the browser's own suggestion list covering the panel -->
+          <button type="submit">Show change</button> <!-- The button; clicking it or pressing Enter sends the form -->
+        </form> <!-- End of the search form -->
+        <p id="search-message" class="message" role="status" hidden></p> <!-- Messages like "Couldn't find that address"; role="status" makes screen readers announce them -->
+        <p class="kicker">OR START WITH A PLACE THAT TURNED</p> <!-- Label above the place buttons -->
+        <div id="places" class="places"></div> <!-- Empty area; main.js adds one button per place here -->
       </section> <!-- End of the panel -->
     </div> <!-- End of the app -->
     <script type="module" src="/src/main.js"></script> <!-- Load our JavaScript; "module" lets it use import statements -->

@@ -1,6 +1,8 @@
-// Bring in four tools from D3: the globe projection, a "path" drawer, the latitude/longitude grid,
-// and a function that measures the distance between two places on the globe
-import { geoOrthographic, geoPath, geoGraticule10, geoDistance } from 'd3';
+// Bring in tools from D3: the globe projection, a "path" drawer, the latitude/longitude grid,
+// a function that measures the distance between two places on the globe,
+// a function that finds the in-between points on the shortest route between two places,
+// and an "easing" curve that makes movements start and end gently
+import { geoOrthographic, geoPath, geoGraticule10, geoDistance, geoInterpolate, easeCubicInOut } from 'd3';
 // Bring in our list of hotspot places from places.js
 import { PLACES } from './places.js';
 // Bring in the tool that unpacks TopoJSON (the compact map format) into shapes D3 can draw
@@ -27,6 +29,11 @@ const MAX_TILT = 70;
 // True if the user has asked their computer to reduce motion (an accessibility setting)
 const REDUCE_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
+// How long the globe takes to turn to a chosen place, in milliseconds (1.6 seconds)
+const TURN_MS = 1600;
+// How far (in pixels) the pointer may move between press and release and still count as a click, not a drag
+const CLICK_TOLERANCE = 3;
+
 // How long one hotspot "pulse" (a ring growing and fading) takes, in milliseconds
 const PULSE_MS = 1800;
 // How close (in pixels) the mouse must be to a hotspot to count as hovering over it
@@ -44,8 +51,16 @@ const CHANGE_COLORS = {
   water: rootStyles.getPropertyValue('--water').trim(), // Blue
 }; // End of the change colors
 
-// Draw the globe on the given canvas, with a teaser box for hovered hotspots. "export" lets main.js use this function.
-export function startGlobe(canvas, teaser) {
+// Keep a latitude within the allowed tilt, so the globe never flips upside down
+function limitTilt(lat) {
+  return Math.max(-MAX_TILT, Math.min(MAX_TILT, lat)); // Not below -70°, not above 70°
+} // End of limitTilt
+
+// Draw the globe on the given canvas, with a teaser box for hovered hotspots.
+// "onSelectPlace" is a function to call when the user clicks a hotspot.
+// Returns an object with a turnTo function, so other code can tell the globe where to look.
+// "export" lets main.js use this function.
+export function startGlobe(canvas, teaser, onSelectPlace) {
   const context = canvas.getContext('2d'); // The "2D context" is the set of drawing tools for the canvas
   const projection = geoOrthographic() // The orthographic projection: the Earth as seen from far out in space
     .clipAngle(90) // Hide everything more than 90° from the center, i.e. the far side of the globe
@@ -54,6 +69,8 @@ export function startGlobe(canvas, teaser) {
   const view = { ...START_VIEW }; // The current view; "..." makes a copy, so we can change it later without changing START_VIEW
   let visibleHotspots = []; // The hotspots drawn in the last frame, with their screen positions, for hover checks
   let hoveredPlace = null; // The place the mouse is currently over, or null for none
+  let turn = null; // The turn in progress ({ startTime, route }), or null when not turning
+  let focused = false; // True once a place has been chosen; the globe then stops spinning by itself
 
   // Match the canvas's pixel size to its size on screen, then redraw
   function resize() {
@@ -188,8 +205,16 @@ export function startGlobe(canvas, teaser) {
     const elapsed = Math.min(50, time - previousTime); // Time since the last frame; capped at 50 ms so the globe doesn't jump after the tab was in the background
     previousTime = time; // Remember this frame's time for next time
 
+    if (turn) { // If the globe is turning to a chosen place:
+      const progress = Math.max(0, Math.min(1, (time - turn.startTime) / TURN_MS)); // How far through the turn we are, kept between 0 and 1
+      const [lon, lat] = turn.route(easeCubicInOut(progress)); // The point on the route for this moment; easing makes it start and stop gently
+      view.lon = lon; // Face that longitude...
+      view.lat = lat; // ...and that latitude
+      if (progress === 1) turn = null; // The turn is finished
+    } // End of the turning check
+
     const resting = time - lastInteraction > SPIN_PAUSE_MS; // True once the pause after a drag is over
-    if (!dragging && resting && !REDUCE_MOTION) { // Only spin when not being dragged, after the pause, and if motion is allowed
+    if (!dragging && !turn && !focused && resting && !REDUCE_MOTION) { // Only spin when not dragged, not turning, no place chosen, after the pause, and if motion is allowed
       view.lon -= elapsed * SPIN_SPEED; // Turn a little. Minus = the real direction: the surface moves west to east (left to right)
       if (view.lon < -180) view.lon += 360; // Keep longitude between -180 and 180 (going past -180° wraps around to +180°)
     } // End of the spin check
@@ -202,10 +227,13 @@ export function startGlobe(canvas, teaser) {
 
   let dragging = false; // True while the user is holding the mouse button or finger down on the globe
   let lastPointer = null; // The pointer's previous position [x, y], to measure how far it moved
+  let movedTotal = 0; // How many pixels the pointer has moved since it was pressed, to tell clicks from drags
 
   // When the user presses down on the globe (mouse button, finger, or pen; together called a "pointer")
   canvas.addEventListener('pointerdown', (event) => {
     dragging = true; // Start dragging
+    turn = null; // If the globe was turning to a place, stop: the user has taken over
+    movedTotal = 0; // Nothing moved yet
     lastPointer = [event.clientX, event.clientY]; // Remember where the pointer started
     canvas.setPointerCapture(event.pointerId); // Keep receiving moves even if the pointer leaves the canvas while dragging
     canvas.classList.add('dragging'); // Switch to the "grabbing hand" cursor (see style.css)
@@ -220,8 +248,9 @@ export function startGlobe(canvas, teaser) {
     } // End of the not-dragging check
     const dx = event.clientX - lastPointer[0]; // How far it moved left/right since last time, in pixels
     const dy = event.clientY - lastPointer[1]; // How far it moved up/down since last time
+    movedTotal += Math.abs(dx) + Math.abs(dy); // Add up the movement, ignoring direction
     view.lon -= dx * DRAG_DEGREES_PER_PIXEL; // Dragging right brings places from the west into view
-    view.lat = Math.max(-MAX_TILT, Math.min(MAX_TILT, view.lat + dy * DRAG_DEGREES_PER_PIXEL)); // Dragging down tilts north toward us; kept between -70° and 70°
+    view.lat = limitTilt(view.lat + dy * DRAG_DEGREES_PER_PIXEL); // Dragging down tilts north toward us; kept between -70° and 70°
     lastPointer = [event.clientX, event.clientY]; // Remember the new position for the next move
   }); // End of pointermove
 
@@ -231,11 +260,35 @@ export function startGlobe(canvas, teaser) {
     lastInteraction = performance.now(); // Remember when, so the spin waits before starting again
     canvas.classList.remove('dragging'); // Back to the open-hand cursor
   } // End of stopDragging
-  canvas.addEventListener('pointerup', stopDragging); // Run stopDragging when the button or finger is lifted
-  canvas.addEventListener('pointercancel', stopDragging); // ...or when the system cancels the drag
+  // When the button or finger is lifted
+  canvas.addEventListener('pointerup', (event) => {
+    stopDragging(); // The drag is over either way
+    if (movedTotal > CLICK_TOLERANCE) return; // It moved: that was a drag, not a click, so stop here
+    const hotspot = hotspotAt(event); // It was a click: is there a hotspot under the pointer?
+    if (hotspot) onSelectPlace(hotspot.place); // If so, tell main.js which place was chosen
+  }); // End of pointerup
+  canvas.addEventListener('pointercancel', stopDragging); // Run stopDragging when the system cancels the drag
   canvas.addEventListener('pointerleave', () => showTeaser(null)); // Hide the teaser when the mouse leaves the globe
+
+  // ---------- Turning to a place ----------
+
+  // Turn the globe smoothly so the given place faces us, then stay there
+  function turnTo(lon, lat) {
+    focused = true; // A place is chosen: stop the automatic spin
+    showTeaser(null); // Hide any teaser box
+    const target = [lon, limitTilt(lat)]; // Where to end up, with the tilt kept in the allowed range
+    if (REDUCE_MOTION) { // If the user prefers less motion:
+      [view.lon, view.lat] = target; // jump straight there
+      return; // and stop here
+    } // End of the reduced-motion check
+    turn = { // Start a new turn:
+      startTime: performance.now(), // when it began
+      route: geoInterpolate([view.lon, view.lat], target), // a function that gives any point along the shortest route ("great circle") from here to there
+    }; // End of the new turn
+  } // End of turnTo
 
   window.addEventListener('resize', resize); // Whenever the browser window changes size, resize and redraw
   resize(); // Size and draw the globe for the first time
   requestAnimationFrame(frame); // Start the animation loop
+  return { turnTo }; // Hand back the turnTo function so main.js can use it
 } // End of startGlobe
