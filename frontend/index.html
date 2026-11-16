@@ -12,6 +12,9 @@
     <div class="app"> <!-- The whole app: the globe area and the text panel side by side (or stacked on phones) -->
       <div class="stage"> <!-- The big picture area where the globe is drawn -->
         <canvas id="globe" class="globe" role="img" aria-label="Globe of the Earth"></canvas> <!-- A drawing surface; globe.js paints the Earth on it. role/aria-label describe it for screen readers -->
+        <div class="map-layer"> <!-- Wrapper for the satellite map: handles position and fading (invisible until the crossfade) -->
+          <div id="map" class="map"></div> <!-- MapLibre draws the map in here -->
+        </div> <!-- End of the map wrapper -->
         <div id="teaser" class="teaser" hidden><strong></strong><small></small></div> <!-- The hover box for hotspots; globe.js fills in the name and teaser, and shows it -->
         <div id="callout" class="callout" aria-hidden="true"> <!-- The annotation shown at a chosen place; aria-hidden because the panel says the same for screen readers -->
           <svg class="callout-mark" width="120" height="70"> <!-- A small drawing: a ring at the place and a leader line up to the label -->

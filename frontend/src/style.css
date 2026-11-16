@@ -62,6 +62,7 @@ body {
   width: 100%; /* Full stage width */
   height: 100%; /* Full stage height */
   display: block; /* Remove the small gap browsers leave under inline elements */
+  transition: opacity 0.9s ease; /* Fade smoothly in the crossfade to the map (0.9 s, matches CROSSFADE_MS in main.js) */
   cursor: grab; /* Show an open hand, to hint that the globe can be dragged */
   touch-action: none; /* On touch screens, let dragging turn the globe instead of scrolling the page */
 } /* End of the globe rule */
@@ -107,6 +108,43 @@ body {
     padding: 32px 28px; /* A little more space inside on big screens */
   } /* End of the wide-screen panel rule */
 } /* End of the wide-screen rules */
+
+/* ---------- Satellite map and crossfade ---------- */
+
+/* The wrapper around the map: covers the stage, invisible until the crossfade */
+.map-layer {
+  position: absolute; /* Placed freely inside the stage */
+  inset: 0; /* Covering the whole stage */
+  opacity: 0; /* Invisible, but still full size, so MapLibre knows which tiles to load */
+  pointer-events: none; /* While invisible, let the mouse reach the globe underneath */
+  transition: opacity 0.9s ease; /* Fade smoothly (0.9 s, matches CROSSFADE_MS in main.js) */
+} /* End of the map layer rule */
+
+/* The element MapLibre draws in: fill the wrapper */
+.map {
+  width: 100%; /* Full wrapper width */
+  height: 100%; /* Full wrapper height */
+} /* End of the map rule */
+
+/* After the crossfade (main.js adds "show-map" to the stage): the map is visible and usable... */
+.stage.show-map .map-layer {
+  opacity: 1; /* Fully visible */
+  pointer-events: auto; /* The map can now be dragged and zoomed */
+} /* End of the visible map rule */
+
+/* ...and the globe is invisible and ignores the mouse */
+.stage.show-map .globe {
+  opacity: 0; /* Fully faded out */
+  pointer-events: none; /* No mouse events */
+} /* End of the hidden globe rule */
+
+/* For people who turned on "reduce motion": switch instantly, no fading */
+@media (prefers-reduced-motion: reduce) {
+  .globe,
+  .map-layer {
+    transition: none; /* No fade animation */
+  } /* End of the no-fade rule */
+} /* End of the reduced-motion rule */
 
 /* The teaser box that appears next to a hovered hotspot */
 .teaser {

@@ -6,6 +6,8 @@ import { startGlobe } from './globe.js';
 import { PLACES } from './places.js';
 // Bring in the address lookup function, from geocode.js
 import { geocode } from './geocode.js';
+// Bring in the function that shows a place on the satellite map, from map.js
+import { showPlace } from './map.js';
 
 // ---------- Globe ----------
 
@@ -41,6 +43,11 @@ function formatCoords(lon, lat) {
   return `${latText}, ${lonText}`; // Latitude first, as people usually say it
 } // End of formatCoords
 
+// Wait a number of milliseconds; returns a Promise that "await" can wait for
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms)); // Finish the Promise after ms milliseconds
+} // End of wait
+
 // Show one panel section (by its id) and hide the others
 function showPanel(id) {
   for (const sectionId of ['panel-landing', 'panel-locating']) { // Go through all panel sections
@@ -53,8 +60,16 @@ function showPanel(id) {
 // How far the globe zooms in when a place is chosen: 3.4 times the whole-globe view, roughly a country-sized region
 const REGIONAL_ZOOM = 3.4;
 
-// Which state the app is in: 'landing' (choosing a place) or 'locating' (zooming in and loading)
+// The shortest time the callout stays on screen before the crossfade, so people can read it (1.2 seconds)
+const MIN_CALLOUT_MS = 1200;
+// How long the crossfade from globe to map takes; must match the 0.9 s transitions in style.css
+const CROSSFADE_MS = 900;
+
+// Which state the app is in: 'landing' (choosing a place), 'locating' (zooming in and loading), or 'result' (map shown)
 let mode = 'landing';
+
+const stage = document.querySelector('.stage'); // The picture area holding the globe and the map
+const mapContainer = document.getElementById('map'); // The element MapLibre draws in
 
 // What happens when a place is chosen (button, hotspot, or search).
 // "place" has a name, lon, and lat, and sometimes a teaser.
@@ -68,7 +83,19 @@ async function selectPlace(place) {
   document.getElementById('locating-coords').textContent = formatCoords(place.lon, place.lat); // Its coordinates
   document.getElementById('step-locate').classList.remove('done'); // Reset the steps (in case of an earlier visit)
   document.getElementById('step-map').classList.remove('done'); // ...
+  document.getElementById('step-map').textContent = 'Loading detailed map'; // ...including the text, in case it showed an error before
   showPanel('panel-locating'); // Swap the landing panel for the locating panel
+
+  // Start loading the satellite map right away, hidden, so it loads while the globe turns.
+  // We don't "await" it yet. ".then" turns the result into true (it worked) or false (it failed),
+  // so a failure can't go unnoticed while we're busy with the globe.
+  const mapReady = showPlace(mapContainer, place.lon, place.lat).then(
+    () => true, // Loaded fine
+    (error) => { // Something went wrong (e.g. no WebGL in this browser):
+      console.error(error); // print the details in the developer console (F12)
+      return false; // and report failure
+    }, // End of the failure handler
+  ); // End of mapReady
 
   // Stage 1: lock the globe, then turn and zoom to a regional view
   globe.setInteractive(false); // No dragging or clicking while we zoom
@@ -83,7 +110,20 @@ async function selectPlace(place) {
   document.getElementById('callout-coords').textContent = formatCoords(place.lon, place.lat); // The coordinates
   document.getElementById('callout').classList.add('visible'); // Fade the callout in
 
-  // Next step (3b): load the detailed map here, then crossfade to it
+  // Wait for two things at the same time: the map being ready, and the callout's minimum reading time
+  const [mapLoaded] = await Promise.all([mapReady, wait(MIN_CALLOUT_MS)]); // Promise.all waits until both are done; we keep the first result (true/false)
+  if (!mapLoaded) { // The map couldn't load:
+    document.getElementById('step-map').textContent = "The detailed map couldn't load in this browser."; // Say so in the panel
+    return; // And stop here, staying on the globe
+  } // End of the failure check
+  document.getElementById('step-map').classList.add('done'); // Tick off step 2
+
+  // Stage 2: crossfade from the globe to the map
+  document.getElementById('callout').classList.remove('visible'); // Fade the callout out
+  stage.classList.add('show-map'); // Fade the globe out and the map in (the fading is done by style.css)
+  await wait(CROSSFADE_MS); // Wait until the crossfade has finished
+  globe.setVisible(false); // The globe is now hidden: stop drawing it, to save battery
+  mode = 'result'; // We're now showing the result
 } // End of selectPlace
 
 // ---------- Place buttons ----------

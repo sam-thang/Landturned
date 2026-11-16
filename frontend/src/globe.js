@@ -72,6 +72,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
   let turn = null; // The turn in progress, or null when not turning
   let focused = false; // True once a place has been chosen; the globe then stops spinning by itself
   let interactive = true; // False while the app is busy (e.g. zooming to a place): dragging, hovering, and clicking are ignored
+  let visible = true; // False while the globe is hidden behind the map; then we skip drawing to save battery
 
   // Match the canvas's pixel size to its size on screen, then redraw
   function resize() {
@@ -226,7 +227,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
       if (view.lon < -180) view.lon += 360; // Keep longitude between -180 and 180 (going past -180° wraps around to +180°)
     } // End of the spin check
 
-    draw(time); // Paint the globe in its new position
+    if (visible) draw(time); // Paint the globe in its new position, unless it's hidden
     requestAnimationFrame(frame); // Ask the browser to run "frame" again at the next screen refresh
   } // End of frame
 
@@ -315,5 +316,10 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
   window.addEventListener('resize', resize); // Whenever the browser window changes size, resize and redraw
   resize(); // Size and draw the globe for the first time
   requestAnimationFrame(frame); // Start the animation loop
-  return { turnTo, setInteractive }; // Hand back these functions so main.js can use them
+  // Tell the globe whether it can be seen (true) or is hidden behind the map (false)
+  function setVisible(value) {
+    visible = value; // Remember it; the frame loop skips drawing while hidden
+  } // End of setVisible
+
+  return { turnTo, setInteractive, setVisible }; // Hand back these functions so main.js can use them
 } // End of startGlobe
