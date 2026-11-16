@@ -82,6 +82,7 @@ Not part of the first version, so don't build these yet:
 - "New construction sites found" stat (grouping changed pixels into separate sites)
 - Share screen (download image, PDF summary, copy link)
 - Long view era (GLC_FCS30D, 1985 to 2016)
+- Replace the placeholder hotspot list (`frontend/src/places.js`, copied from the mockup) with verified places that show strong change since 2017
 
 ### Purpose
 

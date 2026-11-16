@@ -12,6 +12,8 @@
     <div class="app"> <!-- The whole app: the globe area and the text panel side by side (or stacked on phones) -->
       <div class="stage"> <!-- The big picture area where the globe is drawn -->
         <canvas id="globe" class="globe" role="img" aria-label="Globe of the Earth"></canvas> <!-- A drawing surface; globe.js paints the Earth on it. role/aria-label describe it for screen readers -->
+        <div id="teaser" class="teaser" hidden><strong></strong><small></small></div> <!-- The hover box for hotspots; globe.js fills in the name and teaser, and shows it -->
+
       </div> <!-- End of the stage -->
       <section class="panel"> <!-- The text panel: left side on computers, bottom on phones -->
         <p class="kicker">LANDTURN · SHEET 00 · WORLD</p> <!-- Small label above the headline, styled like a drawing sheet number -->

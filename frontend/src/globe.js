@@ -1,5 +1,8 @@
-// Bring in three tools from D3: the globe projection, a "path" drawer, and the latitude/longitude grid
-import { geoOrthographic, geoPath, geoGraticule10 } from 'd3';
+// Bring in four tools from D3: the globe projection, a "path" drawer, the latitude/longitude grid,
+// and a function that measures the distance between two places on the globe
+import { geoOrthographic, geoPath, geoGraticule10, geoDistance } from 'd3';
+// Bring in our list of hotspot places from places.js
+import { PLACES } from './places.js';
 // Bring in the tool that unpacks TopoJSON (the compact map format) into shapes D3 can draw
 import { feature } from 'topojson-client';
 // Bring in the world's land outlines (Natural Earth, 1:110 million scale) from the world-atlas package
@@ -24,14 +27,33 @@ const MAX_TILT = 70;
 // True if the user has asked their computer to reduce motion (an accessibility setting)
 const REDUCE_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-// Draw the globe on the given canvas. "export" lets main.js use this function.
-export function startGlobe(canvas) {
+// How long one hotspot "pulse" (a ring growing and fading) takes, in milliseconds
+const PULSE_MS = 1800;
+// How close (in pixels) the mouse must be to a hotspot to count as hovering over it
+const HOVER_RADIUS = 18;
+// Hotspots further than this from the center of the view are on the back of the globe and not drawn.
+// Measured in radians (an angle unit: 1.5 radians ≈ 86°; the globe's visible edge is at 90°).
+const MAX_VISIBLE_DISTANCE = 1.5;
+
+// Read the four change colors from the CSS tokens in style.css, so each color is defined in one place only
+const rootStyles = getComputedStyle(document.documentElement); // The final styles of the <html> element, where :root tokens live
+const CHANGE_COLORS = {
+  built: rootStyles.getPropertyValue('--built').trim(), // Orange; trim() removes spaces around the value
+  loss: rootStyles.getPropertyValue('--loss').trim(), // Red
+  gain: rootStyles.getPropertyValue('--gain').trim(), // Green
+  water: rootStyles.getPropertyValue('--water').trim(), // Blue
+}; // End of the change colors
+
+// Draw the globe on the given canvas, with a teaser box for hovered hotspots. "export" lets main.js use this function.
+export function startGlobe(canvas, teaser) {
   const context = canvas.getContext('2d'); // The "2D context" is the set of drawing tools for the canvas
   const projection = geoOrthographic() // The orthographic projection: the Earth as seen from far out in space
     .clipAngle(90) // Hide everything more than 90° from the center, i.e. the far side of the globe
     .precision(0.6); // How closely curved lines are followed (smaller = smoother but slower)
   const path = geoPath(projection, context); // A drawer that turns map shapes into lines on our canvas, using the projection
   const view = { ...START_VIEW }; // The current view; "..." makes a copy, so we can change it later without changing START_VIEW
+  let visibleHotspots = []; // The hotspots drawn in the last frame, with their screen positions, for hover checks
+  let hoveredPlace = null; // The place the mouse is currently over, or null for none
 
   // Match the canvas's pixel size to its size on screen, then redraw
   function resize() {
@@ -43,8 +65,8 @@ export function startGlobe(canvas) {
     draw(); // Redraw at the new size
   } // End of resize
 
-  // Paint the whole globe
-  function draw() {
+  // Paint the whole globe. "time" (milliseconds) drives the hotspot pulse; if it's not given, use the current time.
+  function draw(time = performance.now()) {
     const width = canvas.clientWidth; // The canvas width on screen, in CSS pixels
     const height = canvas.clientHeight; // The canvas height on screen
     const centerX = width / 2; // Horizontal middle of the canvas
@@ -95,7 +117,66 @@ export function startGlobe(canvas) {
     context.strokeStyle = 'rgba(220, 228, 238, 0.28)'; // Soft white edge
     context.lineWidth = 1; // 1 px line
     context.stroke(); // Draw it
+
+    // The hotspots: a dot plus a pulsing ring for each place on the front of the globe
+    visibleHotspots = []; // Start a fresh list for this frame
+    for (const place of PLACES) { // Go through the places one by one
+      const distance = geoDistance([place.lon, place.lat], [view.lon, view.lat]); // Angle between the place and the view center, in radians
+      if (distance > MAX_VISIBLE_DISTANCE) continue; // On the back of the globe: skip to the next place
+
+      const [x, y] = projection([place.lon, place.lat]); // Turn longitude/latitude into a screen position
+      const color = CHANGE_COLORS[place.type]; // The color for this place's type of change
+      const phase = (time / PULSE_MS + place.lon / 100) % 1; // Where this place is in its pulse, from 0 to 1; the longitude part offsets places so they don't all pulse together
+      const pulse = phase < 0 ? phase + 1 : phase; // Fix negative values (from western longitudes) so the pulse always runs 0 → 1
+
+      context.beginPath(); // Start the ring
+      context.arc(x, y, 3 + pulse * 16, 0, Math.PI * 2); // A circle that grows from 3 to 19 px over one pulse
+      context.strokeStyle = color; // Ring in the change color
+      context.globalAlpha = (1 - pulse) * 0.8; // Fade out as it grows (globalAlpha = see-through-ness of everything drawn next)
+      context.lineWidth = 1.2; // Thin ring
+      context.stroke(); // Draw the ring
+      context.globalAlpha = 1; // Back to fully solid for the next drawings
+
+      context.beginPath(); // Start the dot
+      context.arc(x, y, place === hoveredPlace ? 4.5 : 3, 0, Math.PI * 2); // A small dot, slightly bigger when hovered
+      context.fillStyle = color; // Dot in the change color
+      context.fill(); // Draw the dot
+
+      visibleHotspots.push({ place, x, y }); // Remember where we drew it, for hover checks
+    } // End of the places loop
   } // End of draw
+
+  // Find the visible hotspot nearest to a pointer event, or null if none is close enough
+  function hotspotAt(event) {
+    const rect = canvas.getBoundingClientRect(); // Where the canvas is on the page
+    const pointerX = event.clientX - rect.left; // Pointer position measured from the canvas's left edge
+    const pointerY = event.clientY - rect.top; // Pointer position measured from the canvas's top edge
+    let nearest = null; // The best match so far (none yet)
+    let nearestDistance = HOVER_RADIUS; // Only count hotspots closer than this many pixels
+    for (const hotspot of visibleHotspots) { // Check every visible hotspot
+      const d = Math.hypot(hotspot.x - pointerX, hotspot.y - pointerY); // Straight-line distance in pixels (Pythagoras)
+      if (d < nearestDistance) { // Closer than anything found so far?
+        nearest = hotspot; // Then it's the new best match
+        nearestDistance = d; // And this is the distance to beat
+      } // End of the closer check
+    } // End of the hotspot loop
+    return nearest; // The nearest hotspot, or null
+  } // End of hotspotAt
+
+  // Show the teaser box next to a hotspot, or hide it when given null
+  function showTeaser(hotspot) {
+    hoveredPlace = hotspot ? hotspot.place : null; // Remember which place is hovered (makes its dot bigger)
+    canvas.classList.toggle('over-hotspot', hotspot !== null); // Pointing-hand cursor only while over a hotspot
+    if (!hotspot) { // No hotspot:
+      teaser.hidden = true; // hide the box
+      return; // and stop here
+    } // End of the no-hotspot check
+    teaser.querySelector('strong').textContent = hotspot.place.name; // Fill in the place name
+    teaser.querySelector('small').textContent = hotspot.place.teaser; // Fill in the "before → after" line
+    teaser.style.left = `${hotspot.x + 14}px`; // Put the box 14 px right of the dot
+    teaser.style.top = `${hotspot.y - 12}px`; // ...and slightly above it
+    teaser.hidden = false; // Show the box
+  } // End of showTeaser
 
   // ---------- Spinning ----------
 
@@ -113,7 +194,7 @@ export function startGlobe(canvas) {
       if (view.lon < -180) view.lon += 360; // Keep longitude between -180 and 180 (going past -180° wraps around to +180°)
     } // End of the spin check
 
-    draw(); // Paint the globe in its new position
+    draw(time); // Paint the globe in its new position
     requestAnimationFrame(frame); // Ask the browser to run "frame" again at the next screen refresh
   } // End of frame
 
@@ -128,11 +209,15 @@ export function startGlobe(canvas) {
     lastPointer = [event.clientX, event.clientY]; // Remember where the pointer started
     canvas.setPointerCapture(event.pointerId); // Keep receiving moves even if the pointer leaves the canvas while dragging
     canvas.classList.add('dragging'); // Switch to the "grabbing hand" cursor (see style.css)
+    showTeaser(null); // Hide the teaser while dragging
   }); // End of pointerdown
 
   // When the pointer moves
   canvas.addEventListener('pointermove', (event) => {
-    if (!dragging) return; // Ignore moves when no button or finger is held down
+    if (!dragging) { // Not dragging, just moving the mouse over the globe:
+      showTeaser(hotspotAt(event)); // show the teaser if we're near a hotspot, hide it if not
+      return; // and stop here
+    } // End of the not-dragging check
     const dx = event.clientX - lastPointer[0]; // How far it moved left/right since last time, in pixels
     const dy = event.clientY - lastPointer[1]; // How far it moved up/down since last time
     view.lon -= dx * DRAG_DEGREES_PER_PIXEL; // Dragging right brings places from the west into view
@@ -148,6 +233,7 @@ export function startGlobe(canvas) {
   } // End of stopDragging
   canvas.addEventListener('pointerup', stopDragging); // Run stopDragging when the button or finger is lifted
   canvas.addEventListener('pointercancel', stopDragging); // ...or when the system cancels the drag
+  canvas.addEventListener('pointerleave', () => showTeaser(null)); // Hide the teaser when the mouse leaves the globe
 
   window.addEventListener('resize', resize); // Whenever the browser window changes size, resize and redraw
   resize(); // Size and draw the globe for the first time

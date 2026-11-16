@@ -65,6 +65,11 @@ body {
   touch-action: none; /* On touch screens, let dragging turn the globe instead of scrolling the page */
 } /* End of the globe rule */
 
+/* While the mouse is over a hotspot (globe.js adds the "over-hotspot" class) */
+.globe.over-hotspot {
+  cursor: pointer; /* Pointing hand, to hint the hotspot can be clicked (clicking comes in a later step) */
+} /* End of the over-hotspot rule */
+
 /* While the globe is being dragged (globe.js adds the "dragging" class) */
 .globe.dragging {
   cursor: grabbing; /* Show a closed, grabbing hand */
@@ -96,6 +101,39 @@ body {
     padding: 32px 28px; /* A little more space inside on big screens */
   } /* End of the wide-screen panel rule */
 } /* End of the wide-screen rules */
+
+/* The teaser box that appears next to a hovered hotspot */
+.teaser {
+  position: absolute; /* Placed at an exact spot inside the stage (globe.js sets left and top) */
+  pointer-events: none; /* Let the mouse "see through" it to the globe, so hovering keeps working */
+  padding: 6px 9px; /* Space inside the box */
+  background: rgba(10, 12, 15, 0.92); /* Almost solid dark background */
+  border: 1px solid var(--line); /* Thin outline */
+  font-size: 13px; /* Small text */
+  white-space: nowrap; /* Keep each line on one line, never wrap */
+} /* End of the teaser rule */
+
+/* The place name and teaser line each go on their own line */
+.teaser strong,
+.teaser small {
+  display: block; /* Each on its own line */
+} /* End of the teaser lines rule */
+
+/* The place name */
+.teaser strong {
+  font-weight: 500; /* Medium weight, matching the headline */
+} /* End of the place name rule */
+
+/* The "before → after" line */
+.teaser small {
+  font-size: 12px; /* A bit smaller */
+  color: var(--muted); /* Grey */
+} /* End of the teaser line rule */
+
+/* Make the "hidden" attribute always win, even over display rules above */
+[hidden] {
+  display: none !important; /* "!important" beats any other display rule */
+} /* End of the hidden rule */
 
 /* ---------- Panel text ---------- */
 
