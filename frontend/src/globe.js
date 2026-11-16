@@ -316,10 +316,19 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
   window.addEventListener('resize', resize); // Whenever the browser window changes size, resize and redraw
   resize(); // Size and draw the globe for the first time
   requestAnimationFrame(frame); // Start the animation loop
+  // Zoom back out to the whole globe, then unlock it and let it spin again.
+  // Returns a Promise that is fulfilled once the globe is ready to use.
+  async function reset() {
+    await turnTo(view.lon, START_VIEW.lat, 1); // Keep the longitude, tilt back to the starting latitude, zoom back to 1 (whole globe)
+    focused = false; // No place chosen any more: spinning is allowed again
+    lastInteraction = performance.now(); // Count from now, so the spin starts after the usual pause
+    setInteractive(true); // Dragging, hovering, and clicking work again
+  } // End of reset
+
   // Tell the globe whether it can be seen (true) or is hidden behind the map (false)
   function setVisible(value) {
     visible = value; // Remember it; the frame loop skips drawing while hidden
   } // End of setVisible
 
-  return { turnTo, setInteractive, setVisible }; // Hand back these functions so main.js can use them
+  return { turnTo, reset, setInteractive, setVisible }; // Hand back these functions so main.js can use them
 } // End of startGlobe

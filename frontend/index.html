@@ -52,6 +52,12 @@
             <li id="step-map">Loading detailed map</li> <!-- Step 2: the satellite map loads (next step, 3b) -->
           </ol> <!-- End of the steps -->
         </div> <!-- End of the locating section -->
+        <div id="panel-result" hidden> <!-- Panel contents once the map is shown; hidden until then -->
+          <button id="back" class="back" type="button">← New place</button> <!-- Goes back to the globe to choose another place -->
+          <p id="result-kicker" class="kicker"></p> <!-- Coordinates and period, e.g. "34.0920° N, 117.4350° W · 2017 → TODAY" -->
+          <h2 id="result-name" class="reveal"></h2> <!-- The place name; later this becomes the reveal sentence -->
+          <p class="note">Change figures will appear here once the analysis backend is built.</p> <!-- Placeholder until real numbers exist -->
+        </div> <!-- End of the result section -->
       </section> <!-- End of the panel -->
     </div> <!-- End of the app -->
     <script type="module" src="/src/main.js"></script> <!-- Load our JavaScript; "module" lets it use import statements -->

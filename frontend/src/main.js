@@ -50,7 +50,7 @@ function wait(ms) {
 
 // Show one panel section (by its id) and hide the others
 function showPanel(id) {
-  for (const sectionId of ['panel-landing', 'panel-locating']) { // Go through all panel sections
+  for (const sectionId of ['panel-landing', 'panel-locating', 'panel-result']) { // Go through all panel sections
     document.getElementById(sectionId).hidden = sectionId !== id; // Hide every section except the chosen one
   } // End of the sections loop
 } // End of showPanel
@@ -65,7 +65,8 @@ const MIN_CALLOUT_MS = 1200;
 // How long the crossfade from globe to map takes; must match the 0.9 s transitions in style.css
 const CROSSFADE_MS = 900;
 
-// Which state the app is in: 'landing' (choosing a place), 'locating' (zooming in and loading), or 'result' (map shown)
+// Which state the app is in: 'landing' (choosing a place), 'locating' (zooming in and loading),
+// 'result' (map shown), or 'returning' (going back to the globe)
 let mode = 'landing';
 
 const stage = document.querySelector('.stage'); // The picture area holding the globe and the map
@@ -118,13 +119,34 @@ async function selectPlace(place) {
   } // End of the failure check
   document.getElementById('step-map').classList.add('done'); // Tick off step 2
 
-  // Stage 2: crossfade from the globe to the map
+  // Fill in the result panel
+  document.getElementById('result-kicker').textContent = `${formatCoords(place.lon, place.lat)} · 2017 → TODAY`; // Coordinates and period
+  document.getElementById('result-name').textContent = place.name; // The place name as the heading
+
+  // Stage 2: crossfade from the globe to the map, and switch the panel at the same time
   document.getElementById('callout').classList.remove('visible'); // Fade the callout out
   stage.classList.add('show-map'); // Fade the globe out and the map in (the fading is done by style.css)
+  showPanel('panel-result'); // Swap the locating panel for the result panel
+  document.getElementById('back').focus(); // Move keyboard focus to "← New place", so keyboard users land somewhere useful
   await wait(CROSSFADE_MS); // Wait until the crossfade has finished
   globe.setVisible(false); // The globe is now hidden: stop drawing it, to save battery
   mode = 'result'; // We're now showing the result
 } // End of selectPlace
+
+// ---------- Going back to the globe ----------
+
+// When "← New place" is clicked
+document.getElementById('back').addEventListener('click', async () => {
+  if (mode !== 'result') return; // Only works once the result is fully shown
+  mode = 'returning'; // We're busy going back: ignore place clicks until we're done
+  showPanel('panel-landing'); // Show the landing panel again (headline, search, place buttons)
+  document.getElementById('address').focus(); // Put the cursor in the search box, ready to type
+  globe.setVisible(true); // Start drawing the globe again (it's still zoomed in on the place)
+  stage.classList.remove('show-map'); // Fade the map out and the globe in
+  await wait(CROSSFADE_MS); // Wait until the crossfade has finished
+  await globe.reset(); // Zoom out to the whole globe and unlock it
+  mode = 'landing'; // Ready for a new place
+}); // End of the back button handler
 
 // ---------- Place buttons ----------
 

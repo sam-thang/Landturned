@@ -333,6 +333,48 @@ h1 {
   color: var(--gain); /* Green, the "gain" change color */
 } /* End of the check mark rule */
 
+/* ---------- Result panel ---------- */
+
+/* The "← New place" button: looks like a quiet text link */
+.back {
+  margin-bottom: 16px; /* Space below */
+  padding: 0; /* No padding, so it lines up with the text below */
+  background: none; /* No button background */
+  border: 0; /* No button border */
+  color: var(--muted); /* Grey */
+  font: inherit; /* Same font as the panel */
+  font-size: 13px; /* Small */
+  cursor: pointer; /* Pointing hand on hover */
+} /* End of the back button rule */
+
+/* The back button when hovered */
+.back:hover {
+  color: var(--ink); /* Brighter */
+} /* End of the hover rule */
+
+/* Blue outline for keyboard users */
+.back:focus-visible {
+  outline: 2px solid var(--water); /* Blue outline */
+  outline-offset: 2px; /* A small gap around the button */
+} /* End of the focus rule */
+
+/* The large heading (the place name now, the reveal sentence later) */
+.reveal {
+  margin: 10px 0 22px; /* Space above and below */
+  font-size: clamp(24px, 5vw, 30px); /* 5% of the window width, between 24 and 30 px */
+  font-weight: 500; /* Medium weight */
+  line-height: 1.15; /* Fairly tight line spacing */
+  letter-spacing: -0.01em; /* Letters very slightly closer together */
+} /* End of the reveal rule */
+
+/* Small print, such as the placeholder note */
+.note {
+  margin: 0; /* No default paragraph spacing */
+  font-size: 12px; /* Small */
+  line-height: 1.5; /* Comfortable line spacing */
+  color: var(--faint); /* Dark grey: least important text */
+} /* End of the note rule */
+
 /* ---------- Search ---------- */
 
 /* The search form: text box and button side by side, with square corners like a drawing */
