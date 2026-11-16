@@ -4,15 +4,21 @@
     <meta charset="UTF-8" /> <!-- Use UTF-8 text encoding so all characters (å, ø, é...) display correctly -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!-- Make the page fit phone screens instead of shrinking a desktop layout -->
     <title>Landturn</title> <!-- The name shown in the browser tab -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" /> <!-- Start connecting to Google Fonts early, so the fonts arrive sooner -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /> <!-- Same for the server that holds the actual font files -->
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" /> <!-- Load the two mockup fonts; "display=swap" shows a standard font until they arrive -->
   </head> <!-- End of the head -->
   <body> <!-- The body holds everything you see on the page -->
-    <form id="search" class="search"> <!-- The search form; its id lets our JavaScript find it later -->
-      <input id="address" type="text" placeholder="Enter any address" aria-label="Address" /> <!-- The text box; the placeholder is the grey hint text, and aria-label names it for screen readers -->
-      <button type="submit">Show changes</button> <!-- The button; "submit" means clicking it (or pressing Enter) sends the form -->
-    </form> <!-- End of the search form -->
-    <p id="search-message" class="search-message" hidden></p> <!-- An empty message area under the search box; "hidden" keeps it invisible until there's something to say -->
-    <div id="cover" class="cover" aria-live="polite">Loading imagery…</div> <!-- Dark cover shown while the map moves; aria-live makes screen readers announce it -->
-    <div id="map"></div> <!-- An empty box with the id "map"; MapLibre will draw the map inside it -->
+    <div class="app"> <!-- The whole app: the globe area and the text panel side by side (or stacked on phones) -->
+      <div class="stage"> <!-- The big picture area where the globe is drawn -->
+        <canvas id="globe" class="globe" role="img" aria-label="Globe of the Earth"></canvas> <!-- A drawing surface; globe.js paints the Earth on it. role/aria-label describe it for screen readers -->
+      </div> <!-- End of the stage -->
+      <section class="panel"> <!-- The text panel: left side on computers, bottom on phones -->
+        <p class="kicker">LANDTURN · SHEET 00 · WORLD</p> <!-- Small label above the headline, styled like a drawing sheet number -->
+        <h1>Every place on Earth has turned.</h1> <!-- The main headline -->
+        <p class="lede">Enter any address to see how its land changed since 2017: what was built, what was cleared, what went under water.</p> <!-- The intro text ("lede" is a newspaper word for the opening lines) -->
+      </section> <!-- End of the panel -->
+    </div> <!-- End of the app -->
     <script type="module" src="/src/main.js"></script> <!-- Load our JavaScript; "module" lets it use import statements -->
   </body> <!-- End of the visible content -->
 </html> <!-- End of the page -->

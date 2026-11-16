@@ -71,7 +71,7 @@ These override the mockup where the two differ:
   1. The globe turns and zooms only to a regional view and shows a coordinate callout.
   2. Meanwhile, the detailed MapLibre map loads hidden at the location, and the backend computes the change. When MapLibre fires its `idle` event, crossfade from the globe to the map.
   - Never fly MapLibre from world zoom down to street level.
-- **Reveal:** one sentence leads the results, e.g. "Since 1985, Fontana turned X hectares of open land into buildings within 1 km."
+- **Reveal:** one sentence leads the results, e.g. "Since 1985, Fontana turned X hectares of open land into buildings within 1 km." Until the long view era (GLC_FCS30D) is built, all app text says "since 2017" instead of "since 1985".
 - **Timeline:** from 1985 to the latest available year. The coarse 30 m era (GLC_FCS30D) is visually marked. Before 2000 it moves in 5-year steps.
 - **Planning-drawing identity:** a title block with site, coordinates, period, and data source; a scale bar; a north arrow. The four change colors (red, green, orange, blue) are the only accent colors.
 
