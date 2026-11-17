@@ -12,8 +12,7 @@
   --built: #ffa01f; /* Orange: newly built (any land that became built) */
   --water: #3db8f5; /* Blue: new water */
   --sans: 'Space Grotesk', system-ui, sans-serif; /* Main font, with standard fonts as backups if it fails to load */
-  --mono: 'JetBrains Mono', ui-monospace, monospace; /* "Monospace" font (every letter equally wide) for labels and numbers, like on a technical drawing */
-} /* End of the design tokens */
+  --mono: 'JetBrains Mono', ui-monospace, monospace; /* "Monospace" font (every letter equally wide) for labels and numbers, like on a technical drawing */} /* End of the design tokens */
 
 /* ---------- Page ---------- */
 
@@ -490,6 +489,25 @@ h1 {
   letter-spacing: -0.02em; /* Letters slightly closer together */
 } /* End of the headline rule */
 
+/* The legend strip under the headline: four short bars in the change colors, like the legend on a site plan */
+.legend-strip {
+  display: flex; /* The four bars side by side */
+  gap: 3px; /* A small gap between bars, like separate legend swatches */
+  width: 112px; /* Short, so it reads as a drawing mark, not a divider line */
+  height: 3px; /* Thin */
+  margin: 0 0 14px; /* Space below, before the intro text */
+} /* End of the legend strip rule */
+
+/* One bar of the legend strip */
+.legend-strip i {
+  flex: 1; /* All four bars equally wide */
+} /* End of the bar rule */
+
+.legend-strip i:nth-child(1) { background: var(--built); } /* First bar: orange, newly built */
+.legend-strip i:nth-child(2) { background: var(--loss); } /* Second bar: red, green space cleared */
+.legend-strip i:nth-child(3) { background: var(--gain); } /* Third bar: green, green space gained */
+.legend-strip i:nth-child(4) { background: var(--water); } /* Fourth bar: blue, new water */
+
 /* The headline gets focus from code (after "← New place"), but it isn't something you act on, so no focus outline */
 h1:focus {
   outline: none; /* No outline around the headline */
@@ -800,3 +818,50 @@ h1:focus {
   outline: 2px solid var(--water); /* Blue outline */
   outline-offset: 2px; /* A small gap between the element and the outline */
 } /* End of the focus rule */
+
+/* ---------- Phone landing layout ---------- */
+/* This block sits at the end of the file on purpose: when two rules are equally specific, the later one wins,
+   so these phone rules override the normal h1, .search, and .places rules above. */
+/* Phones and small tablets (narrower than 900 px): make the landing panel short enough to fit below the globe without scrolling */
+@media (max-width: 899px) {
+  .sheet-label {
+    display: none; /* Hide "LANDTURN · SHEET 00 · WORLD" on phones: the headline says enough */
+  } /* End of the sheet label rule */
+
+  .panel {
+    padding: 16px 16px 12px; /* Less space inside the panel than the 20/28 px before (bottom trimmed most, measured to fit an iPhone 13) */
+  } /* End of the phone panel rule */
+
+  h1 {
+    margin: 0 0 10px; /* No space above the headline (it's now the first thing in the panel), a little less below */
+  } /* End of the phone headline rule */
+
+  .legend-strip {
+    margin-bottom: 10px; /* A little less space under the legend strip on phones */
+  } /* End of the phone legend strip rule */
+
+  .search {
+    margin: 12px 0; /* A little less space around the search box */
+  } /* End of the phone search rule */
+
+  /* The place buttons: one row you swipe sideways, instead of several wrapped lines */
+  .places {
+    flex-wrap: nowrap; /* Keep all buttons on one line */
+    overflow-x: auto; /* Let the line scroll sideways */
+    scroll-snap-type: x mandatory; /* After a swipe, settle neatly on a button's edge ("scroll snap") */
+    scrollbar-width: none; /* Hide the scrollbar (Firefox); swiping is the obvious way to use it */
+    margin: 10px -16px 0; /* Stretch 16 px past the panel's padding on both sides, so buttons slide all the way to the screen edge */
+    padding: 0 16px; /* ...but start the first button in line with the text above */
+    scroll-padding: 0 16px; /* Snap buttons to that same 16 px line, not to the very edge */
+    mask-image: linear-gradient(to right, #000 85%, transparent); /* Fade out the right edge, a hint that there's more to swipe to */
+  } /* End of the phone places rule */
+
+  .places::-webkit-scrollbar {
+    display: none; /* Hide the scrollbar (Safari and Chrome) */
+  } /* End of the hidden scrollbar rule */
+
+  .place-button {
+    flex: none; /* Never squeeze a button narrower to fit: keep its full width and let the row scroll */
+    scroll-snap-align: start; /* Each button's left edge is a place a swipe can settle */
+  } /* End of the phone place button rule */
+} /* End of the phone rules */
