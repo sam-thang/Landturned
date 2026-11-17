@@ -141,6 +141,17 @@ body {
   pointer-events: none; /* Never block dragging the map */
 } /* End of the marks group rule */
 
+/* The "ANALYSIS AREA · 2 × 2 KM" label, pinned just above the square's top-left corner (map.js adds it) */
+.area-label {
+  padding: 3px 6px; /* A little space around the text */
+  background: rgba(10, 12, 15, 0.7); /* Same dark backing as the north arrow and scale bar */
+  color: var(--ink); /* Off-white */
+  font: 10px / 1 var(--mono); /* Small mono text, like labels on a technical drawing; line height = font size, so the backing hugs the letters */
+  letter-spacing: 0.08em; /* Slightly spread out, like the other small capital labels */
+  white-space: nowrap; /* Always on one line */
+  pointer-events: none; /* Never block dragging the map */
+} /* End of the area label rule */
+
 /* ARROWHEAD: one solid shape */
 .north-arrow .north-head {
   fill: var(--ink); /* Solid off-white, same color as the scale bar */

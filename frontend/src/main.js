@@ -11,7 +11,7 @@ import { PLACES } from './places.js';
 // Bring in the address lookup function, from geocode.js
 import { geocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace } from './map.js';
+import { showPlace, showChange } from './map.js';
 
 // ---------- Globe ----------
 
@@ -142,11 +142,11 @@ async function selectPlace(place) {
 
   // Wait for three things at the same time: the map, the change steps, and the callout's minimum reading time
   const [mapLoaded, change] = await Promise.all([mapReady, changeDone, wait(MIN_CALLOUT_MS)]); // Promise.all waits until all are done; we keep the first two results
-  console.log('Change data:', change); // For now, print the backend's answer in the developer console (F12); B6b and B6c will show it on the map and in the panel
   if (!mapLoaded) { // The map couldn't load:
     document.getElementById('step-map').textContent = "The detailed map couldn't load in this browser."; // Say so in the panel
     return; // And stop here, staying on the globe
   } // End of the failure check
+  showChange(change); // Draw the change picture and the square's outline on the (still hidden) map; with no data, just clear the old one
   await wait(HOLD_MS); // Everything is done: pause briefly so people see all steps completed
 
   // Fill in the result panel

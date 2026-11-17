@@ -88,6 +88,7 @@ Not part of the first version, so don't build these yet:
 - Share screen (download image, PDF summary, copy link)
 - Long view era (GLC_FCS30D, 1985 to 2016)
 - Replace the placeholder hotspot list (`frontend/src/places.js`, copied from the mockup) with verified places that show strong change since 2017
+- "Analyse this area" button: when people pan away so the analysis square is mostly off-screen, offer to re-run the analysis for the new map center (like "Search this area" on Google Maps). Never recalculate automatically on every map move: each analysis takes seconds, and jumping numbers would confuse people
 
 ### Purpose
 
