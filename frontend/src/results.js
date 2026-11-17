@@ -8,8 +8,8 @@ function formatHa(hectares) {
   return hectares.toFixed(1); // toFixed(1) rounds to one decimal place
 } // End of formatHa
 
-// Make a highlighted number for the reveal sentence, e.g. "17.9 hectares" in orange.
-// Built as an element (not as HTML text), so nothing in it can ever run as code.
+// Make a highlighted number for the reveal sentence, e.g. "17.9 hectares" in orange
+// (the same color as that change on the map). Built as an element (not as HTML text), so nothing in it can ever run as code.
 function highlight(hectares, colorVar) {
   const b = document.createElement('b'); // A new <b> (bold) element
   b.textContent = `${formatHa(hectares)} hectares`; // Its text, e.g. "17.9 hectares"

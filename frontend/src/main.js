@@ -148,7 +148,7 @@ async function selectPlace(place) {
     document.getElementById('step-map').textContent = "The detailed map couldn't load in this browser."; // Say so in the panel
     return; // And stop here, staying on the globe
   } // End of the failure check
-  showChange(change); // Draw the change picture and the square's outline on the (still hidden) map; with no data, just clear the old one
+  await showChange(change); // Draw the change layer, turn the (still hidden) map grid-up, and wait for any new imagery; with no data, just clear the old drawing
   await wait(HOLD_MS); // Everything is done: pause briefly so people see all steps completed
 
   // Fill in the result panel

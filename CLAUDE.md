@@ -77,7 +77,7 @@ These override the mockup where the two differ:
 - **Timeline:** from 1985 to the latest available year. The coarse 30 m era (GLC_FCS30D) is visually marked. Before 2000 it moves in 5-year steps.
 - **Planning-drawing identity:** a title block with site, coordinates, period, and data source; a scale bar; a north arrow. The four change colors (red, green, orange, blue) are the only accent colors.
 - **No locator globe:** a small "key map" globe was built and dropped (2026-11-16). It looked out of place on desktop and phone, and on desktop it falsely invited dragging. Don't propose it again; the globe-to-map transition and the panel's coordinates already give location context.
-- **North-up map:** the MapLibre map is locked north-up (no rotation or tilt), like a plan sheet, so the north arrow always points up.
+- **Grid-up map:** the analysis square comes from the UTM grid, whose "up" differs slightly from true north (grid convergence: about 0.3° in California, about 3° in Stavanger). The map is turned so the square always sits straight, and the north arrow turns with it so it always points to true north, like a site plan drawn square to its site. People can't rotate or tilt the map themselves.
 - **Honest progress:** the loading steps and progress bar follow real events (globe turn finished, map tiles loaded, later the backend result), never fake timers. A short hold after the last step lets people see it complete before the crossfade.
 
 ### Later features

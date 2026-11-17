@@ -93,8 +93,9 @@ export async function showPlace(container, lon, lat) {
     map.on('move', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // Whenever the map moves or zooms, redraw the scale bar
     map.on('resize', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // ...and when the map changes size (e.g. a phone turned sideways), since the maximum bar length depends on the width
     updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
+    map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
   } else { // The map already exists: move it straight to the new square
-    map.fitBounds(bounds, { padding: FIT_PADDING, animate: false }); // Jump, don't fly (this also fires "move", which updates the scale bar)
+    map.fitBounds(bounds, { padding: FIT_PADDING, animate: false, bearing: 0 }); // Jump, don't fly, and start north-up again (showChange turns it to grid-up later); this also fires "move", which updates the scale bar
   } // End of the create-or-move check
 
   await waitForIdle(); // Wait for the imagery to finish loading
@@ -119,13 +120,43 @@ function clearChange() {
   areaLabel = null; // And forget it
 } // End of clearChange
 
-// Draw the backend's change picture on the map, plus a thin outline of the analysis square.
+// ---------- Grid-up: turn the map so the analysis square sits straight ----------
+
+// Turn the north arrow so it always points to true north, whatever the map's turn.
+// MapLibre's "bearing" is the compass direction at the top of the screen (in degrees, clockwise from north).
+// If the map is turned by some bearing, true north is that many degrees the other way, so the arrow turns by minus the bearing.
+function updateNorthArrow() {
+  const arrow = document.querySelector('.north-arrow'); // The north arrow drawing
+  arrow.style.transform = `rotate(${-map.getBearing()}deg)`; // Turn it by minus the bearing (CSS rotate: positive = clockwise)
+} // End of updateNorthArrow
+
+// Work out how much the analysis square is tilted, as a map bearing that would make it sit straight.
+// The square comes from the UTM grid, whose "up" is turned slightly from true north ("grid convergence").
+function gridBearing(corners) {
+  const [topLeft, topRight] = corners; // The two top corners, as [lon, lat]
+  const latRadians = (topLeft[1] * Math.PI) / 180; // The latitude in radians, which Math.cos needs
+  const dx = (topRight[0] - topLeft[0]) * Math.cos(latRadians); // How far right the top edge goes (degrees of longitude shrink toward the poles, so multiply by cos(latitude))
+  const dy = topRight[1] - topLeft[1]; // How far up the top edge goes (positive = the right end is further north)
+  const tilt = (Math.atan2(dy, dx) * 180) / Math.PI; // The top edge's angle in degrees (atan2 turns "right dx, up dy" into an angle; positive = tilted counter-clockwise)
+  return -tilt; // Turning the map clockwise by the tilt levels the edge, which in MapLibre's terms is a bearing of minus the tilt
+} // End of gridBearing
+
+// Draw the backend's change picture on the map, plus the dimmed outside, the outline, and the label,
+// and turn the map so the square sits straight ("grid-up").
 // "change" is the backend's answer, or null if there is none (then only the old drawing is removed).
-export function showChange(change) {
+// Returns a Promise that finishes when the turned map has loaded all its imagery.
+export async function showChange(change) {
   clearChange(); // Remove the previous place's drawing first
-  if (!change) return; // No change data: leave the map without a change layer
+  if (!change) return; // No change data: leave the map north-up, without a change layer
 
   const corners = change.image.corners; // The square's four corners as [lon, lat]: top-left, top-right, bottom-right, bottom-left
+
+  // Turn the map and fit the square on screen again. cameraForBounds works out the center and zoom
+  // that fit a box with the given bearing and padding; jumpTo moves there at once (no animation).
+  const lons = corners.map((c) => c[0]); // All four longitudes
+  const lats = corners.map((c) => c[1]); // All four latitudes
+  const box = [[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]]; // The smallest north-up box around the square: [[west, south], [east, north]]
+  map.jumpTo(map.cameraForBounds(box, { bearing: gridBearing(corners), padding: FIT_PADDING })); // Turn and fit (this fires "rotate", which turns the north arrow)
 
   // The "mask": a huge dark shape covering the whole world, with the square cut out as a hole.
   // Everything outside the square is dimmed, so the analyzed area stands out (like the site on a planning drawing).
@@ -183,4 +214,6 @@ export function showChange(change) {
   areaLabel = new maplibre.Marker({ element: label, anchor: 'bottom-left', offset: [-1, -5] }) // Pin the label's bottom-left corner, nudged 5 px up so it sits just above the line
     .setLngLat(corners[0]) // ...to the square's top-left corner
     .addTo(map); // ...and put it on the map
+
+  await waitForIdle(); // Turning the map can reveal a little new ground at the edges: wait until its imagery has loaded too
 } // End of showChange
