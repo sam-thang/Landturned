@@ -72,6 +72,7 @@ export async function showPlace(container, lon, lat) {
       pitchWithRotate: false, // No tilting the map while dragging
       touchPitch: false, // No tilting with two fingers on touch screens
       maxPitch: 0, // Never allow any tilt: always look straight down, like a plan
+      bearingSnap: 0, // Turn off MapLibre's "snap to north": by default, after any drag it snaps a map turned less than 7° back to exactly north, which undid our small grid-up turn
       attributionControl: false, // Hide MapLibre's own white credit box; we show the imagery credit ourselves, in our style (see .map-credit in index.html)
       style: { // What the map shows: its data sources and how to draw them
         version: 8, // The version of MapLibre's style format
