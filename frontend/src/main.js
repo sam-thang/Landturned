@@ -54,6 +54,31 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms)); // Finish the Promise after ms milliseconds
 } // End of wait
 
+// ---------- The place in the web address ----------
+// The chosen place is kept in the address, e.g. "/?lat=33.97470&lon=-117.56650&name=Eastvale". So if the page is
+// reloaded (phones often do this after the browser was in the background), or the link is shared, the same place opens.
+
+// Write a place into the address bar. replaceState changes the address without reloading the page or adding a "back" step.
+function setUrlPlace(place) {
+  const params = new URLSearchParams({ lat: place.lat.toFixed(5), lon: place.lon.toFixed(5), name: place.name }); // Build "lat=...&lon=...&name=..." safely (spaces and commas get encoded)
+  history.replaceState(null, '', `?${params}`); // Put it in the address bar
+} // End of setUrlPlace
+
+// Remove the place from the address bar, back to the plain landing page address
+function clearUrlPlace() {
+  history.replaceState(null, '', location.pathname); // Just the path (e.g. "/"), without the "?..." part
+} // End of clearUrlPlace
+
+// Read a place from the address bar. Returns the place, or null if there is none (or the numbers don't make sense).
+function placeFromUrl() {
+  const params = new URLSearchParams(location.search); // The "?..." part of the address, split into named values
+  if (!params.has('lat') || !params.has('lon')) return null; // No place in the address
+  const lat = Number(params.get('lat')); // Turn the text into a number (NaN, "not a number", if it isn't one)
+  const lon = Number(params.get('lon')); // Same for the longitude
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null; // Not real coordinates: ignore them
+  return { name: params.get('name') || formatCoords(lon, lat), lon, lat }; // The place; without a name, use its coordinates as the name
+} // End of placeFromUrl
+
 // Show one panel section (by its id) and hide the others
 function showPanel(id) {
   for (const sectionId of ['panel-landing', 'panel-locating', 'panel-result']) { // Go through all panel sections
@@ -86,6 +111,7 @@ async function selectPlace(place) {
   if (mode !== 'landing') return; // Already busy with a place: ignore extra clicks
   mode = 'locating'; // Now we're busy
   hideMessage(); // Clear any old message
+  setUrlPlace(place); // Put the place in the address bar right away, so a reload during loading also comes back here
 
   // Fill in and show the "locating" panel
   document.getElementById('locating-name').textContent = place.name; // The place name
@@ -182,6 +208,7 @@ creditToggle.addEventListener('click', () => {
 document.getElementById('back').addEventListener('click', async () => {
   if (mode !== 'result') return; // Only works once the result is fully shown
   mode = 'returning'; // We're busy going back: ignore place clicks until we're done
+  clearUrlPlace(); // Back to the plain address, so a reload now opens the landing page
   showPanel('panel-landing'); // Show the landing panel again (headline, search, place buttons)
   document.querySelector('.panel').scrollTop = 0; // Scroll the panel back to the top, so the landing page starts at the headline
   document.getElementById('landing-title').focus({ preventScroll: true }); // Move focus to the headline: screen readers announce it, Tab reaches the search box next, and phones don't pop up the keyboard (which focusing the search box would)
@@ -249,3 +276,8 @@ form.addEventListener('submit', async (event) => {
     searchButton.textContent = 'Show change'; // Put the normal text back
   } // End of try/catch/finally
 }); // End of the submit handler
+
+// ---------- Opening a place from the address ----------
+
+const startPlace = placeFromUrl(); // Is there a place in the address (after a reload, or from a shared link)?
+if (startPlace) selectPlace(startPlace); // Then go straight to it: the globe turns there and the result loads, as if it had been chosen

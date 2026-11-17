@@ -314,7 +314,11 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
     if (!value) showTeaser(null); // Hide any teaser box when locking
   } // End of setInteractive
 
-  window.addEventListener('resize', resize); // Whenever the browser window changes size, resize and redraw
+  // Watch the canvas's own box and resize whenever it changes size, for any reason. Listening only for the window
+  // resizing wasn't enough: on phones the globe area can change size without that event (e.g. Safari's toolbar
+  // sliding in after the page comes back from the background), which left the globe squeezed out of shape.
+  new ResizeObserver(resize).observe(canvas); // A ResizeObserver calls resize() whenever the canvas's size changes (and once at the start)
+  window.addEventListener('resize', resize); // Still also listen to the window: it covers the screen sharpness changing (e.g. moving the window to another monitor)
   resize(); // Size and draw the globe for the first time
   requestAnimationFrame(frame); // Start the animation loop
   // Zoom back out to the whole globe, then unlock it and let it spin again.
