@@ -78,6 +78,7 @@ These override the mockup where the two differ:
 - **Planning-drawing identity:** a title block with site, coordinates, period, and data source; a scale bar; a north arrow. The four change colors (red, green, orange, blue) are the only accent colors.
 - **No locator globe:** a small "key map" globe was built and dropped (2026-11-16). It looked out of place on desktop and phone, and on desktop it falsely invited dragging. Don't propose it again; the globe-to-map transition and the panel's coordinates already give location context.
 - **Grid-up map:** the analysis square comes from the UTM grid, whose "up" differs slightly from true north (grid convergence: about 0.3° in California, about 3° in Stavanger). The map is turned so the square always sits straight, and the north arrow turns with it so it always points to true north, like a site plan drawn square to its site. People can't rotate or tilt the map themselves.
+- **Verified hotspots:** every place in `frontend/src/places.js` is chosen by `backend/scripts/rank_places.py`, which runs the app's own analysis around candidates and nudges each square onto the change, and then checked by eye on its change picture. Teasers quote the real hectares. Reject places whose change is a classification error, not real change (e.g. Lima's desert settlements were labeled "rangeland" in 2017 and "built" in 2023). Under our color rule, forest → pasture is green → green and gets no color, so red places need land stripped bare (mines, earthworks).
 - **Honest progress:** the loading steps and progress bar follow real events (globe turn finished, map tiles loaded, later the backend result), never fake timers. A short hold after the last step lets people see it complete before the crossfade.
 
 ### Later features
@@ -87,7 +88,6 @@ Not part of the first version, so don't build these yet:
 - "New construction sites found" stat (grouping changed pixels into separate sites)
 - Share screen (download image, PDF summary, copy link)
 - Long view era (GLC_FCS30D, 1985 to 2016)
-- Replace the placeholder hotspot list (`frontend/src/places.js`, copied from the mockup) with verified places that show strong change since 2017
 - "Analyse this area" button: when people pan away so the analysis square is mostly off-screen, offer to re-run the analysis for the new map center (like "Search this area" on Google Maps). Never recalculate automatically on every map move: each analysis takes seconds, and jumping numbers would confuse people
 
 ### Purpose

@@ -21,9 +21,49 @@ from app import change_image, landcover  # Our own code: the change picture (app
 # "gained" (green: non-green -> green) or "water" (blue).
 # The coordinates are rough starting points; the nudging below searches around them.
 CANDIDATES = [
+    # --- Built (orange): new factories, districts, and cities ---
     ("giga_texas", "Tesla Giga Texas, Austin", 30.222, -97.617, "built"),  # Car factory built 2020-2022 on former farmland and gravel pits
+    ("giga_berlin", "Tesla Giga Berlin, Germany", 52.396, 13.792, "built"),  # Car factory built 2020-2022 in a pine plantation
+    ("tsmc_arizona", "TSMC chip plant, Phoenix", 33.752, -112.150, "built"),  # Chip factory built 2021-2023 on desert land
+    ("egypt_capital", "New Administrative Capital, Egypt", 30.015, 31.710, "built"),  # A whole new capital city built in the desert since 2016
+    ("xiongan", "Xiong'an New Area, China", 38.990, 115.930, "built"),  # A new city on farmland, announced 2017
+    ("moreno_valley", "Moreno Valley, California", 33.915, -117.135, "built"),  # Inland Empire: huge warehouse district on former farmland
+    ("ontario_ranch", "Ontario Ranch, California", 33.965, -117.580, "built"),  # Inland Empire: former dairy farms turned into suburbs
+    ("hcmc_east", "Ho Chi Minh City east, Vietnam", 10.840, 106.840, "built"),  # New high-rise district on former fields
+    ("purbachal", "Purbachal, Dhaka, Bangladesh", 23.850, 90.530, "built"),  # Planned new town on former wetlands and fields
+    ("jewar_airport", "Noida International Airport, India", 28.170, 77.610, "built"),  # New airport on farmland, built 2021-2024
+    ("navi_mumbai_airport", "Navi Mumbai Airport, India", 18.990, 73.070, "built"),  # New airport on flattened hills and wetlands
+    ("morowali", "Morowali nickel park, Indonesia", -2.820, 122.150, "built"),  # Nickel smelters spreading over forest
+    # --- Cleared (red): green land stripped to bare ground ---
+    ("novo_progresso", "Novo Progresso, Brazil", -7.04, -55.42, "cleared"),  # Amazon frontier town (kept as a check: pasture counts as green, so it should score low)
+    ("western_sydney_airport", "Western Sydney Airport, Australia", -33.880, 150.720, "cleared"),  # Huge earthworks on farmland, 2018-2023
+    ("nusantara", "Nusantara, Indonesia", -0.970, 116.705, "cleared"),  # Indonesia's new capital, cleared from plantations from 2022
+    ("weda_bay", "Weda Bay nickel, Indonesia", 0.470, 127.940, "cleared"),  # Nickel mining and industry clearing rainforest since 2018
+    ("garzweiler", "Garzweiler mine, Germany", 51.070, 6.420, "cleared"),  # Open-pit coal mine advancing over farmland and villages
+    ("la_pampa", "La Pampa gold mining, Peru", -12.970, -69.980, "cleared"),  # Illegal gold mining stripping Amazon rainforest
+    ("thacker_pass", "Thacker Pass lithium, Nevada", 41.710, -118.050, "cleared"),  # Lithium mine, construction started 2023
+    ("kamoa_kakula", "Kamoa-Kakula copper, DR Congo", -10.760, 25.290, "cleared"),  # Copper mine opened 2021 in savanna
+    ("lekki", "Lekki Free Zone, Lagos, Nigeria", 6.440, 3.850, "cleared"),  # Refinery and port land cleared since 2016
+    # --- Gained (green): non-green land that became green ---
+    ("kakhovka", "Kakhovka reservoir bed, Ukraine", 47.450, 34.200, "gained"),  # Reservoir drained in June 2023; willows and grass sprang up on the old lake bed
+    ("marker_wadden", "Marker Wadden, Netherlands", 52.585, 5.360, "gained"),  # New islands built from lake sand, 2016-2020, now covered in reeds
+    ("kubuqi", "Kubuqi Desert, China", 40.400, 108.700, "gained"),  # Desert greening programme
+    ("mu_us", "Mu Us Desert, China", 38.600, 109.000, "gained"),  # Desert greening programme
+    # --- New water (blue): reservoirs and rising lakes ---
     ("gerd", "Grand Ethiopian Renaissance Dam", 11.215, 35.093, "water"),  # Dam on the Blue Nile; its reservoir filled 2020-2023
-    ("novo_progresso", "Novo Progresso, Brazil", -7.04, -55.42, "cleared"),  # Amazon frontier town on the BR-163 highway
+    ("ilisu", "Ilisu Dam, Hasankeyf, Turkey", 37.710, 41.410, "water"),  # Reservoir filled 2019-2020, drowning the ancient town of Hasankeyf
+    ("yusufeli", "Yusufeli Dam, Turkey", 40.818, 41.548, "water"),  # Reservoir filled 2022-2023 over the old town of Yusufeli
+    ("baringo", "Lake Baringo, Kenya", 0.630, 36.070, "water"),  # Rift Valley lake that rose sharply 2019-2021, flooding its shores
+    # --- South America (second run, to fill the continent gap) ---
+    ("chancay", "Chancay megaport, Peru", -11.585, -77.270, "built"),  # Huge new port built 2021-2024 on desert coast
+    ("lima_north", "Ventanilla, Lima, Peru", -11.830, -77.130, "built"),  # Informal suburbs spreading over desert hills
+    ("lima_south", "Lurin, Lima, Peru", -12.240, -76.880, "built"),  # Warehouses and suburbs spreading over desert and fields
+    ("santiago_north", "Lampa, Santiago, Chile", -33.280, -70.750, "built"),  # Warehouses and suburbs on former farmland
+    ("cajamar", "Cajamar logistics, Sao Paulo, Brazil", -23.330, -46.860, "built"),  # Big warehouse cluster along the Anhanguera highway
+    ("bogota_west", "Funza and Mosquera, Bogota, Colombia", 4.700, -74.210, "built"),  # Industrial parks on the Bogota savanna's farmland
+    ("brumadinho", "Brumadinho, Brazil", -20.120, -44.120, "cleared"),  # Mine tailings dam collapsed in 2019; mud buried forest and fields
+    ("carajas", "Carajas S11D iron mine, Brazil", -6.400, -50.350, "cleared"),  # Huge iron mine in the Amazon, opened 2016-2017
+    ("atacama", "Salar de Atacama lithium ponds, Chile", -23.650, -68.360, "water"),  # Lithium evaporation ponds on the salt flat
 ]  # End of the candidates
 
 # ---------- Nudging settings ----------
