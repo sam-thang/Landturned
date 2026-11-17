@@ -27,9 +27,11 @@ const SPIN_EASE_MS = 1500;
 
 // ---------- "Feel" settings for flinging the globe (tune these by trying them on a phone) ----------
 // Friction: a flung globe loses half its speed every this many milliseconds. Bigger = it coasts longer.
-const FRICTION_HALF_LIFE_MS = 400;
-// The fastest a fling can spin the globe, in degrees per millisecond (0.54 = 540° per second = 1.5 turns per second)
-const MAX_FLING_SPEED = 0.54;
+// How far a fling coasts = its speed × half-life ÷ 0.69, so with the numbers below the longest coast is about 70°.
+const FRICTION_HALF_LIFE_MS = 250;
+// The fastest a fling can spin the globe, in degrees per millisecond (0.2 = 200° per second, about half a turn per second).
+// On a phone the globe is small, so even a gentle swipe reaches this limit: this number decides how "whippy" flings feel.
+const MAX_FLING_SPEED = 0.2;
 // Below this speed (degrees per millisecond) a coasting globe counts as stopped
 const STOP_SPEED = 0.002;
 // A globe turning faster than this (degrees per millisecond) counts as "moving": pressing it only catches it, it's not a tap.
@@ -37,6 +39,12 @@ const STOP_SPEED = 0.002;
 const CATCH_SPEED = SPIN_SPEED * 5;
 // If the finger rests this long (milliseconds) before letting go, there's no fling: the globe was being held still
 const HOLD_STILL_MS = 80;
+// ---------- Zooming the globe ----------
+// The smallest and biggest zoom people can choose: 1 = the whole globe fits, 4 = four times bigger (about one continent)
+const MIN_ZOOM = 1;
+const MAX_ZOOM = 4;
+// How strongly one scroll of the mouse wheel zooms: bigger = faster. A typical wheel click (100 "pixels") zooms about 22%.
+const WHEEL_ZOOM_SPEED = 0.002;
 // The furthest the globe can be tilted north or south, in degrees, so it can't flip upside down
 const MAX_TILT = 70;
 // True if the user has asked their computer to reduce motion (an accessibility setting)
@@ -103,17 +111,39 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
   } // End of resize
 
   // Paint the whole globe. "time" (milliseconds) drives the hotspot pulse; if it's not given, use the current time.
-  function draw(time = performance.now()) {
+  // Set the projection to the current view (size, zoom, and turn), so it matches what's on screen right now
+  function aimProjection() {
     const width = canvas.clientWidth; // The canvas width on screen, in CSS pixels
     const height = canvas.clientHeight; // The canvas height on screen
-    const centerX = width / 2; // Horizontal middle of the canvas
-    const centerY = height / 2; // Vertical middle of the canvas
     const radius = Math.min(width, height) * 0.4 * view.zoom; // Globe radius: 40% of the shorter side (so it fits), times the zoom factor
-
     projection
-      .translate([centerX, centerY]) // Put the globe's center in the middle of the canvas
+      .translate([width / 2, height / 2]) // Put the globe's center in the middle of the canvas
       .scale(radius) // Make the globe this many pixels in radius
       .rotate([-view.lon, -view.lat]); // Turn the globe so our view point faces us (D3 rotates the Earth, hence the minus signs)
+    return { width, height, radius }; // Hand back the sizes, for drawing
+  } // End of aimProjection
+
+  // The place on Earth [lon, lat] under a screen point (x, y measured from the canvas's top-left), or null if it's off the globe
+  function placeAt(x, y) {
+    aimProjection(); // Make sure the projection matches the current view
+    const lonLat = projection.invert([x, y]); // "invert" goes backwards: from a screen point to longitude/latitude
+    return lonLat && Number.isFinite(lonLat[0]) && Number.isFinite(lonLat[1]) ? lonLat : null; // Off the globe it gives "not a number": treat that as nothing
+  } // End of placeAt
+
+  // Turn the globe so that "anchor" (a [lon, lat] place) sits under the screen point (x, y). Used to zoom around the fingers.
+  function keepUnder(anchor, x, y) {
+    for (let i = 0; i < 4; i++) { // A few small correction passes: each gets closer (near the globe's edge one pass isn't enough)
+      const now = placeAt(x, y); // Which place is under that point right now?
+      if (!now) return; // Off the globe: nothing to correct
+      view.lon = wrapLon(view.lon + wrapLon(anchor[0] - now[0])); // Turn left-right by the difference (wrapped, so crossing ±180° doesn't spin all the way round)
+      view.lat = limitTilt(view.lat + (anchor[1] - now[1])); // Tilt up-down by the difference, within the tilt limit
+    } // End of the correction passes
+  } // End of keepUnder
+
+  function draw(time = performance.now()) {
+    const { width, height, radius } = aimProjection(); // Set the projection to the current view and get the sizes
+    const centerX = width / 2; // Horizontal middle of the canvas
+    const centerY = height / 2; // Vertical middle of the canvas
 
     context.clearRect(0, 0, width, height); // Wipe the canvas clean before painting
 
@@ -277,7 +307,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
     const restedFor = time - lastInteraction - SPIN_PAUSE_MS; // How long since the pause ended (negative while still pausing)
     if (!dragging && !turn && !focused && speed() === 0 && restedFor > 0 && !REDUCE_MOTION) { // Only when free, still, after the pause, and if motion is allowed
       const ramp = easeCubicInOut(Math.min(1, restedFor / SPIN_EASE_MS)); // From 0 to 1 over SPIN_EASE_MS, with a gentle start and end
-      view.lon = wrapLon(view.lon - elapsed * SPIN_SPEED * ramp); // Turn a little. Minus = the real direction: the surface moves west to east (left to right)
+      view.lon = wrapLon(view.lon - (elapsed * SPIN_SPEED * ramp) / view.zoom); // Turn a little; divided by the zoom so a zoomed-in globe doesn't race across the screen. Minus = the real direction: the surface moves west to east (left to right)
     } // End of the spin check
 
     if (visible) draw(time); // Paint the globe in its new position, unless it's hidden
@@ -291,6 +321,28 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
   let lastMoveTime = 0; // When the pointer last moved, to measure the finger's speed
   let movedTotal = 0; // How many pixels the pointer has moved since it was pressed, to tell clicks from drags
   let caught = false; // True if this press caught a moving globe; then letting go isn't a tap
+  const pointers = new Map(); // Every finger (or mouse button) currently pressed on the globe: its id → its position [x, y]
+  let pinch = null; // While two fingers are down: { startDistance, startZoom, anchor }; otherwise null
+  let pinched = false; // True if this touch included a pinch at any point; then lifting the fingers isn't a tap
+
+  // Set the zoom, kept between MIN_ZOOM and MAX_ZOOM
+  function setZoom(zoom) {
+    view.zoom = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, zoom)); // Clamp: never smaller than the whole globe, never bigger than 4×
+    lastInteraction = performance.now(); // Zooming counts as touching the globe: the slow spin waits its usual pause
+  } // End of setZoom
+
+  // The distance in pixels between the first two fingers on the globe
+  function fingerDistance() {
+    const [a, b] = pointers.values(); // The positions of the first two fingers
+    return Math.hypot(a[0] - b[0], a[1] - b[1]); // Straight-line distance between them (Pythagoras)
+  } // End of fingerDistance
+
+  // The point halfway between the first two fingers, measured from the canvas's top-left corner
+  function fingerMiddle() {
+    const [a, b] = pointers.values(); // The positions of the first two fingers (page coordinates)
+    const rect = canvas.getBoundingClientRect(); // Where the canvas is on the page
+    return [(a[0] + b[0]) / 2 - rect.left, (a[1] + b[1]) / 2 - rect.top]; // The average of the two, shifted to canvas coordinates
+  } // End of fingerMiddle
 
   // How many degrees the globe turns per pixel of finger movement, so the spot under the finger stays under it.
   // A circle's edge is 2 × π × radius long for 360°, so near the middle 1 pixel ≈ 180° ÷ (π × radius).
@@ -303,6 +355,20 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
   // When the user presses down on the globe (mouse button, finger, or pen; together called a "pointer")
   canvas.addEventListener('pointerdown', (event) => {
     if (!interactive) return; // Ignore presses while the app is busy
+    pointers.set(event.pointerId, [event.clientX, event.clientY]); // Add this finger to the list of pressed fingers
+    canvas.setPointerCapture(event.pointerId); // Keep receiving this finger's moves even if it slides off the canvas
+    if (pointers.size === 2) { // A second finger just came down: start a pinch
+      pinch = { // Remember how the pinch started:
+        startDistance: Math.max(1, fingerDistance()), // the finger distance (at least 1, never 0),
+        startZoom: view.zoom, // the zoom,
+        anchor: placeAt(...fingerMiddle()), // and the place between the fingers, which should stay there ("..." passes x and y separately); null if that's off the globe
+      }; // End of the pinch start
+      pinched = true; // This touch is now a pinch, not a tap
+      stopMoving(); // No fling from the drag before the pinch
+      return; // The first finger already started everything else
+    } // End of the second-finger check
+    if (pointers.size > 2) return; // A third finger or more: ignore it
+    pinched = false; // A fresh touch: no pinch yet
     caught = speed() > CATCH_SPEED; // Was the globe moving fast? Then this press just catches it
     stopMoving(); // Stop any coasting at once, like putting a hand on a spinning globe
     dragging = true; // Start dragging
@@ -310,7 +376,6 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
     movedTotal = 0; // Nothing moved yet
     lastPointer = [event.clientX, event.clientY]; // Remember where the pointer started
     lastMoveTime = performance.now(); // ...and when
-    canvas.setPointerCapture(event.pointerId); // Keep receiving moves even if the pointer leaves the canvas while dragging
     canvas.classList.add('dragging'); // Switch to the "grabbing hand" cursor (see style.css)
     showTeaser(null); // Hide the teaser while dragging
   }); // End of pointerdown
@@ -322,6 +387,12 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
       showTeaser(hotspotAt(event)); // show the teaser if we're near a hotspot, hide it if not
       return; // and stop here
     } // End of the not-dragging check
+    if (pointers.has(event.pointerId)) pointers.set(event.pointerId, [event.clientX, event.clientY]); // Update this finger's position in the list
+    if (pinch) { // Two fingers are down: zoom instead of turning
+      setZoom(pinch.startZoom * (fingerDistance() / pinch.startDistance)); // Fingers twice as far apart as at the start = twice the starting zoom
+      if (pinch.anchor) keepUnder(pinch.anchor, ...fingerMiddle()); // Turn so the place that was between the fingers is still between them
+      return; // No other turning during a pinch
+    } // End of the pinch check
     const now = performance.now(); // The time of this move
     const dx = event.clientX - lastPointer[0]; // How far it moved left/right since last time, in pixels
     const dy = event.clientY - lastPointer[1]; // How far it moved up/down since last time
@@ -346,7 +417,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
     dragging = false; // Stop dragging
     canvas.classList.remove('dragging'); // Back to the open-hand cursor
     const heldStill = performance.now() - lastMoveTime > HOLD_STILL_MS; // Did the finger rest before letting go?
-    if (heldStill || REDUCE_MOTION) stopMoving(); // Then no fling (and never a fling if the user prefers less motion)
+    if (heldStill || pinched || REDUCE_MOTION) stopMoving(); // Then no fling. Also never after a pinch (fingers lifting one by one made accidental flings), or if the user prefers less motion
     const fast = speed(); // How fast the fling is
     if (fast > MAX_FLING_SPEED) { // Faster than the speed limit?
       velocity.lon *= MAX_FLING_SPEED / fast; // Scale both directions down equally,
@@ -355,16 +426,50 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
     if (speed() < STOP_SPEED) stopMoving(); // A tiny leftover speed isn't a fling
     lastInteraction = performance.now(); // Count the rest time from now (coasting resets this again when it stops)
   } // End of stopDragging
+  // Take a lifted finger off the list. Returns true if other fingers are still down.
+  function forgetPointer(event) {
+    pointers.delete(event.pointerId); // Remove it from the list of pressed fingers
+    if (pinch && pointers.size < 2) { // The pinch just ended (one of its two fingers lifted):
+      pinch = null; // no pinch any more
+      const [remaining] = pointers.values(); // The finger still down, if there is one
+      if (remaining) { // One finger stays down: let it carry on turning the globe
+        lastPointer = remaining; // Measure its next move from where it is now, so the globe doesn't jump
+        lastMoveTime = performance.now(); // ...and from now
+        stopMoving(); // Start its speed measurement fresh
+      } // End of the remaining-finger check
+    } // End of the pinch-ended check
+    return pointers.size > 0; // Are any fingers still down?
+  } // End of forgetPointer
+
   // When the button or finger is lifted
   canvas.addEventListener('pointerup', (event) => {
+    if (forgetPointer(event)) return; // Other fingers are still down: the touch isn't over yet
     if (!dragging) return; // No drag was started (e.g. the app was busy), so there's nothing to finish
     stopDragging(); // The drag is over either way
+    if (pinched) return; // That touch was a pinch: not a tap on a place
     if (movedTotal > CLICK_TOLERANCE) return; // It moved: that was a drag, not a click, so stop here
     if (caught) return; // That press caught a moving globe: it only stopped it, it wasn't a tap on a place
     const hotspot = hotspotAt(event); // It was a click: is there a hotspot under the pointer?
     if (hotspot) onSelectPlace(hotspot.place); // If so, tell main.js which place was chosen
   }); // End of pointerup
-  canvas.addEventListener('pointercancel', stopDragging); // Run stopDragging when the system cancels the drag
+  // When the system cancels a touch (e.g. a phone call comes in)
+  canvas.addEventListener('pointercancel', (event) => {
+    if (forgetPointer(event)) return; // Other fingers are still down: keep going
+    if (dragging) stopDragging(); // Otherwise end the drag (never a tap)
+  }); // End of pointercancel
+
+  // Scroll wheel or trackpad: zoom in and out. (Most browsers also send a two-finger trackpad pinch as a wheel event.)
+  canvas.addEventListener('wheel', (event) => {
+    if (!interactive) return; // Ignore it while the app is busy
+    event.preventDefault(); // Don't scroll the page while zooming the globe
+    const lines = event.deltaMode === 1 ? 16 : 1; // Some browsers (Firefox) count in lines instead of pixels: treat one line as 16 pixels
+    const rect = canvas.getBoundingClientRect(); // Where the canvas is on the page
+    const x = event.clientX - rect.left; // Mouse position measured from the canvas's left edge
+    const y = event.clientY - rect.top; // ...and from its top edge
+    const anchor = placeAt(x, y); // The place under the mouse before zooming (null if the mouse is off the globe)
+    setZoom(view.zoom * Math.exp(-event.deltaY * lines * WHEEL_ZOOM_SPEED)); // Scroll up (negative) = zoom in. Multiplying (via exp) makes each scroll feel the same at any zoom
+    if (anchor) keepUnder(anchor, x, y); // Turn so that place is still under the mouse: zoom toward where you point
+  }, { passive: false }); // "passive: false" tells the browser we may call preventDefault, which is needed to stop the page scroll
   canvas.addEventListener('pointerleave', () => showTeaser(null)); // Hide the teaser when the mouse leaves the globe
 
   // ---------- Turning to a place ----------
