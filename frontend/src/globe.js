@@ -57,13 +57,17 @@ const HOVER_RADIUS = 18;
 const MAX_VISIBLE_DISTANCE = 1.5;
 
 // Read the four change colors from the CSS tokens in style.css, so each color is defined in one place only
-const rootStyles = getComputedStyle(document.documentElement); // The final styles of the <html> element, where :root tokens live
-const CHANGE_COLORS = {
-  built: rootStyles.getPropertyValue('--built').trim(), // Orange; trim() removes spaces around the value
-  loss: rootStyles.getPropertyValue('--loss').trim(), // Red
-  gain: rootStyles.getPropertyValue('--gain').trim(), // Green
-  water: rootStyles.getPropertyValue('--water').trim(), // Blue
-}; // End of the change colors
+// We read them when drawing, not once at page load: on phones, Safari sometimes runs our code before the stylesheet
+// is applied, and an early read gives empty text. A canvas ignores an empty color and reuses its last one, which
+// turned the rings grey and the dots invisible.
+const changeColors = {}; // Colors we've read successfully, e.g. { built: '#ffa01f' }; starts empty
+function changeColor(type) {
+  if (!changeColors[type]) { // Not read yet, or the last read came back empty:
+    const value = getComputedStyle(document.documentElement).getPropertyValue(`--${type}`).trim(); // Read the token, e.g. "--built", from the <html> element; trim() removes spaces around it
+    if (value) changeColors[type] = value; // Keep it only if it's real, so an empty read is tried again next frame
+  } // End of the read check
+  return changeColors[type] || '#ffffff'; // The color, or plain white until the stylesheet is ready (never empty)
+} // End of changeColor
 
 // Keep a latitude within the allowed tilt, so the globe never flips upside down
 function limitTilt(lat) {
@@ -158,7 +162,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
       if (distance > MAX_VISIBLE_DISTANCE) continue; // On the back of the globe: skip to the next place
 
       const [x, y] = projection([place.lon, place.lat]); // Turn longitude/latitude into a screen position
-      const color = CHANGE_COLORS[place.type]; // The color for this place's type of change
+      const color = changeColor(place.type); // The color for this place's type of change
       const phase = (time / PULSE_MS + place.lon / 100) % 1; // Where this place is in its pulse, from 0 to 1; the longitude part offsets places so they don't all pulse together
       const pulse = phase < 0 ? phase + 1 : phase; // Fix negative values (from western longitudes) so the pulse always runs 0 → 1
 
