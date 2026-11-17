@@ -56,7 +56,9 @@
         <p class="lede">From farmland to warehouses, forest to fields: see how any place has changed since 2017.</p> <!-- The intro text ("lede" is a newspaper word for the opening lines) -->
         <form id="search" class="search"> <!-- The search form; its id lets main.js find it -->
           <input id="address" type="text" placeholder="Enter any address" aria-label="Address" autocomplete="off" /> <!-- The text box; autocomplete="off" stops the browser's own suggestion list covering the panel -->
-          <button type="submit">Show change</button> <!-- The button; clicking it or pressing Enter sends the form -->
+          <button type="submit" aria-label="Show change" title="Show change"> <!-- The button; clicking it or pressing Enter sends the form. aria-label = what screen readers say; title = the tooltip on mouse hover -->
+            <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 10 H16 M11 5 L16 10 L11 15" /></svg> <!-- A drawn arrow: one line across (M = move to, H = horizontal line), then the arrowhead as two short lines; aria-hidden because the label above already says what it does -->
+          </button> <!-- End of the button -->
         </form> <!-- End of the search form -->
         <p id="search-message" class="message" role="status" hidden></p> <!-- Messages like "Couldn't find that address"; role="status" makes screen readers announce them -->
         <p class="kicker">OR START WITH A PLACE THAT TURNED</p> <!-- Label above the place buttons -->

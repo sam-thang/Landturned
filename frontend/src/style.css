@@ -755,16 +755,44 @@ h1:focus {
   color: var(--bg); /* Dark text */
   border: 0; /* No border */
   font: inherit; /* Same font as the panel */
-  font-weight: 600; /* Semi-bold */
-  padding: 0 16px; /* Space left and right of the text */
+  flex: none; /* Never stretch or squeeze */
+  width: 49px; /* A square button: as wide as the box is tall (49 px, measured) */
+  display: grid; /* Grid makes centering the arrow easy... */
+  place-items: center; /* ...exactly in the middle */
   cursor: pointer; /* Pointing hand on hover */
 } /* End of the button rule */
 
+/* The arrow drawing inside the button */
+.search button svg {
+  fill: none; /* The arrow is made of lines only, nothing filled in */
+  stroke: currentColor; /* Lines in the button's text color (dark) */
+  stroke-width: 2; /* 2 px thick lines */
+  stroke-linecap: square; /* Square line ends, like a technical drawing */
+} /* End of the arrow rule */
+
 /* The button while a search is running */
 .search button:disabled {
-  opacity: 0.6; /* Partly see-through, so it looks inactive */
   cursor: progress; /* "Busy" cursor */
 } /* End of the disabled button rule */
+
+/* While searching, the arrow pulses gently, to show something is happening */
+.search button:disabled svg {
+  animation: search-pulse 0.9s ease-in-out infinite alternate; /* Run "search-pulse" forever, back and forth, 0.9 s each way */
+} /* End of the searching arrow rule */
+
+/* The pulse itself: from fully visible to faint */
+@keyframes search-pulse {
+  from { opacity: 1; } /* Start fully visible */
+  to { opacity: 0.25; } /* End faint */
+} /* End of the pulse */
+
+/* People who asked their computer for less motion get a still, faded arrow instead */
+@media (prefers-reduced-motion: reduce) {
+  .search button:disabled svg {
+    animation: none; /* No pulsing */
+    opacity: 0.5; /* Just faded, so it still looks busy */
+  } /* End of the reduced-motion arrow rule */
+} /* End of the reduced-motion rules */
 
 /* Messages under the search box */
 .message {

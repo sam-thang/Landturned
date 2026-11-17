@@ -245,7 +245,7 @@ for (const place of PLACES) { // Make one button for each place
 
 const form = document.getElementById('search'); // The search form
 const input = document.getElementById('address'); // The text box
-const searchButton = form.querySelector('button'); // The "Show change" button
+const searchButton = form.querySelector('button'); // The arrow button (its label for screen readers is "Show change")
 
 // Run this every time the form is submitted (button clicked or Enter pressed)
 form.addEventListener('submit', async (event) => {
@@ -259,7 +259,7 @@ form.addEventListener('submit', async (event) => {
 
   hideMessage(); // Clear any old message
   searchButton.disabled = true; // Grey out the button so it can't be clicked twice
-  searchButton.textContent = 'Searching…'; // Show that something is happening
+  searchButton.setAttribute('aria-label', 'Searching…'); // Tell screen readers something is happening (the arrow pulses for everyone else, see style.css)
 
   try { // Code that might fail (e.g. no internet)
     const result = await geocode(address); // Look up the address and wait for the answer
@@ -273,7 +273,7 @@ form.addEventListener('submit', async (event) => {
     showMessage('The address search is not responding. Please try again in a moment.'); // Friendly message
   } finally { // Always runs at the end:
     searchButton.disabled = false; // Make the button clickable again
-    searchButton.textContent = 'Show change'; // Put the normal text back
+    searchButton.setAttribute('aria-label', 'Show change'); // Put the normal label back
   } // End of try/catch/finally
 }); // End of the submit handler
 
