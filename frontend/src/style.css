@@ -7,9 +7,9 @@
   --ink: #e6e9ee; /* Main text color: off-white */
   --muted: #8c96a3; /* Secondary text: grey */
   --faint: #5b6470; /* Least important text: dark grey */
-  --loss: #ff5a4f; /* Red: green space lost (one of the four change colors, used later) */
+  --loss: #ff5a4f; /* Red: green space cleared (green -> bare ground); one of the four change colors */
   --gain: #4fd98a; /* Green: green space gained */
-  --built: #ffa01f; /* Orange: newly built or cleared land */
+  --built: #ffa01f; /* Orange: newly built (any land that became built) */
   --water: #3db8f5; /* Blue: new water */
   --sans: 'Space Grotesk', system-ui, sans-serif; /* Main font, with standard fonts as backups if it fails to load */
   --mono: 'JetBrains Mono', ui-monospace, monospace; /* "Monospace" font (every letter equally wide) for labels and numbers, like on a technical drawing */

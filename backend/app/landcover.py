@@ -6,7 +6,7 @@ import planetary_computer  # Signs Planetary Computer file links so we're allowe
 import pystac_client  # Searches the STAC catalog (the index of available maps)
 import rasterio  # Reads raster files, including just a small window of a big file
 from rasterio.warp import transform  # Converts coordinates from one projection to another
-from rasterio.windows import from_bounds  # Turns a box in map units (meters) into a window of rows and columns
+from rasterio.windows import Window, from_bounds  # Window: a block of rows and columns; from_bounds: turns a box in meters into a window
 
 # ---------- Settings ----------
 
@@ -145,14 +145,32 @@ def find_items_by_year(lon, lat):
 # ---------- Reading our square ----------
 
 def read_square(item, lon, lat):
-    """Read only the 2 x 2 km square around the point from one map. Returns the grid of dataset class numbers."""
+    """Read only the 2 x 2 km square around the point from one map.
+    Returns (grid of dataset class numbers, the square's four corners as [longitude, latitude])."""
     url = item.assets["data"].href  # The (signed) web address of the map's GeoTIFF file
     with rasterio.open(url) as src:  # Open the file over the internet; nothing big is downloaded yet
         xs, ys = transform("EPSG:4326", src.crs, [lon], [lat])  # Convert the point from longitude/latitude (EPSG:4326) to the file's projection (a UTM zone, in meters)
         x, y = xs[0], ys[0]  # transform works on lists, so take the first (only) point
-        window = from_bounds(  # Work out which rows and columns of the file our square covers:
+        exact = from_bounds(  # Work out which rows and columns of the file our square covers:
             x - HALF_SIZE_M, y - HALF_SIZE_M,  # the square's left and bottom edges (in meters),
             x + HALF_SIZE_M, y + HALF_SIZE_M,  # and its right and top edges,
             transform=src.transform,  # using the file's "transform", which links pixel rows/columns to meters
-        )  # End of the window
-        return src.read(1, window=window)  # Download and read just that window of band 1 (the only band: class numbers)
+        )  # End of the exact window (its edges can fall partway through a pixel)
+        size = round(2 * HALF_SIZE_M / src.res[0])  # How many pixels across: 2,000 m / 10 m = 200
+        window = Window(round(exact.col_off), round(exact.row_off), size, size)  # Snap to whole pixels: round the starting column and row, keep 200 x 200
+        data = src.read(  # Download and read just that window...
+            1,  # ...of band 1 (the only band: class numbers)...
+            window=window,  # ...in our snapped window...
+            boundless=True,  # ...allowing it to stick out past the file's edge...
+            fill_value=0,  # ...in which case the missing pixels become 0 (no data) instead of an error
+        )  # End of the read
+
+        # The square's four corners, in the file's meters. window_transform links this window's pixel columns/rows to meters.
+        win_transform = src.window_transform(window)  # The "transform" for just our window
+        left, top = win_transform * (0, 0)  # Column 0, row 0: the top-left corner of the first pixel
+        right, bottom = win_transform * (size, size)  # Column 200, row 200: the bottom-right corner of the last pixel
+        corner_xs = [left, right, right, left]  # Corners in MapLibre's order: top-left, top-right, bottom-right, bottom-left
+        corner_ys = [top, top, bottom, bottom]  # The matching up-down positions
+        lons, lats = transform(src.crs, "EPSG:4326", corner_xs, corner_ys)  # Convert all four from UTM meters back to longitude/latitude
+        corners = [[lo, la] for lo, la in zip(lons, lats)]  # Pair them up: [[lon, lat], [lon, lat], ...]
+        return data, corners  # Hand back the pixel grid and its corners

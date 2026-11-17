@@ -4,8 +4,10 @@
 # ("-m" runs the file as a module, which lets it find our own code in the app folder.)
 
 import sys  # Built into Python; sys.argv is the list of words typed on the command line
+import tempfile  # Built into Python; tells us where the computer's temporary-files folder is
+from pathlib import Path  # Built into Python; a handy way to build file paths
 
-from app import landcover  # Our own land-cover code, in app/landcover.py
+from app import change_image, landcover  # Our own code: the change picture (app/change_image.py) and land cover (app/landcover.py)
 
 # ---------- Which place ----------
 
@@ -36,7 +38,7 @@ def main():
     grids = {}  # year -> category grid (kept for the comparison below)
     for year in (first, latest):  # Do the same for both years:
         print(f"Reading {year}...")  # Show progress
-        data = landcover.read_square(items_by_year[year], LON, LAT)  # Read the square (dataset class numbers)
+        data, corners = landcover.read_square(items_by_year[year], LON, LAT)  # Read the square (dataset class numbers) and its four corners
         categories = landcover.to_categories(data)  # Translate into our six categories
         print(f"  Window: {categories.shape[1]} x {categories.shape[0]} pixels")  # Columns x rows; should be 200 x 200
         counts[year] = count_categories(categories)  # Count the pixels per category
@@ -83,6 +85,16 @@ def main():
         print(f"{from_name + ' -> ' + to_name:<34}{landcover.to_hectares(count):>7.1f} ha")  # e.g. "Grass/farmland -> Built   12.3 ha"
     changed_total = sum(count for count, _, _ in pairs)  # All changed pixels together (gross change)
     print(f"{'All changes together (gross)':<34}{landcover.to_hectares(changed_total):>7.1f} ha")  # The total of every from -> to change
+
+    # ---------- The change picture and its corners ----------
+    print()  # An empty line
+    print("Corners (longitude, latitude)")  # Section title
+    for label, (lo, la) in zip(["top-left", "top-right", "bottom-right", "bottom-left"], corners):  # Each corner with its name
+        print(f"  {label:<14}{lo:.6f}, {la:.6f}")  # 6 decimals = about 10 cm
+    png = change_image.make_png(change)  # Turn the change grid into a PNG picture
+    out_path = Path(tempfile.gettempdir()) / "landturn-change.png"  # Save it in the temporary-files folder, not in the project
+    out_path.write_bytes(png)  # Write the PNG bytes to that file
+    print(f"Change picture saved ({len(png):,} bytes): {out_path}")  # Say where it is and how big ("," adds thousands separators)
 
 
 if __name__ == "__main__":  # Only run main() when this file is started directly (not when another file imports it)
