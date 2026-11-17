@@ -71,15 +71,6 @@ NEW_BUILT = 3  # Orange: any land that became built
 NEW_WATER = 4  # Blue: any land that became water
 UNKNOWN = 5  # No data in one or both years, so we can't tell
 
-# The readable name of each change code
-CHANGE_NAMES = {
-    CLEARED: "Green space cleared (red)",  # 1
-    GAINED: "Green space gained (green)",  # 2
-    NEW_BUILT: "Newly built (orange)",  # 3
-    NEW_WATER: "New water (blue)",  # 4
-    UNKNOWN: "No data in one or both years",  # 5
-}  # End of the change names
-
 GREEN = [TREES, GRASS]  # The categories that count as green space
 
 
@@ -112,15 +103,21 @@ def from_to_counts(before, after):
 
 
 def summarize(before, after, change):
-    """Work out the stats in hectares: area per change color, green space lost and gained, and the total area."""
-    stats = {name: to_hectares(int((change == code).sum())) for code, name in CHANGE_NAMES.items()}  # Hectares for each change code
+    """Work out the stats in hectares: area per change color, green space lost and gained, and the total area.
+    Uses short keys (like "built") so the dictionary can go straight into the API's JSON answer."""
     known = (before != NO_DATA) & (after != NO_DATA)  # Pixels we know in both years
     green_before = np.isin(before, GREEN)  # Green in the first year
     green_after = np.isin(after, GREEN)  # Green in the latest year
-    stats["Green space lost (all)"] = to_hectares(int((known & green_before & ~green_after).sum()))  # Every green -> non-green pixel: red, plus orange and blue that used to be green
-    stats["Green space gained (all)"] = to_hectares(int((known & ~green_before & green_after).sum()))  # Every non-green -> green pixel
-    stats["Total area"] = to_hectares(change.size)  # All pixels in the square (should be 400 ha)
-    return stats  # Hand back the dictionary of stats
+    return {  # Hand back a dictionary of stats, all in hectares:
+        "cleared": to_hectares(int((change == CLEARED).sum())),  # Red pixels ("== CLEARED" marks them True, ".sum()" counts the Trues)
+        "gained": to_hectares(int((change == GAINED).sum())),  # Green pixels
+        "built": to_hectares(int((change == NEW_BUILT).sum())),  # Orange pixels
+        "water": to_hectares(int((change == NEW_WATER).sum())),  # Blue pixels
+        "no_data": to_hectares(int((change == UNKNOWN).sum())),  # Pixels with no data in one or both years
+        "green_lost": to_hectares(int((known & green_before & ~green_after).sum())),  # Every green -> non-green pixel: red, plus orange and blue that used to be green
+        "green_gained": to_hectares(int((known & ~green_before & green_after).sum())),  # Every non-green -> green pixel
+        "total": to_hectares(change.size),  # All pixels in the square (should be 400 ha)
+    }  # End of the stats
 
 
 # ---------- Finding the maps ----------

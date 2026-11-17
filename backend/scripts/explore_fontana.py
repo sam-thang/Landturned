@@ -65,8 +65,18 @@ def main():
     print()  # An empty line
     print(f"Change {first} -> {latest} (pixel by pixel)")  # Section title
     print("-" * 44)  # A line of dashes
-    for name, hectares in landcover.summarize(before, after, change).items():  # Each stat and its value
-        print(f"{name:<34}{hectares:>7.1f} ha")  # Name left-aligned, hectares right-aligned with one decimal
+    labels = {  # A readable label for each stat's short key
+        "cleared": "Green space cleared (red)",  # Red
+        "gained": "Green space gained (green)",  # Green
+        "built": "Newly built (orange)",  # Orange
+        "water": "New water (blue)",  # Blue
+        "no_data": "No data in one or both years",  # Unknown
+        "green_lost": "Green space lost (all)",  # All green -> non-green
+        "green_gained": "Green space gained (all)",  # All non-green -> green
+        "total": "Total area",  # The whole square
+    }  # End of the labels
+    for key, hectares in landcover.summarize(before, after, change).items():  # Each stat and its value
+        print(f"{labels[key]:<34}{hectares:>7.1f} ha")  # Label left-aligned, hectares right-aligned with one decimal
 
     # The biggest from -> to changes, largest first
     table = landcover.from_to_counts(before, after)  # 6 x 6 table of pixel counts
