@@ -1,5 +1,8 @@
 # Exploration script (B3): look at the real land-cover data for one place before we build anything on it.
 # It is not part of the app. Run it from the backend folder with:  uv run python scripts/explore_fontana.py
+# To look at another spot, add its latitude and longitude:          uv run python scripts/explore_fontana.py 34.03 -117.47
+
+import sys  # Built into Python; sys.argv is the list of words typed on the command line
 
 import numpy as np  # numpy: fast math on big grids of numbers (our raster window becomes a numpy grid)
 import planetary_computer  # Signs Planetary Computer file links so we're allowed to download them
@@ -10,8 +13,12 @@ from rasterio.windows import from_bounds  # Turns a box in map units (meters) in
 
 # ---------- Settings ----------
 
-PLACE_NAME = "Fontana, California"  # Just for the printout
-LON, LAT = -117.435, 34.092  # The place's longitude and latitude (same as in frontend/src/places.js)
+if len(sys.argv) == 3:  # sys.argv is [script name, word 1, word 2]; 3 entries means two numbers were typed
+    LAT, LON = float(sys.argv[1]), float(sys.argv[2])  # Turn the typed text into numbers: latitude first, as people usually say it
+    PLACE_NAME = "Custom point"  # Just for the printout
+else:  # Nothing (or the wrong number of words) typed:
+    PLACE_NAME = "Fontana, California"  # use the default place
+    LON, LAT = -117.435, 34.092  # The place's longitude and latitude (same as in frontend/src/places.js)
 HALF_SIZE_M = 1000  # Half the square's width in meters: 1 km in each direction gives a 2 x 2 km square
 PIXEL_AREA_M2 = 10 * 10  # Each pixel is 10 m x 10 m = 100 square meters
 
