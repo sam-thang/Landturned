@@ -147,3 +147,10 @@ vite.config.ts.timestamp-*
 
 # Turbo Repo
 .turbo
+
+# Python (backend)
+# The private library folder uv creates for the backend (like node_modules)
+.venv/
+# Python's cache of pre-compiled code, recreated automatically
+__pycache__/
+*.pyc

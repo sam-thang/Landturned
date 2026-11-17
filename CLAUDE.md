@@ -53,7 +53,8 @@ The design is dark, minimal, and image-led. `docs/mockup-v2.html` is the design 
 ### Architecture
 
 - `frontend/`: Vite, plain JavaScript, MapLibre GL JS.
-- `backend/`: Python with FastAPI. Given a location, it fetches only the small area needed (default 1 km radius), compares two years, and returns the change layer and stats.
+- `backend/`: Python with FastAPI, managed with uv (Python 3.13). Given a location, it fetches only the small area needed, compares two years, and returns the change layer and stats.
+- **Analysis area:** the 2 × 2 km square the map shows (1 km north, south, east, and west of the address), not a circle. The stats must describe exactly what people see when they swipe between years.
 
 ### Test locations
 
