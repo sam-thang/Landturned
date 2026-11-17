@@ -29,7 +29,7 @@ function moveFill(percent, transition) {
 // Put every step back to "not started" and empty the bar, instantly (no animation)
 export function resetSteps() {
   for (const item of stepsList.querySelectorAll('li')) { // Every step in the list
-    item.classList.remove('running', 'done'); // Neither running nor done
+    item.classList.remove('running', 'done', 'failed'); // Not running, done, or failed
   } // End of the steps loop
   moveFill(0, 'none'); // Empty the bar with no animation
 } // End of resetSteps
@@ -50,3 +50,13 @@ export function finishStep(id) {
   item.classList.add('done'); // Done
   moveFill(endOf(id), 'width 0.4s ease-out'); // Fill the rest of this step's share quickly
 } // End of finishStep
+
+// Mark a step as failed: grey text with a dash instead of a ✓, and new text saying what went wrong.
+// The bar still moves on, because the step is over (it just didn't work).
+export function failStep(id, text) {
+  const item = stepItem(id); // This step's list item
+  item.classList.remove('running'); // No longer in progress
+  item.classList.add('failed'); // Failed
+  item.textContent = text; // Replace the step's text with the explanation
+  moveFill(endOf(id), 'width 0.4s ease-out'); // Fill the rest of this step's share quickly
+} // End of failStep

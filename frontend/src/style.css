@@ -545,6 +545,16 @@ h1:focus {
   color: var(--muted); /* Grey: brighter than "not started", dimmer than "done" */
 } /* End of the running step rule */
 
+/* A step that couldn't finish (e.g. no change data): grey, with a dash where the ✓ would be */
+.steps li.failed {
+  color: var(--muted); /* Grey: readable, but clearly not a success */
+} /* End of the failed step rule */
+
+/* The dash in front of a failed step */
+.steps li.failed::before {
+  content: '– '; /* A dash and a space, added by CSS */
+} /* End of the dash rule */
+
 /* A pulsing "…" after a running step */
 .steps li.running::after {
   content: ' …'; /* A space and an ellipsis, added by CSS */

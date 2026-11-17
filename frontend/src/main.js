@@ -3,7 +3,9 @@ import './style.css';
 // Bring in the function that draws the globe, and how long a turn takes, from globe.js
 import { startGlobe, TURN_MS } from './globe.js';
 // Bring in the functions for the loading steps and progress bar, from loading.js
-import { resetSteps, startStep, finishStep } from './loading.js';
+import { resetSteps, startStep, finishStep, failStep } from './loading.js';
+// Bring in the function that asks our backend for the land-cover change, from api.js
+import { fetchChange } from './api.js';
 // Bring in the list of hotspot places, from places.js
 import { PLACES } from './places.js';
 // Bring in the address lookup function, from geocode.js
@@ -88,6 +90,7 @@ async function selectPlace(place) {
   document.getElementById('locating-coords').textContent = formatCoords(place.lon, place.lat); // Its coordinates
   resetSteps(); // Empty the progress bar and un-tick the steps (in case of an earlier visit)
   document.getElementById('step-map').textContent = 'Loading detailed map'; // Reset the text too, in case it showed an error before
+  document.getElementById('step-compare').textContent = 'Comparing land cover'; // Same for the compare step
   showPanel('panel-locating'); // Swap the landing panel for the locating panel
 
   // Start loading the satellite map right away, hidden, so it loads while the globe turns.
@@ -102,6 +105,13 @@ async function selectPlace(place) {
     }, // End of the failure handler
   ); // End of mapReady
 
+  // Also ask the backend for the land-cover change right away; it takes a few seconds, so it runs alongside everything else.
+  // A failure becomes null (no change data), so the map can still be shown without it.
+  const changeReady = fetchChange(place.lat, place.lon).catch((error) => { // If the request fails...
+    console.error(error); // ...print the details in the developer console (F12)
+    return null; // ...and carry on with "no change data"
+  }); // End of changeReady
+
   // Stage 1: lock the globe, then turn and zoom to a regional view
   globe.setInteractive(false); // No dragging or clicking while we zoom
   startStep('locate', TURN_MS); // The locate step is running; we know it takes TURN_MS, so the bar's first share fills in step with the turn
@@ -110,9 +120,16 @@ async function selectPlace(place) {
 
   // Now show the map step. It has been loading in the background all along;
   // if it's already finished, it ticks off right away, otherwise as soon as it's really ready.
+  // After that, the compare step (the backend has been working all along too).
   startStep('map'); // The map step is running; its duration is unknown, so the bar waits until it finishes
-  mapReady.then((loaded) => { // When the map is ready (or right away, if it already is)...
-    if (loaded) finishStep('map'); // ...tick off step 2, if it loaded successfully
+  const changeDone = mapReady.then(async (loaded) => { // When the map is ready (or right away, if it already is)...
+    if (!loaded) return null; // ...unless it failed: then stop here (the failure is handled below)
+    finishStep('map'); // ...tick off step 2
+    startStep('compare'); // Show step 3 as running
+    const change = await changeReady; // Wait for the backend's answer (or null if it failed)
+    if (change) finishStep('compare'); // Got it: tick off step 3
+    else failStep('compare', "Change data isn't available for this place right now"); // No answer: say so honestly, but carry on with the map
+    return change; // Hand the answer on (or null)
   }); // End of the map-ready handler
 
   // Show the callout at the place (which is now in the middle of the globe area)
@@ -123,8 +140,9 @@ async function selectPlace(place) {
   document.getElementById('callout-coords').textContent = formatCoords(place.lon, place.lat); // The coordinates
   document.getElementById('callout').classList.add('visible'); // Fade the callout in
 
-  // Wait for two things at the same time: the map being ready, and the callout's minimum reading time
-  const [mapLoaded] = await Promise.all([mapReady, wait(MIN_CALLOUT_MS)]); // Promise.all waits until both are done; we keep the first result (true/false)
+  // Wait for three things at the same time: the map, the change steps, and the callout's minimum reading time
+  const [mapLoaded, change] = await Promise.all([mapReady, changeDone, wait(MIN_CALLOUT_MS)]); // Promise.all waits until all are done; we keep the first two results
+  console.log('Change data:', change); // For now, print the backend's answer in the developer console (F12); B6b and B6c will show it on the map and in the panel
   if (!mapLoaded) { // The map couldn't load:
     document.getElementById('step-map').textContent = "The detailed map couldn't load in this browser."; // Say so in the panel
     return; // And stop here, staying on the globe
