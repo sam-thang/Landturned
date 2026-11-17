@@ -482,31 +482,30 @@ body {
 
 /* The headline */
 h1 {
-  margin: 10px 0 12px; /* Space above and below (top, left/right, bottom) */
+  margin: 10px 0 16px; /* Space above and below (top, left/right, bottom); the bottom leaves room for the underline under "turned." */
   font-size: clamp(30px, 6vw, 40px); /* 6% of the window width, but never under 30 px or over 40 px */
   font-weight: 500; /* Medium weight, not bold */
   line-height: 1.05; /* Tight line spacing for big text */
   letter-spacing: -0.02em; /* Letters slightly closer together */
 } /* End of the headline rule */
 
-/* The legend strip under the headline: four short bars in the change colors, like the legend on a site plan */
-.legend-strip {
-  display: flex; /* The four bars side by side */
-  gap: 3px; /* A small gap between bars, like separate legend swatches */
-  width: 112px; /* Short, so it reads as a drawing mark, not a divider line */
-  height: 3px; /* Thin */
-  margin: 0 0 14px; /* Space below, before the intro text */
-} /* End of the legend strip rule */
-
-/* One bar of the legend strip */
-.legend-strip i {
-  flex: 1; /* All four bars equally wide */
-} /* End of the bar rule */
-
-.legend-strip i:nth-child(1) { background: var(--built); } /* First bar: orange, newly built */
-.legend-strip i:nth-child(2) { background: var(--loss); } /* Second bar: red, green space cleared */
-.legend-strip i:nth-child(3) { background: var(--gain); } /* Third bar: green, green space gained */
-.legend-strip i:nth-child(4) { background: var(--water); } /* Fourth bar: blue, new water */
+/* "turned.": underlined in the four change colors (the four ways land can turn), like a site plan's legend */
+.turned {
+  padding-bottom: 0.14em; /* Room between the letters and the underline (on inline text this doesn't move the lines around) */
+  background-image: linear-gradient( /* The underline: one gradient with hard edges, so it looks like four separate bars */
+    to right, /* From left to right: */
+    var(--built) 0 calc(25% - 2px), /* orange for the first quarter (minus a 2 px gap), */
+    transparent 0 25%, /* the gap ("0" = start right where the last color ended), */
+    var(--loss) 0 calc(50% - 2px), /* red for the second quarter, */
+    transparent 0 50%, /* a gap, */
+    var(--gain) 0 calc(75% - 2px), /* green for the third quarter, */
+    transparent 0 75%, /* a gap, */
+    var(--water) 0 100% /* and blue to the end */
+  ); /* End of the underline gradient */
+  background-size: 100% 3px; /* As wide as the word, 3 px tall */
+  background-position: left bottom; /* Along the bottom of the word */
+  background-repeat: no-repeat; /* Just once */
+} /* End of the turned rule */
 
 /* The headline gets focus from code (after "← New place"), but it isn't something you act on, so no focus outline */
 h1:focus {
@@ -861,12 +860,8 @@ h1:focus {
   } /* End of the phone panel rule */
 
   h1 {
-    margin: 0 0 10px; /* No space above the headline (it's now the first thing in the panel), a little less below */
+    margin: 0 0 14px; /* No space above the headline (it's now the first thing in the panel); below, room for the underline */
   } /* End of the phone headline rule */
-
-  .legend-strip {
-    margin-bottom: 10px; /* A little less space under the legend strip on phones */
-  } /* End of the phone legend strip rule */
 
   .search {
     margin: 12px 0; /* A little less space around the search box */
