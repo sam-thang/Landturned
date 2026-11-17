@@ -724,9 +724,18 @@ h1:focus {
 /* ---------- Search ---------- */
 
 /* The search form: text box and button side by side, with square corners like a drawing */
-.search {
-  display: flex; /* Text box and button in a row */
+/* The row holding the search box and the "My location" button */
+.search-row {
+  display: flex; /* Side by side */
+  gap: 6px; /* A small gap between them */
   margin: 22px 0; /* Space above and below */
+} /* End of the search row rule */
+
+.search {
+  display: flex; /* Magnifying glass, text box and arrow in a row */
+  align-items: center; /* Lined up vertically */
+  flex: 1; /* Take all the width the "My location" button doesn't need */
+  min-width: 0; /* Allow shrinking on narrow phones instead of pushing the button out */
   border: 1px solid var(--line); /* Thin outline */
   background: var(--bg); /* Darker than the panel, so the box stands out */
 } /* End of the search rule */
@@ -740,26 +749,49 @@ h1:focus {
   color: var(--ink); /* Off-white text */
   font: inherit; /* Same font as the panel */
   font-size: 16px; /* 16 px stops phones from zooming in when you tap the box */
-  padding: 14px; /* Space around the text */
+  padding: 14px 12px 14px 8px; /* Space around the text: 14 px above and below, 12 px on the right, 8 px on the left (the magnifying glass already makes room) */
+  outline: none; /* No focus ring on the text box itself: the whole search box gets the blue outline instead (see the focus rule) */
 } /* End of the text box rule */
+
+/* The magnifying glass at the left of the search box */
+.search-icon {
+  flex: none; /* Never squeeze it */
+  margin-left: 12px; /* Space from the box's left edge */
+  fill: none; /* Lines only */
+  stroke: var(--faint); /* The same grey as the hint text */
+  stroke-width: 2; /* 2 px thick lines */
+  stroke-linecap: round; /* Rounded handle end */
+} /* End of the magnifying glass rule */
 
 /* The grey hint text in the empty box */
 .search input::placeholder {
   color: var(--faint); /* Dark grey */
 } /* End of the placeholder rule */
 
-/* The "Show change" button */
+/* The "Show change" arrow: quiet (grey, no fill), so it doesn't outshine the globe */
 .search button {
-  background: var(--ink); /* Off-white button */
-  color: var(--bg); /* Dark text */
+  align-self: stretch; /* As tall as the box, so it's an easy tap target */
+  background: none; /* No fill */
+  color: var(--muted); /* Grey arrow */
   border: 0; /* No border */
   font: inherit; /* Same font as the panel */
   flex: none; /* Never stretch or squeeze */
-  width: 49px; /* A square button: as wide as the box is tall (49 px, measured) */
+  width: 44px; /* Wide enough to tap comfortably */
   display: grid; /* Grid makes centering the arrow easy... */
   place-items: center; /* ...exactly in the middle */
   cursor: pointer; /* Pointing hand on hover */
 } /* End of the button rule */
+
+/* The arrow when hovered */
+.search button:hover {
+  color: var(--ink); /* Brighter arrow */
+} /* End of the arrow hover rule */
+
+/* Hide the arrow while the box is empty. ":placeholder-shown" is true while the hint text shows, i.e. nothing is typed;
+   ":has(...)" means "the search box that contains such an empty text box". It appears as soon as you type. */
+.search:has(input:placeholder-shown) button {
+  display: none; /* Not shown, and takes no space (so the hint text has room on narrow phones) */
+} /* End of the empty-box rule */
 
 /* The arrow drawing inside the button */
 .search button svg {
@@ -769,13 +801,44 @@ h1:focus {
   stroke-linecap: square; /* Square line ends, like a technical drawing */
 } /* End of the arrow rule */
 
-/* The button while a search is running */
-.search button:disabled {
+/* The "My location" button: outlined like the place buttons, as tall as the search box */
+.locate {
+  display: flex; /* Crosshair and label side by side */
+  align-items: center; /* Lined up vertically */
+  gap: 7px; /* Space between crosshair and label */
+  flex: none; /* Never squeeze: the search box shrinks instead */
+  background: none; /* No fill */
+  border: 1px solid var(--line); /* Thin outline, like the place buttons */
+  color: var(--ink); /* Off-white label */
+  font: inherit; /* Same font as the panel */
+  font-size: 14px; /* Slightly smaller than the search text, so it fits next to the box on phones */
+  white-space: nowrap; /* Keep "My location" on one line */
+  padding: 0 10px; /* Space left and right */
+  cursor: pointer; /* Pointing hand on hover */
+} /* End of the locate rule */
+
+/* The crosshair drawing inside the "My location" button */
+.locate svg {
+  fill: none; /* Lines only */
+  stroke: var(--muted); /* Grey lines, so the label reads first */
+  stroke-width: 2; /* 2 px thick lines */
+  flex: none; /* Never squeeze the icon */
+} /* End of the crosshair rule */
+
+/* The "My location" button when hovered */
+.locate:hover {
+  border-color: var(--muted); /* Brighter outline, like the place buttons */
+} /* End of the locate hover rule */
+
+/* The buttons while busy (searching, or finding your location) */
+.search button:disabled,
+.locate:disabled {
   cursor: progress; /* "Busy" cursor */
 } /* End of the disabled button rule */
 
-/* While searching, the arrow pulses gently, to show something is happening */
-.search button:disabled svg {
+/* While busy, the arrow or crosshair pulses gently, to show something is happening */
+.search button:disabled svg,
+.locate:disabled svg {
   animation: search-pulse 0.9s ease-in-out infinite alternate; /* Run "search-pulse" forever, back and forth, 0.9 s each way */
 } /* End of the searching arrow rule */
 
@@ -787,7 +850,8 @@ h1:focus {
 
 /* People who asked their computer for less motion get a still, faded arrow instead */
 @media (prefers-reduced-motion: reduce) {
-  .search button:disabled svg {
+  .search button:disabled svg,
+  .locate:disabled svg {
     animation: none; /* No pulsing */
     opacity: 0.5; /* Just faded, so it still looks busy */
   } /* End of the reduced-motion arrow rule */
@@ -839,8 +903,9 @@ h1:focus {
 } /* End of the dot rule */
 
 /* A visible blue outline for keyboard users (Tab key) on the text box and all buttons */
-.search input:focus-visible,
+.search:has(input:focus-visible),
 .search button:focus-visible,
+.locate:focus-visible,
 .place-button:focus-visible {
   outline: 2px solid var(--water); /* Blue outline */
   outline-offset: 2px; /* A small gap between the element and the outline */
@@ -863,9 +928,9 @@ h1:focus {
     margin: 0 0 14px; /* No space above the headline (it's now the first thing in the panel); below, room for the underline */
   } /* End of the phone headline rule */
 
-  .search {
-    margin: 12px 0; /* A little less space around the search box */
-  } /* End of the phone search rule */
+  .search-row {
+    margin: 12px 0; /* A little less space around the search row */
+  } /* End of the phone search row rule */
 
   /* The place buttons: one row you swipe sideways, instead of several wrapped lines */
   .places {
@@ -888,3 +953,34 @@ h1:focus {
     scroll-snap-align: start; /* Each button's left edge is a place a swipe can settle */
   } /* End of the phone place button rule */
 } /* End of the phone rules */
+
+/* The narrowest phones (under 380 px wide, e.g. iPhone SE): the hint text "Enter any address" is 1 px smaller, so it
+   fits next to the "My location" button. Typed text stays 16 px: iPhones zoom in on text boxes with smaller typing text. */
+@media (max-width: 379px) {
+  .search input::placeholder {
+    font-size: 15px; /* Slightly smaller hint text */
+  } /* End of the narrow placeholder rule */
+} /* End of the narrowest-phone rules */
+
+/* ---------- Drawing voice ---------- */
+/* Labels, buttons, and tags are lettered like the annotations on an architectural drawing: mono font, uppercase,
+   slightly spread out, the same family as the small "kicker" labels. Reading text (headline, intro, the reveal
+   sentence, notes, messages) keeps normal sentence case: on drawings too, long text is never set in capitals.
+   The uppercase comes from CSS (text-transform), not typed capitals, so screen readers still read the words normally. */
+.locate,
+.place-button,
+.back,
+.stats li {
+  font-family: var(--mono); /* Technical-drawing style font */
+  font-size: 12px; /* Smaller than before: capitals in a mono font are wider */
+  font-weight: 400; /* Regular weight, like drawing lettering */
+  text-transform: uppercase; /* Show the letters as capitals */
+  letter-spacing: 0.06em; /* Spread the capitals a little, so they stay easy to read */
+} /* End of the drawing voice rule */
+
+/* The numbers in the stats table keep their normal case, so "ha" stays the correct hectare symbol (not "HA") */
+.stats b {
+  text-transform: none; /* No capitals */
+  letter-spacing: 0; /* Normal spacing */
+  font-size: 13px; /* A touch bigger than the labels, so the numbers lead */
+} /* End of the stats number rule */

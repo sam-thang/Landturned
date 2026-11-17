@@ -246,7 +246,7 @@ for (const place of PLACES) { // Make one button for each place
 
 const form = document.getElementById('search'); // The search form
 const input = document.getElementById('address'); // The text box
-const searchButton = form.querySelector('button'); // The arrow button (its label for screen readers is "Show change")
+const searchButton = form.querySelector('button[type="submit"]'); // The arrow button (its label for screen readers is "Show change"); "[type=submit]" picks it, not the locate button
 
 // Run this every time the form is submitted (button clicked or Enter pressed)
 form.addEventListener('submit', async (event) => {
@@ -277,6 +277,48 @@ form.addEventListener('submit', async (event) => {
     searchButton.setAttribute('aria-label', 'Show change'); // Put the normal label back
   } // End of try/catch/finally
 }); // End of the submit handler
+
+// ---------- Locate me ----------
+
+const locateButton = document.getElementById('locate'); // The crosshair button in the search box
+// Round located coordinates to 3 decimals (about 100 m). The place goes into the web address, and 5 decimals
+// would pinpoint someone to about 1 m, so a shared link could reveal their home. 100 m changes nothing for a 2 km square.
+const LOCATE_DECIMALS = 3;
+
+if (!('geolocation' in navigator)) locateButton.hidden = true; // Browsers that can't locate at all: hide the button instead of offering something that can't work
+
+const locateLabel = locateButton.querySelector('span'); // The button's visible text ("My location")
+
+// Stop showing "busy" on the locate button
+function resetLocateButton() {
+  locateButton.disabled = false; // Clickable again
+  locateLabel.textContent = 'My location'; // The normal text back
+} // End of resetLocateButton
+
+// When "My location" is clicked: ask the browser where we are, then analyse that spot
+locateButton.addEventListener('click', () => {
+  if (mode !== 'landing') return; // Busy with a place already: ignore
+  hideMessage(); // Clear any old message
+  locateButton.disabled = true; // Can't be clicked twice; the crosshair pulses (see style.css)
+  locateLabel.textContent = 'Locating…'; // Show (and tell screen readers) that something is happening
+  navigator.geolocation.getCurrentPosition( // Ask the browser for the position (the first time, it asks the person for permission)
+    (position) => { // Success: we got a position
+      resetLocateButton(); // Back to normal
+      const lat = Number(position.coords.latitude.toFixed(LOCATE_DECIMALS)); // Latitude, rounded to about 100 m (toFixed gives text, Number turns it back into a number)
+      const lon = Number(position.coords.longitude.toFixed(LOCATE_DECIMALS)); // Longitude, rounded the same way
+      selectPlace({ name: 'Your location', lat, lon }); // Analyse it, just like a searched address
+    }, // End of the success handler
+    (error) => { // Failure: no position
+      resetLocateButton(); // Back to normal
+      if (error.code === error.PERMISSION_DENIED) { // The person (or a browser setting) said no:
+        showMessage('Location access is turned off. Allow it in your browser settings, or type an address.'); // Explain how to fix it
+      } else { // Anything else (no signal, took too long):
+        showMessage("Couldn't find your location. Try again, or type an address."); // A friendly fallback
+      } // End of the error check
+    }, // End of the failure handler
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }, // Options: a rough position is plenty (faster, saves battery), give up after 10 s, a position up to 1 minute old is fine
+  ); // End of the position request
+}); // End of the locate handler
 
 // ---------- Opening a place from the address ----------
 

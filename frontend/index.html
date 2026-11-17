@@ -53,12 +53,19 @@
         <p class="kicker sheet-label">LANDTURN · SHEET 00 · WORLD</p> <!-- Small label above the headline, styled like a drawing sheet number; hidden on phones to save space -->
         <h1 id="landing-title" tabindex="-1">Every place on Earth has <span class="turned">turned.</span></h1> <!-- The main headline; "turned." is bright white with a four-color underline (see style.css). tabindex="-1" lets code move focus here (e.g. after "← New place") without adding it to the Tab order -->
         <p class="lede">From farmland to warehouses, forest to fields: see how any place has changed since 2017.</p> <!-- The intro text ("lede" is a newspaper word for the opening lines) -->
+        <div class="search-row"> <!-- The search box and the "My location" button, side by side -->
         <form id="search" class="search"> <!-- The search form; its id lets main.js find it -->
-          <input id="address" type="text" placeholder="Enter any address" aria-label="Address" autocomplete="off" /> <!-- The text box; autocomplete="off" stops the browser's own suggestion list covering the panel -->
+          <svg class="search-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M12.5 12.5 L17 17" /></svg> <!-- A magnifying glass: a circle (the lens) and a short diagonal line (the handle); decoration only, so screen readers skip it -->
+          <input id="address" type="text" placeholder="Enter any address" aria-label="Address" autocomplete="off" enterkeyhint="search" /> <!-- The text box; autocomplete="off" stops the browser's own suggestion list covering the panel; enterkeyhint="search" turns the phone keyboard's Enter key into a "Search" key -->
           <button type="submit" aria-label="Show change" title="Show change"> <!-- The button; clicking it or pressing Enter sends the form. aria-label = what screen readers say; title = the tooltip on mouse hover -->
             <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M3 10 H16 M11 5 L16 10 L11 15" /></svg> <!-- A drawn arrow: one line across (M = move to, H = horizontal line), then the arrowhead as two short lines; aria-hidden because the label above already says what it does -->
           </button> <!-- End of the button -->
         </form> <!-- End of the search form -->
+        <button id="locate" class="locate" type="button"> <!-- "My location": analyse where you are standing (main.js); the visible text is its label, so no aria-label is needed -->
+          <svg viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="10" cy="10" r="5" /><path d="M10 1 V5 M10 15 V19 M1 10 H5 M15 10 H19" /></svg> <!-- A crosshair: a circle plus four short ticks (V = vertical line, H = horizontal line), like a surveyor's target -->
+          <span>My location</span> <!-- The label -->
+        </button> <!-- End of the locate button -->
+        </div> <!-- End of the search row -->
         <p id="search-message" class="message" role="status" hidden></p> <!-- Messages like "Couldn't find that address"; role="status" makes screen readers announce them -->
         <p class="kicker">OR START WITH A PLACE THAT TURNED</p> <!-- Label above the place buttons -->
         <div id="places" class="places"></div> <!-- Empty area; main.js adds one button per place here -->
