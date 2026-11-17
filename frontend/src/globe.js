@@ -517,7 +517,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
   async function reset() {
     await turnTo(view.lon, START_VIEW.lat, 1); // Keep the longitude, tilt back to the starting latitude, zoom back to 1 (whole globe)
     focused = false; // No place chosen any more: spinning is allowed again
-    lastInteraction = performance.now(); // Count from now, so the spin starts after the usual pause
+    lastInteraction = performance.now() - SPIN_PAUSE_MS; // Pretend the rest pause is already over, so the slow spin starts easing in right away (the pause is for after people touch the globe; here they haven't)
     setInteractive(true); // Dragging, hovering, and clicking work again
   } // End of reset
 

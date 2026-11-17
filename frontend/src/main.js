@@ -214,8 +214,9 @@ document.getElementById('back').addEventListener('click', async () => {
   document.getElementById('landing-title').focus({ preventScroll: true }); // Move focus to the headline: screen readers announce it, Tab reaches the search box next, and phones don't pop up the keyboard (which focusing the search box would)
   globe.setVisible(true); // Start drawing the globe again (it's still zoomed in on the place)
   stage.classList.remove('show-map'); // Fade the map out and the globe in
-  await wait(CROSSFADE_MS); // Wait until the crossfade has finished
-  await globe.reset(); // Zoom out to the whole globe and unlock it
+  // Fade and zoom out at the same time (Promise.all waits until both are done), instead of one after the other:
+  // the globe pulls back while it fades in, which is quicker and looks like one continuous move
+  await Promise.all([wait(CROSSFADE_MS), globe.reset()]); // The crossfade, and zooming out to the whole globe (which also unlocks it)
   mode = 'landing'; // Ready for a new place
 }); // End of the back button handler
 
