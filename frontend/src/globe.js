@@ -20,10 +20,23 @@ const START_VIEW = { lon: -60, lat: 20 };
 
 // How fast the globe spins by itself, in degrees per millisecond (0.004 = 4° per second, one full turn in 90 seconds)
 const SPIN_SPEED = 0.004;
-// How long to wait after the user lets go before spinning again, in milliseconds (2.5 seconds)
+// How long the globe must rest untouched before the slow spin starts again, in milliseconds (2.5 seconds)
 const SPIN_PAUSE_MS = 2500;
-// How many degrees the globe turns per pixel the mouse or finger moves while dragging
-const DRAG_DEGREES_PER_PIXEL = 0.3;
+// How long the slow spin takes to speed up gently from standstill to full speed, in milliseconds (1.5 seconds)
+const SPIN_EASE_MS = 1500;
+
+// ---------- "Feel" settings for flinging the globe (tune these by trying them on a phone) ----------
+// Friction: a flung globe loses half its speed every this many milliseconds. Bigger = it coasts longer.
+const FRICTION_HALF_LIFE_MS = 400;
+// The fastest a fling can spin the globe, in degrees per millisecond (0.54 = 540° per second = 1.5 turns per second)
+const MAX_FLING_SPEED = 0.54;
+// Below this speed (degrees per millisecond) a coasting globe counts as stopped
+const STOP_SPEED = 0.002;
+// A globe turning faster than this (degrees per millisecond) counts as "moving": pressing it only catches it, it's not a tap.
+// It's 5 times the slow spin, so tapping a hotspot on the slowly spinning globe still works.
+const CATCH_SPEED = SPIN_SPEED * 5;
+// If the finger rests this long (milliseconds) before letting go, there's no fling: the globe was being held still
+const HOLD_STILL_MS = 80;
 // The furthest the globe can be tilted north or south, in degrees, so it can't flip upside down
 const MAX_TILT = 70;
 // True if the user has asked their computer to reduce motion (an accessibility setting)
@@ -201,7 +214,26 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
   // ---------- Spinning ----------
 
   let previousTime = 0; // The time of the previous frame, to measure how much time has passed
-  let lastInteraction = 0; // The time the user last let go of the globe
+  let lastInteraction = 0; // The time the globe last came to rest (let go without a fling, or a fling ran out)
+  // The globe's velocity: how many degrees it turns per millisecond, left-right (lon) and up-down (lat).
+  // A fling sets it; friction shrinks it every frame; a press sets it to 0.
+  const velocity = { lon: 0, lat: 0 };
+
+  // How fast the globe is turning overall, in degrees per millisecond (Pythagoras on the two directions)
+  function speed() {
+    return Math.hypot(velocity.lon, velocity.lat); // The length of the velocity "arrow"
+  } // End of speed
+
+  // Stop any movement at once
+  function stopMoving() {
+    velocity.lon = 0; // No left-right movement
+    velocity.lat = 0; // No up-down movement
+  } // End of stopMoving
+
+  // Keep a longitude between -180 and 180 (going past -180° wraps around to +180°, and the other way)
+  function wrapLon(lon) {
+    return ((((lon + 180) % 360) + 360) % 360) - 180; // "%" is the remainder after dividing; the extra "+ 360" handles negative numbers
+  } // End of wrapLon
 
   // Runs once per screen refresh (usually 60 times a second). "time" is in milliseconds since the page loaded.
   function frame(time) {
@@ -222,10 +254,26 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
       } // End of the finished check
     } // End of the turning check
 
-    const resting = time - lastInteraction > SPIN_PAUSE_MS; // True once the pause after a drag is over
-    if (!dragging && !turn && !focused && resting && !REDUCE_MOTION) { // Only spin when not dragged, not turning, no place chosen, after the pause, and if motion is allowed
-      view.lon -= elapsed * SPIN_SPEED; // Turn a little. Minus = the real direction: the surface moves west to east (left to right)
-      if (view.lon < -180) view.lon += 360; // Keep longitude between -180 and 180 (going past -180° wraps around to +180°)
+    // Coasting after a fling: move by the velocity, then let friction slow it down
+    if (!dragging && !turn && speed() > 0) { // Not held, not turning to a place, and still moving:
+      view.lon = wrapLon(view.lon + velocity.lon * elapsed); // Move left-right by speed × time
+      const tilted = view.lat + velocity.lat * elapsed; // Where the up-down movement would take it...
+      view.lat = limitTilt(tilted); // ...kept within the tilt limit
+      if (view.lat !== tilted) velocity.lat = 0; // Hit the tilt limit: stop the up-down movement there, like a stop on a real globe stand
+      const keep = 0.5 ** (elapsed / FRICTION_HALF_LIFE_MS); // Friction: the share of speed kept this frame ("**" = to the power of; after one half-life, 0.5 is kept)
+      velocity.lon *= keep; // Slow down left-right...
+      velocity.lat *= keep; // ...and up-down
+      if (speed() < STOP_SPEED) { // Slow enough to count as stopped:
+        stopMoving(); // stop completely,
+        lastInteraction = time; // and start counting the rest time before the slow spin
+      } // End of the stopped check
+    } // End of coasting
+
+    // The slow automatic spin, once the globe has rested long enough; it speeds up gently instead of starting at full speed
+    const restedFor = time - lastInteraction - SPIN_PAUSE_MS; // How long since the pause ended (negative while still pausing)
+    if (!dragging && !turn && !focused && speed() === 0 && restedFor > 0 && !REDUCE_MOTION) { // Only when free, still, after the pause, and if motion is allowed
+      const ramp = easeCubicInOut(Math.min(1, restedFor / SPIN_EASE_MS)); // From 0 to 1 over SPIN_EASE_MS, with a gentle start and end
+      view.lon = wrapLon(view.lon - elapsed * SPIN_SPEED * ramp); // Turn a little. Minus = the real direction: the surface moves west to east (left to right)
     } // End of the spin check
 
     if (visible) draw(time); // Paint the globe in its new position, unless it's hidden
@@ -236,15 +284,28 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
 
   let dragging = false; // True while the user is holding the mouse button or finger down on the globe
   let lastPointer = null; // The pointer's previous position [x, y], to measure how far it moved
+  let lastMoveTime = 0; // When the pointer last moved, to measure the finger's speed
   let movedTotal = 0; // How many pixels the pointer has moved since it was pressed, to tell clicks from drags
+  let caught = false; // True if this press caught a moving globe; then letting go isn't a tap
+
+  // How many degrees the globe turns per pixel of finger movement, so the spot under the finger stays under it.
+  // A circle's edge is 2 × π × radius long for 360°, so near the middle 1 pixel ≈ 180° ÷ (π × radius).
+  // The radius grows with the zoom, so when zoomed in each pixel turns the globe less.
+  function degreesPerPixel() {
+    const radius = Math.min(canvas.clientWidth, canvas.clientHeight) * 0.4 * view.zoom; // The globe's radius on screen (same formula as in draw)
+    return 180 / (Math.PI * radius); // Degrees per pixel
+  } // End of degreesPerPixel
 
   // When the user presses down on the globe (mouse button, finger, or pen; together called a "pointer")
   canvas.addEventListener('pointerdown', (event) => {
     if (!interactive) return; // Ignore presses while the app is busy
+    caught = speed() > CATCH_SPEED; // Was the globe moving fast? Then this press just catches it
+    stopMoving(); // Stop any coasting at once, like putting a hand on a spinning globe
     dragging = true; // Start dragging
     turn = null; // If the globe was turning to a place, stop: the user has taken over
     movedTotal = 0; // Nothing moved yet
     lastPointer = [event.clientX, event.clientY]; // Remember where the pointer started
+    lastMoveTime = performance.now(); // ...and when
     canvas.setPointerCapture(event.pointerId); // Keep receiving moves even if the pointer leaves the canvas while dragging
     canvas.classList.add('dragging'); // Switch to the "grabbing hand" cursor (see style.css)
     showTeaser(null); // Hide the teaser while dragging
@@ -257,25 +318,45 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
       showTeaser(hotspotAt(event)); // show the teaser if we're near a hotspot, hide it if not
       return; // and stop here
     } // End of the not-dragging check
+    const now = performance.now(); // The time of this move
     const dx = event.clientX - lastPointer[0]; // How far it moved left/right since last time, in pixels
     const dy = event.clientY - lastPointer[1]; // How far it moved up/down since last time
     movedTotal += Math.abs(dx) + Math.abs(dy); // Add up the movement, ignoring direction
-    view.lon -= dx * DRAG_DEGREES_PER_PIXEL; // Dragging right brings places from the west into view
-    view.lat = limitTilt(view.lat + dy * DRAG_DEGREES_PER_PIXEL); // Dragging down tilts north toward us; kept between -70° and 70°
+    const step = degreesPerPixel(); // How many degrees one pixel is worth right now
+    const dLon = -dx * step; // Dragging right brings places from the west into view (longitude goes down)
+    const dLat = dy * step; // Dragging down tilts north toward us (latitude goes up)
+    view.lon = wrapLon(view.lon + dLon); // Turn left-right
+    view.lat = limitTilt(view.lat + dLat); // Tilt up-down, kept between -70° and 70°
+
+    // Measure the finger's speed for a possible fling: this move's speed, blended with the earlier ones.
+    // Blending (a "smoothed average") stops one jerky move from deciding the whole fling.
+    const dt = Math.max(1, now - lastMoveTime); // Milliseconds since the last move (at least 1, so we never divide by 0)
+    velocity.lon = velocity.lon * 0.3 + (dLon / dt) * 0.7; // 70% this move's speed, 30% the earlier speed
+    velocity.lat = velocity.lat * 0.3 + (dLat / dt) * 0.7; // Same for up-down
     lastPointer = [event.clientX, event.clientY]; // Remember the new position for the next move
+    lastMoveTime = now; // ...and the time
   }); // End of pointermove
 
   // When the user lets go (or the system cancels the drag, e.g. a phone call comes in)
   function stopDragging() {
     dragging = false; // Stop dragging
-    lastInteraction = performance.now(); // Remember when, so the spin waits before starting again
     canvas.classList.remove('dragging'); // Back to the open-hand cursor
+    const heldStill = performance.now() - lastMoveTime > HOLD_STILL_MS; // Did the finger rest before letting go?
+    if (heldStill || REDUCE_MOTION) stopMoving(); // Then no fling (and never a fling if the user prefers less motion)
+    const fast = speed(); // How fast the fling is
+    if (fast > MAX_FLING_SPEED) { // Faster than the speed limit?
+      velocity.lon *= MAX_FLING_SPEED / fast; // Scale both directions down equally,
+      velocity.lat *= MAX_FLING_SPEED / fast; // so the direction stays the same but the speed is the limit
+    } // End of the speed limit
+    if (speed() < STOP_SPEED) stopMoving(); // A tiny leftover speed isn't a fling
+    lastInteraction = performance.now(); // Count the rest time from now (coasting resets this again when it stops)
   } // End of stopDragging
   // When the button or finger is lifted
   canvas.addEventListener('pointerup', (event) => {
     if (!dragging) return; // No drag was started (e.g. the app was busy), so there's nothing to finish
     stopDragging(); // The drag is over either way
     if (movedTotal > CLICK_TOLERANCE) return; // It moved: that was a drag, not a click, so stop here
+    if (caught) return; // That press caught a moving globe: it only stopped it, it wasn't a tap on a place
     const hotspot = hotspotAt(event); // It was a click: is there a hotspot under the pointer?
     if (hotspot) onSelectPlace(hotspot.place); // If so, tell main.js which place was chosen
   }); // End of pointerup
@@ -288,6 +369,7 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
   // Returns a Promise that is fulfilled when the turn has finished, so main.js can "await" it.
   function turnTo(lon, lat, zoom = view.zoom) { // If no zoom is given, keep the current one
     focused = true; // A place is chosen: stop the automatic spin
+    stopMoving(); // Cancel any coasting from a fling, so it can't fight the turn
     showTeaser(null); // Hide any teaser box
     const target = [lon, limitTilt(lat)]; // Where to end up, with the tilt kept in the allowed range
     return new Promise((resolve) => { // Create the Promise; we call "resolve" when the turn is done
