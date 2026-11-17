@@ -7,4 +7,7 @@ description = "Landturn backend: compares land-cover maps between years and retu
 requires-python = ">=3.13" # This project needs Python 3.13 or newer
 dependencies = [
     "fastapi[standard]>=0.163.1", # FastAPI (turns Python functions into web addresses), plus Uvicorn (the server that runs it) and other helpers
+    "planetary-computer>=1.0.0", # Signs Planetary Computer file links (adds a temporary access key) so we're allowed to download them
+    "pystac-client>=0.9.1", # Searches STAC catalogs: "which maps cover this place, for which years?"
+    "rasterio>=1.5.2", # Reads raster files (like GeoTIFFs), including just a small window of a big file, and converts coordinates
 ] # The libraries the backend needs; "uv add" fills this list in for us
