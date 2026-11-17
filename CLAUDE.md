@@ -26,10 +26,11 @@ Landturn is a web app that shows how the land around any address in the world ha
 - a satellite map with a before/after swipe
 - a year slider
 - color-coded change layers:
-  - **red**: green space lost
-  - **green**: green space gained
-  - **orange**: newly built or cleared land
-  - **blue**: new water
+  - **red**: green space cleared (trees or grass/farmland that became bare ground, with nothing built yet)
+  - **green**: green space gained (any non-green land that became trees or grass/farmland)
+  - **orange**: newly built (any land that became built, including former green space)
+  - **blue**: new water (any land that became water)
+  - Each pixel gets one color. The "green space lost" stat counts every green → non-green pixel, so it includes the red pixels plus the orange and blue pixels that used to be green. Changes between two green categories (trees ↔ grass/farmland) and pixels with no data in either year get no color; the no-data area is reported separately.
 - a side panel with stats, such as hectares of green space lost
 
 The design is dark, minimal, and image-led. `docs/mockup-v2.html` is the design reference. It replaces the older `docs/mockup.html`. The mockup uses simulated data, and its code is a design reference only: don't copy it into the app.
