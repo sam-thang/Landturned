@@ -6,6 +6,8 @@ import { startGlobe, TURN_MS } from './globe.js';
 import { resetSteps, startStep, finishStep, failStep } from './loading.js';
 // Bring in the function that asks our backend for the land-cover change, from api.js
 import { fetchChange } from './api.js';
+// Bring in the function that fills in the result panel, from results.js
+import { showResults } from './results.js';
 // Bring in the list of hotspot places, from places.js
 import { PLACES } from './places.js';
 // Bring in the address lookup function, from geocode.js
@@ -150,8 +152,7 @@ async function selectPlace(place) {
   await wait(HOLD_MS); // Everything is done: pause briefly so people see all steps completed
 
   // Fill in the result panel
-  document.getElementById('result-kicker').textContent = `${formatCoords(place.lon, place.lat)} · 2017 → TODAY`; // Coordinates and period
-  document.getElementById('result-name').textContent = place.name; // The place name as the heading
+  showResults(place, change, formatCoords(place.lon, place.lat)); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
 
   // Stage 2: crossfade from the globe to the map, and switch the panel at the same time
   document.getElementById('callout').classList.remove('visible'); // Fade the callout out

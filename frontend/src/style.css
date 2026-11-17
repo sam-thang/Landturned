@@ -644,7 +644,59 @@ h1:focus {
   letter-spacing: -0.01em; /* Letters very slightly closer together */
 } /* End of the reveal rule */
 
-/* Small print, such as the placeholder note */
+/* The place name inside the reveal sentence: no italics, a thin grey underline instead (like the mockup) */
+.reveal em {
+  font-style: normal; /* Not slanted */
+  border-bottom: 1px solid var(--muted); /* Thin grey line under the name */
+} /* End of the reveal name rule */
+
+/* The highlighted number inside the reveal sentence (its color is set by results.js) */
+.reveal b {
+  font-weight: 500; /* Same weight as the sentence: the color does the highlighting */
+} /* End of the reveal number rule */
+
+/* The list of four stat rows */
+.stats {
+  margin: 0; /* No default list spacing */
+  padding: 0; /* No default list indent */
+  list-style: none; /* No bullets */
+  border-top: 1px solid var(--line); /* A thin line above the first row */
+} /* End of the stats rule */
+
+/* One stat row: swatch, name, and hectares in a line */
+.stats li {
+  display: flex; /* Lay the three parts out in a row */
+  align-items: center; /* Vertically centered */
+  gap: 10px; /* Space between the parts */
+  padding: 11px 0; /* Space above and below each row */
+  border-bottom: 1px solid var(--line); /* A thin line under each row, like a table */
+  font-size: 14px; /* Normal reading size */
+} /* End of the stat row rule */
+
+/* The small colored square at the start of a row */
+.stats .swatch {
+  flex: none; /* Never shrink or grow */
+  width: 12px; /* 12 px wide... */
+  height: 12px; /* ...and tall */
+  background: var(--swatch); /* The row's change color, set in index.html */
+} /* End of the swatch rule */
+
+/* The hectares at the end of a row */
+.stats b {
+  margin-left: auto; /* Push it to the right edge */
+  font-weight: 500; /* Medium weight */
+  font-variant-numeric: tabular-nums; /* All digits equally wide, so the numbers line up in a column */
+} /* End of the hectares rule */
+
+/* "Green space lost in total: …", under the rows */
+.stat-total {
+  margin: 14px 0 18px; /* Space above and below */
+  font-size: 13px; /* A little smaller than the rows */
+  line-height: 1.45; /* Comfortable line spacing */
+  color: var(--muted); /* Grey: supporting information */
+} /* End of the total rule */
+
+/* Small print, such as the data note */
 .note {
   margin: 0; /* No default paragraph spacing */
   font-size: 12px; /* Small */

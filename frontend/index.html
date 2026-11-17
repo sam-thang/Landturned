@@ -74,9 +74,16 @@
         </div> <!-- End of the locating section -->
         <div id="panel-result" hidden> <!-- Panel contents once the map is shown; hidden until then -->
           <button id="back" class="back" type="button">← New place</button> <!-- Goes back to the globe to choose another place -->
-          <p id="result-kicker" class="kicker"></p> <!-- Coordinates and period, e.g. "34.0920° N, 117.4350° W · 2017 → TODAY" -->
-          <h2 id="result-name" class="reveal"></h2> <!-- The place name; later this becomes the reveal sentence -->
-          <p class="note">Change figures will appear here once the analysis backend is built.</p> <!-- Placeholder until real numbers exist -->
+          <p id="result-kicker" class="kicker"></p> <!-- Coordinates and period, e.g. "33.9747° N, 117.5665° W · 2017 → 2023" -->
+          <h2 id="result-name" class="reveal"></h2> <!-- The reveal sentence (results.js fills it in) -->
+          <ul id="stats" class="stats"> <!-- The four change types, one row each, in the same colors as the map -->
+            <li style="--swatch: var(--built)"><i class="swatch"></i>Newly built<b id="stat-built"></b></li> <!-- Orange: swatch, name, hectares -->
+            <li style="--swatch: var(--loss)"><i class="swatch"></i>Green space cleared<b id="stat-cleared"></b></li> <!-- Red -->
+            <li style="--swatch: var(--gain)"><i class="swatch"></i>Green space gained<b id="stat-gained"></b></li> <!-- Green -->
+            <li style="--swatch: var(--water)"><i class="swatch"></i>New water<b id="stat-water"></b></li> <!-- Blue -->
+          </ul> <!-- End of the stats -->
+          <p id="green-lost" class="stat-total"></p> <!-- "Green space lost in total: …" -->
+          <p id="result-note" class="note"></p> <!-- Small print: data source, estimates, the analysis area -->
         </div> <!-- End of the result section -->
       </section> <!-- End of the panel -->
     </div> <!-- End of the app -->
