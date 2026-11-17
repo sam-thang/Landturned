@@ -61,6 +61,68 @@ def to_hectares(pixel_count):
     return pixel_count * PIXEL_AREA_M2 / 10_000  # pixels x 100 m2, then divided by 10,000 m2 per hectare
 
 
+# ---------- Comparing two years ----------
+
+# The change code each pixel gets in the change grid; each code becomes one color on the map
+NO_CHANGE = 0  # Same category in both years (or a change we don't color, like trees <-> grass/farmland)
+CLEARED = 1  # Red: green space (trees or grass/farmland) that became bare ground
+GAINED = 2  # Green: non-green land that became trees or grass/farmland
+NEW_BUILT = 3  # Orange: any land that became built
+NEW_WATER = 4  # Blue: any land that became water
+UNKNOWN = 5  # No data in one or both years, so we can't tell
+
+# The readable name of each change code
+CHANGE_NAMES = {
+    CLEARED: "Green space cleared (red)",  # 1
+    GAINED: "Green space gained (green)",  # 2
+    NEW_BUILT: "Newly built (orange)",  # 3
+    NEW_WATER: "New water (blue)",  # 4
+    UNKNOWN: "No data in one or both years",  # 5
+}  # End of the change names
+
+GREEN = [TREES, GRASS]  # The categories that count as green space
+
+
+def compare(before, after):
+    """Compare two category grids pixel by pixel. Returns a grid of change codes (one per pixel)."""
+    if before.shape != after.shape:  # The grids must cover the same pixels, or the comparison makes no sense
+        raise ValueError(f"Grids differ in size: {before.shape} vs {after.shape}")  # Stop with a clear error message
+
+    # Each line below makes a "mask": a grid of True/False, one per pixel, answering a yes/no question
+    known = (before != NO_DATA) & (after != NO_DATA)  # Do we know the category in both years? ("&" = and, pixel by pixel)
+    changed = known & (before != after)  # Known in both years, and the category is different
+    green_before = np.isin(before, GREEN)  # Was the pixel green space in the first year?
+    green_after = np.isin(after, GREEN)  # Is it green space in the latest year?
+
+    change = np.full(before.shape, NO_CHANGE, dtype=np.uint8)  # Start with a grid where every pixel says "no change"
+    change[changed & green_before & (after == BARE)] = CLEARED  # Green -> bare: red
+    change[changed & ~green_before & green_after] = GAINED  # Non-green -> green: green ("~" = not)
+    change[changed & (after == BUILT)] = NEW_BUILT  # Anything -> built: orange
+    change[changed & (after == WATER)] = NEW_WATER  # Anything -> water: blue
+    change[~known] = UNKNOWN  # No data in either year: unknown
+    return change  # Hand back the finished change grid
+
+
+def from_to_counts(before, after):
+    """Count every from -> to pair of categories. Returns a 6 x 6 table: row = category before, column = category after."""
+    n = len(CATEGORY_NAMES)  # 6 categories
+    pair_numbers = before.astype(np.int32) * n + after  # Give each pair its own number: before x 6 + after (e.g. grass(2) -> built(3) = 15)
+    counts = np.bincount(pair_numbers.ravel(), minlength=n * n)  # Count how often each pair number appears (ravel = flatten the grid into one long list)
+    return counts.reshape(n, n)  # Fold the 36 counts back into a 6 x 6 table
+
+
+def summarize(before, after, change):
+    """Work out the stats in hectares: area per change color, green space lost and gained, and the total area."""
+    stats = {name: to_hectares(int((change == code).sum())) for code, name in CHANGE_NAMES.items()}  # Hectares for each change code
+    known = (before != NO_DATA) & (after != NO_DATA)  # Pixels we know in both years
+    green_before = np.isin(before, GREEN)  # Green in the first year
+    green_after = np.isin(after, GREEN)  # Green in the latest year
+    stats["Green space lost (all)"] = to_hectares(int((known & green_before & ~green_after).sum()))  # Every green -> non-green pixel: red, plus orange and blue that used to be green
+    stats["Green space gained (all)"] = to_hectares(int((known & ~green_before & green_after).sum()))  # Every non-green -> green pixel
+    stats["Total area"] = to_hectares(change.size)  # All pixels in the square (should be 400 ha)
+    return stats  # Hand back the dictionary of stats
+
+
 # ---------- Finding the maps ----------
 
 def find_items_by_year(lon, lat):

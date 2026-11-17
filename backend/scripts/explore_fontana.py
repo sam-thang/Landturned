@@ -33,12 +33,14 @@ def main():
     first, latest = years[0], years[-1]  # The oldest and newest year
 
     counts = {}  # year -> {category number: pixel count}
+    grids = {}  # year -> category grid (kept for the comparison below)
     for year in (first, latest):  # Do the same for both years:
         print(f"Reading {year}...")  # Show progress
         data = landcover.read_square(items_by_year[year], LON, LAT)  # Read the square (dataset class numbers)
         categories = landcover.to_categories(data)  # Translate into our six categories
         print(f"  Window: {categories.shape[1]} x {categories.shape[0]} pixels")  # Columns x rows; should be 200 x 200
         counts[year] = count_categories(categories)  # Count the pixels per category
+        grids[year] = categories  # Keep the grid
 
     # Print the table
     print()  # An empty line
@@ -53,6 +55,34 @@ def main():
     total = sum(counts[first].values())  # Total pixels in the window
     print("-" * len(header))  # Closing line
     print(f"{'Total':<20}{total:>12}{landcover.to_hectares(total):>8.1f}")  # Should be 40,000 pixels = 400 ha (2 x 2 km)
+
+    # ---------- Pixel-by-pixel comparison ----------
+    before, after = grids[first], grids[latest]  # The two category grids
+    change = landcover.compare(before, after)  # One change code per pixel
+
+    print()  # An empty line
+    print(f"Change {first} -> {latest} (pixel by pixel)")  # Section title
+    print("-" * 44)  # A line of dashes
+    for name, hectares in landcover.summarize(before, after, change).items():  # Each stat and its value
+        print(f"{name:<34}{hectares:>7.1f} ha")  # Name left-aligned, hectares right-aligned with one decimal
+
+    # The biggest from -> to changes, largest first
+    table = landcover.from_to_counts(before, after)  # 6 x 6 table of pixel counts
+    names = landcover.CATEGORY_NAMES  # Shorter name for the category names
+    pairs = []  # A list of (pixel count, from name, to name)
+    for a in names:  # Every "before" category
+        for b in names:  # Every "after" category
+            if a != b and table[a, b] > 0:  # Only real changes that actually happened
+                pairs.append((int(table[a, b]), names[a], names[b]))  # Remember this pair
+    pairs.sort(reverse=True)  # Sort by pixel count, largest first
+
+    print()  # An empty line
+    print("Biggest from -> to changes")  # Section title
+    print("-" * 44)  # A line of dashes
+    for count, from_name, to_name in pairs[:10]:  # The top 10 pairs
+        print(f"{from_name + ' -> ' + to_name:<34}{landcover.to_hectares(count):>7.1f} ha")  # e.g. "Grass/farmland -> Built   12.3 ha"
+    changed_total = sum(count for count, _, _ in pairs)  # All changed pixels together (gross change)
+    print(f"{'All changes together (gross)':<34}{landcover.to_hectares(changed_total):>7.1f} ha")  # The total of every from -> to change
 
 
 if __name__ == "__main__":  # Only run main() when this file is started directly (not when another file imports it)
