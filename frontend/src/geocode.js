@@ -1,5 +1,12 @@
 // The web address of OpenStreetMap's free geocoding service, Nominatim
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
+// Nominatim's reverse service: coordinates in, place name out
+const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
+// How detailed the reverse answer should be: 10 means "city level" (18 would be a single building)
+const REVERSE_ZOOM = 10;
+// The address fields that count as a town name, from biggest to smallest. Countries label places differently
+// (Fontana is a "city", a small place is a "town" or "village", Norway uses "municipality"), so we check them all.
+const TOWN_FIELDS = ['city', 'town', 'village', 'municipality'];
 
 // Look up an address and return its location, or null if nothing was found.
 // "export" lets other files (like main.js) use this function.
@@ -39,3 +46,46 @@ export async function geocode(address) {
     name: best.display_name, // The full place name Nominatim matched, e.g. "Fontana, San Bernardino County, ..."
   }; // End of the returned object
 } // End of the geocode function
+
+// The opposite lookup ("reverse geocoding"): turn a latitude and longitude into a town name, e.g. "Fontana".
+// Returns null when there's no town there (open sea, desert, ice), so the caller can use a fallback wording.
+export async function reverseGeocode(lat, lng) {
+  // Start building the full request address from the reverse service's web address
+  const url = new URL(NOMINATIM_REVERSE_URL);
+  // The latitude (north-south) of the spot we want named
+  url.searchParams.set('lat', lat);
+  // The longitude (east-west); Nominatim calls it "lon"
+  url.searchParams.set('lon', lng);
+  // Ask for the answer in JSON, like in geocode above
+  url.searchParams.set('format', 'jsonv2');
+  // Ask for a city-level answer, not a street address
+  url.searchParams.set('zoom', REVERSE_ZOOM);
+
+  // Send the request and wait for the reply
+  const response = await fetch(url);
+  // If the server reports a problem, stop with an error (the caller decides what to show)
+  if (!response.ok) {
+    // Say which status code the server sent
+    throw new Error(`Reverse geocoding failed with status ${response.status}`);
+  } // End of the problem check
+
+  // Turn the reply text into a JavaScript object
+  const result = await response.json();
+  // Nominatim says "nothing here" with an "error" field (not an error code), e.g. in the middle of the ocean
+  if (result.error || !result.address) {
+    // No name to give
+    return null;
+  } // End of the nothing-found check
+
+  // Go through the town fields in order and return the first one this address has
+  for (const field of TOWN_FIELDS) {
+    // Does the address have this field (e.g. address.city)?
+    if (result.address[field]) {
+      // Yes: that's our town name
+      return result.address[field];
+    } // End of the field check
+  } // End of the loop over town fields
+
+  // Only bigger areas (a county, a state) were found: too big to describe a 2 × 2 km square, so no name
+  return null;
+} // End of the reverseGeocode function

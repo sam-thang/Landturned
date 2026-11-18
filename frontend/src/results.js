@@ -19,7 +19,9 @@ function highlight(hectares, colorVar) {
 
 // Make the place name for the reveal sentence, underlined like in the mockup.
 // The name may be typed by the user, so it only ever goes in as plain text (textContent), never as HTML.
+// A place with no town name (null) becomes the plain words "this area", without an underline, since it isn't a name.
 function placeName(name) {
+  if (!name) return 'this area'; // No name: plain text, e.g. "Between 2017 and 2023, this area turned …"
   const em = document.createElement('em'); // A new <em> element (styled with an underline in style.css)
   em.textContent = name.split(',')[0]; // Just the part before the first comma, e.g. "Eastvale"
   return em; // Hand back the finished element
@@ -61,7 +63,7 @@ export function showResults(place, change, coordsText) {
 
   if (!change) { // No change data (the backend failed or has nothing here):
     document.getElementById('result-kicker').textContent = coordsText; // Just the coordinates, no years
-    heading.textContent = place.name; // The heading is simply the place name
+    heading.textContent = place.name ?? 'Unnamed place'; // The heading is simply the place name, or "Unnamed place" if it has none
     stats.hidden = true; // Hide the stat rows
     greenLost.hidden = true; // Hide the total line
     note.textContent = "Change data isn't available for this place right now. The map still shows the satellite image."; // Explain

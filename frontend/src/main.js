@@ -10,8 +10,8 @@ import { fetchChange } from './api.js';
 import { showResults } from './results.js';
 // Bring in the list of hotspot places, from places.js
 import { PLACES } from './places.js';
-// Bring in the address lookup function, from geocode.js
-import { geocode } from './geocode.js';
+// Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
+import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
 import { showPlace, showChange } from './map.js';
 
@@ -60,7 +60,8 @@ function wait(ms) {
 
 // Write a place into the address bar. replaceState changes the address without reloading the page or adding a "back" step.
 function setUrlPlace(place) {
-  const params = new URLSearchParams({ lat: place.lat.toFixed(5), lon: place.lon.toFixed(5), name: place.name }); // Build "lat=...&lon=...&name=..." safely (spaces and commas get encoded)
+  const params = new URLSearchParams({ lat: place.lat.toFixed(5), lon: place.lon.toFixed(5) }); // Build "lat=...&lon=..." safely (spaces and commas get encoded)
+  if (place.name) params.set('name', place.name); // Add "&name=..." only if the place has a name (null means "no town here")
   history.replaceState(null, '', `?${params}`); // Put it in the address bar
 } // End of setUrlPlace
 
@@ -76,7 +77,7 @@ function placeFromUrl() {
   const lat = Number(params.get('lat')); // Turn the text into a number (NaN, "not a number", if it isn't one)
   const lon = Number(params.get('lon')); // Same for the longitude
   if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) return null; // Not real coordinates: ignore them
-  return { name: params.get('name') || formatCoords(lon, lat), lon, lat }; // The place; without a name, use its coordinates as the name
+  return { name: params.get('name') || null, lon, lat }; // The place; without a name in the address, its name is null ("no town here")
 } // End of placeFromUrl
 
 // Show one panel section (by its id) and hide the others
@@ -87,6 +88,9 @@ function showPanel(id) {
 } // End of showPanel
 
 // ---------- Choosing a place ----------
+
+// What the panel and the callout show for a place with no town name (a tap in the desert, say). The coordinates are on the line below it.
+const UNNAMED = 'Unnamed place';
 
 // How far the globe zooms in when a place is chosen: 3.4 times the whole-globe view, roughly a country-sized region
 const REGIONAL_ZOOM = 3.4;
@@ -114,7 +118,7 @@ async function selectPlace(place) {
   setUrlPlace(place); // Put the place in the address bar right away, so a reload during loading also comes back here
 
   // Fill in and show the "locating" panel
-  document.getElementById('locating-name').textContent = place.name; // The place name
+  document.getElementById('locating-name').textContent = place.name ?? UNNAMED; // The place name, or "Unnamed place" if it has none ("??" means "if the left side is null, use the right side")
   document.getElementById('locating-coords').textContent = formatCoords(place.lon, place.lat); // Its coordinates
   resetSteps(); // Empty the progress bar and un-tick the steps (in case of an earlier visit)
   document.getElementById('step-map').textContent = 'Loading detailed map'; // Reset the text too, in case it showed an error before
@@ -164,7 +168,7 @@ async function selectPlace(place) {
   document.getElementById('callout-kicker').textContent = place.teaser // If the place has a teaser...
     ? `SITE · ${place.teaser.toUpperCase()}` // ...show it in capitals, e.g. "SITE · FARMLAND → WAREHOUSES"
     : 'SITE · SEARCHED ADDRESS'; // ...otherwise a general label
-  document.getElementById('callout-name').textContent = place.name; // The place name
+  document.getElementById('callout-name').textContent = place.name ?? UNNAMED; // The place name, or "Unnamed place"
   document.getElementById('callout-coords').textContent = formatCoords(place.lon, place.lat); // The coordinates
   document.getElementById('callout').classList.add('visible'); // Fade the callout in
 
@@ -302,16 +306,22 @@ locateButton.addEventListener('click', () => {
   locateButton.disabled = true; // Can't be clicked twice; the crosshair pulses (see style.css)
   locateLabel.textContent = 'Locating…'; // Show (and tell screen readers) that something is happening
   navigator.geolocation.getCurrentPosition( // Ask the browser for the position (the first time, it asks the person for permission)
-    (position) => { // Success: we got a position
-      resetLocateButton(); // Back to normal
+    async (position) => { // Success: we got a position ("async" so we can wait for the town name below)
       const lat = Number(position.coords.latitude.toFixed(LOCATE_DECIMALS)); // Latitude, rounded to about 100 m (toFixed gives text, Number turns it back into a number)
       const lon = Number(position.coords.longitude.toFixed(LOCATE_DECIMALS)); // Longitude, rounded the same way
-      selectPlace({ name: 'Your location', lat, lon }); // Analyse it, just like a searched address
+      let name = null; // The town name; stays null if there's no town here or the lookup fails
+      try { // Try the lookup; if anything goes wrong, jump to "catch" instead of crashing
+        name = await reverseGeocode(lat, lon); // Ask Nominatim which town this is, e.g. "Fontana" (the button still says "Locating…" meanwhile)
+      } catch { // The lookup failed (no internet, Nominatim busy):
+        name = null; // Carry on without a name; the analysis matters more than the label
+      } // End of the try/catch
+      resetLocateButton(); // Back to normal
+      selectPlace({ name, lat, lon }); // Analyse it, just like a searched address
     }, // End of the success handler
     (error) => { // Failure: no position
       resetLocateButton(); // Back to normal
       if (error.code === error.PERMISSION_DENIED) { // The person (or a browser setting) said no:
-        showMessage('Location access is turned off. Allow it in your browser settings, or type an address.'); // Explain how to fix it
+        showMessage('Location access is turned off. Allow it in your browser or device settings, or type an address.'); // Explain how to fix it (on iPhone the block is often in the phone's own Location Services settings, not the browser's)
       } else { // Anything else (no signal, took too long):
         showMessage("Couldn't find your location. Try again, or type an address."); // A friendly fallback
       } // End of the error check
