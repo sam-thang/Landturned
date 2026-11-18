@@ -23,6 +23,7 @@ const globe = startGlobe(
   document.getElementById('globe'), // The canvas to draw on
   document.getElementById('teaser'), // The hover teaser box
   (place) => selectPlace(place), // What to do when a hotspot is clicked
+  ([lon, lat]) => console.log(`Tapped land at ${lat.toFixed(3)}, ${lon.toFixed(3)}`), // What to do when land is tapped: for now just note it in the developer console (step 6b.2 adds the pin)
 ); // End of startGlobe
 
 // ---------- Messages ----------

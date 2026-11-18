@@ -1,8 +1,9 @@
 // Bring in tools from D3: the globe projection, a "path" drawer, the latitude/longitude grid,
 // a function that measures the distance between two places on the globe,
 // a function that finds the in-between points on the shortest route between two places,
-// and an "easing" curve that makes movements start and end gently
-import { geoOrthographic, geoPath, geoGraticule10, geoDistance, geoInterpolate, easeCubicInOut } from 'd3';
+// an "easing" curve that makes movements start and end gently,
+// and a test that tells whether a point lies inside a shape (we use it to check "is this tap on land?")
+import { geoOrthographic, geoPath, geoGraticule10, geoDistance, geoInterpolate, easeCubicInOut, geoContains } from 'd3';
 // Bring in our list of hotspot places from places.js
 import { PLACES } from './places.js';
 // Bring in the tool that unpacks TopoJSON (the compact map format) into shapes D3 can draw
@@ -84,9 +85,10 @@ function limitTilt(lat) {
 
 // Draw the globe on the given canvas, with a teaser box for hovered hotspots.
 // "onSelectPlace" is a function to call when the user clicks a hotspot.
+// "onTapLand" is a function to call when the user taps land away from any hotspot; it gets the spot as [lon, lat].
 // Returns an object with a turnTo function, so other code can tell the globe where to look.
 // "export" lets main.js use this function.
-export function startGlobe(canvas, teaser, onSelectPlace) {
+export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
   const context = canvas.getContext('2d'); // The "2D context" is the set of drawing tools for the canvas
   const projection = geoOrthographic() // The orthographic projection: the Earth as seen from far out in space
     .clipAngle(90) // Hide everything more than 90° from the center, i.e. the far side of the globe
@@ -450,7 +452,13 @@ export function startGlobe(canvas, teaser, onSelectPlace) {
     if (movedTotal > CLICK_TOLERANCE) return; // It moved: that was a drag, not a click, so stop here
     if (caught) return; // That press caught a moving globe: it only stopped it, it wasn't a tap on a place
     const hotspot = hotspotAt(event); // It was a click: is there a hotspot under the pointer?
-    if (hotspot) onSelectPlace(hotspot.place); // If so, tell main.js which place was chosen
+    if (hotspot) { // Yes:
+      onSelectPlace(hotspot.place); // Tell main.js which place was chosen
+      return; // Done: a hotspot tap is never also a land tap
+    } // End of the hotspot check
+    const rect = canvas.getBoundingClientRect(); // Where the canvas is on the page
+    const lonLat = placeAt(event.clientX - rect.left, event.clientY - rect.top); // The spot on Earth under the tap, or null if it's off the globe
+    if (lonLat && geoContains(land, lonLat)) onTapLand(lonLat); // On the globe and inside the land outlines: tell main.js. Sea and space are ignored.
   }); // End of pointerup
   // When the system cancels a touch (e.g. a phone call comes in)
   canvas.addEventListener('pointercancel', (event) => {
