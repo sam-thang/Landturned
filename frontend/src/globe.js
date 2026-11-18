@@ -65,6 +65,13 @@ const HOVER_RADIUS = 18;
 // Measured in radians (an angle unit: 1.5 radians ≈ 86°; the globe's visible edge is at 90°).
 const MAX_VISIBLE_DISTANCE = 1.5;
 
+// ---------- The pin (the tapped spot), drawn as a survey mark: a circle with a cross through it ----------
+const PIN_RING = 6; // Radius of the circle, in pixels
+const PIN_GAP = 2.5; // The cross's arms start this far from the center, leaving the exact spot open
+const PIN_ARM = 11; // ...and end this far out, a little beyond the circle
+const PIN_INK = 'rgba(240, 244, 248, 0.95)'; // Off-white, like the coastlines but stronger; the four colors are kept for change types
+const PIN_HALO = '#0c1015'; // The ocean color, drawn wide underneath to cut a clean gap through coastlines and grid lines
+
 // Read the four change colors from the CSS tokens in style.css, so each color is defined in one place only
 // We read them when drawing, not once at page load: on phones, Safari sometimes runs our code before the stylesheet
 // is applied, and an early read gives empty text. A canvas ignores an empty color and reuses its last one, which
@@ -99,6 +106,7 @@ export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
   let hoveredPlace = null; // The place the mouse is currently over, or null for none
   let turn = null; // The turn in progress, or null when not turning
   let focused = false; // True once a place has been chosen; the globe then stops spinning by itself
+  let pin = null; // The tapped spot as [lon, lat], or null when there is no pin; the globe doesn't spin while a pin is set
   let interactive = true; // False while the app is busy (e.g. zooming to a place): dragging, hovering, and clicking are ignored
   let visible = true; // False while the globe is hidden behind the map; then we skip drawing to save battery
 
@@ -213,6 +221,23 @@ export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
 
       visibleHotspots.push({ place, x, y }); // Remember where we drew it, for hover checks
     } // End of the places loop
+
+    // The pin, if there is one and it's on the front of the globe
+    if (pin && geoDistance(pin, [view.lon, view.lat]) <= MAX_VISIBLE_DISTANCE) { // A pin exists and hasn't turned to the back
+      const [x, y] = projection(pin); // Its screen position right now (so it turns with the globe)
+      context.beginPath(); // Start the mark's outline: the circle and the four arms of the cross
+      context.arc(x, y, PIN_RING, 0, Math.PI * 2); // The circle
+      context.moveTo(x - PIN_ARM, y); context.lineTo(x - PIN_GAP, y); // Left arm (moveTo lifts the pen, lineTo draws)
+      context.moveTo(x + PIN_GAP, y); context.lineTo(x + PIN_ARM, y); // Right arm
+      context.moveTo(x, y - PIN_ARM); context.lineTo(x, y - PIN_GAP); // Top arm
+      context.moveTo(x, y + PIN_GAP); context.lineTo(x, y + PIN_ARM); // Bottom arm
+      context.strokeStyle = PIN_HALO; // First pass: the dark halo...
+      context.lineWidth = 4; // ...drawn wide
+      context.stroke(); // Draw the halo
+      context.strokeStyle = PIN_INK; // Second pass, on top: the off-white ink...
+      context.lineWidth = 1.3; // ...drawn thin, like a pen line
+      context.stroke(); // Draw the same outline again
+    } // End of the pin
   } // End of draw
 
   // Find the visible hotspot nearest to a pointer event, or null if none is close enough
@@ -307,7 +332,7 @@ export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
 
     // The slow automatic spin, once the globe has rested long enough; it speeds up gently instead of starting at full speed
     const restedFor = time - lastInteraction - SPIN_PAUSE_MS; // How long since the pause ended (negative while still pausing)
-    if (!dragging && !turn && !focused && speed() === 0 && restedFor > 0 && !REDUCE_MOTION) { // Only when free, still, after the pause, and if motion is allowed
+    if (!dragging && !turn && !focused && !pin && speed() === 0 && restedFor > 0 && !REDUCE_MOTION) { // Only when free, still, unpinned, after the pause, and if motion is allowed
       const ramp = easeCubicInOut(Math.min(1, restedFor / SPIN_EASE_MS)); // From 0 to 1 over SPIN_EASE_MS, with a gentle start and end
       view.lon = wrapLon(view.lon - (elapsed * SPIN_SPEED * ramp) / view.zoom); // Turn a little; divided by the zoom so a zoomed-in globe doesn't race across the screen. Minus = the real direction: the surface moves west to east (left to right)
     } // End of the spin check
@@ -458,7 +483,10 @@ export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
     } // End of the hotspot check
     const rect = canvas.getBoundingClientRect(); // Where the canvas is on the page
     const lonLat = placeAt(event.clientX - rect.left, event.clientY - rect.top); // The spot on Earth under the tap, or null if it's off the globe
-    if (lonLat && geoContains(land, lonLat)) onTapLand(lonLat); // On the globe and inside the land outlines: tell main.js. Sea and space are ignored.
+    if (lonLat && geoContains(land, lonLat)) { // On the globe and inside the land outlines (sea and space are ignored):
+      pin = lonLat; // Put the pin there (a new tap moves it); the next frame draws it
+      onTapLand(lonLat); // Tell main.js
+    } // End of the land check
   }); // End of pointerup
   // When the system cancels a touch (e.g. a phone call comes in)
   canvas.addEventListener('pointercancel', (event) => {
@@ -525,6 +553,7 @@ export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
   async function reset() {
     await turnTo(view.lon, START_VIEW.lat, 1); // Keep the longitude, tilt back to the starting latitude, zoom back to 1 (whole globe)
     focused = false; // No place chosen any more: spinning is allowed again
+    pin = null; // And no pin: we're back to an untouched globe
     lastInteraction = performance.now() - SPIN_PAUSE_MS; // Pretend the rest pause is already over, so the slow spin starts easing in right away (the pause is for after people touch the globe; here they haven't)
     setInteractive(true); // Dragging, hovering, and clicking work again
   } // End of reset
