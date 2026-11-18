@@ -59,6 +59,9 @@ const CLICK_TOLERANCE = 3;
 
 // How long one hotspot "pulse" (a ring growing and fading) takes, in milliseconds
 const PULSE_MS = 1800;
+// For people who turned on "reduce motion": the ring doesn't pulse but stays still at this point of the pulse
+// (0.45 = about 10 px across and half faded), so it still marks a highlighted place, just calmly
+const STILL_PULSE = 0.45;
 // How close (in pixels) the mouse must be to a hotspot to count as hovering over it
 const HOVER_RADIUS = 18;
 // Hotspots further than this from the center of the view are on the back of the globe and not drawn.
@@ -208,7 +211,8 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange) 
       const [x, y] = projection([place.lon, place.lat]); // Turn longitude/latitude into a screen position
       const color = changeColor(place.type); // The color for this place's type of change
       const phase = (time / PULSE_MS + place.lon / 100) % 1; // Where this place is in its pulse, from 0 to 1; the longitude part offsets places so they don't all pulse together
-      const pulse = phase < 0 ? phase + 1 : phase; // Fix negative values (from western longitudes) so the pulse always runs 0 → 1
+      const moving = phase < 0 ? phase + 1 : phase; // Fix negative values (from western longitudes) so the pulse always runs 0 → 1
+      const pulse = REDUCE_MOTION ? STILL_PULSE : moving; // If the person asked for less motion, freeze the ring partway through its pulse instead
 
       context.beginPath(); // Start the ring
       context.arc(x, y, 3 + pulse * 16, 0, Math.PI * 2); // A circle that grows from 3 to 19 px over one pulse
