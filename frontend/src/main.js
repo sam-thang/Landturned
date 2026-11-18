@@ -22,8 +22,9 @@ import { showPlace, showChange } from './map.js';
 const globe = startGlobe(
   document.getElementById('globe'), // The canvas to draw on
   document.getElementById('teaser'), // The hover teaser box
+  document.getElementById('pin-card'), // The card beside a tapped spot
   (place) => selectPlace(place), // What to do when a hotspot is clicked
-  ([lon, lat]) => console.log(`Tapped land at ${lat.toFixed(3)}, ${lon.toFixed(3)}`), // What to do when land is tapped: for now just note it in the developer console (step 6b.2 adds the pin)
+  (lonLat) => fillPinCard(lonLat), // What to do when the pin moves or goes away (see "The pin card" below)
 ); // End of startGlobe
 
 // ---------- Messages ----------
@@ -90,8 +91,15 @@ function showPanel(id) {
 
 // ---------- Choosing a place ----------
 
-// What the panel and the callout show for a place with no town name (a tap in the desert, say). The coordinates are on the line below it.
-const UNNAMED = 'Unnamed place';
+// The title for a place in the panel and the callout: its name, or for a place without one (a tapped spot) its coordinates
+function placeTitle(place) {
+  return place.name ?? formatCoords(place.lon, place.lat); // "??" means "if the left side is null, use the right side"
+} // End of placeTitle
+
+// The small coordinates line under that title: empty when the title already is the coordinates, so they don't show twice
+function placeSubtitle(place) {
+  return place.name ? formatCoords(place.lon, place.lat) : ''; // A named place gets its coordinates; an unnamed one gets nothing
+} // End of placeSubtitle
 
 // How far the globe zooms in when a place is chosen: 3.4 times the whole-globe view, roughly a country-sized region
 const REGIONAL_ZOOM = 3.4;
@@ -115,12 +123,13 @@ const mapContainer = document.getElementById('map'); // The element MapLibre dra
 async function selectPlace(place) {
   if (mode !== 'landing') return; // Already busy with a place: ignore extra clicks
   mode = 'locating'; // Now we're busy
+  globe.clearPin(); // Remove any pin and its card, so they don't sit on top of the callout
   hideMessage(); // Clear any old message
   setUrlPlace(place); // Put the place in the address bar right away, so a reload during loading also comes back here
 
   // Fill in and show the "locating" panel
-  document.getElementById('locating-name').textContent = place.name ?? UNNAMED; // The place name, or "Unnamed place" if it has none ("??" means "if the left side is null, use the right side")
-  document.getElementById('locating-coords').textContent = formatCoords(place.lon, place.lat); // Its coordinates
+  document.getElementById('locating-name').textContent = placeTitle(place); // The place name (or its coordinates if it has none)
+  document.getElementById('locating-coords').textContent = placeSubtitle(place); // Its coordinates (or nothing, if they're already the title)
   resetSteps(); // Empty the progress bar and un-tick the steps (in case of an earlier visit)
   document.getElementById('step-map').textContent = 'Loading detailed map'; // Reset the text too, in case it showed an error before
   document.getElementById('step-compare').textContent = 'Comparing land cover'; // Same for the compare step
@@ -169,8 +178,8 @@ async function selectPlace(place) {
   document.getElementById('callout-kicker').textContent = place.teaser // If the place has a teaser...
     ? `SITE · ${place.teaser.toUpperCase()}` // ...show it in capitals, e.g. "SITE · FARMLAND → WAREHOUSES"
     : 'SITE · SEARCHED ADDRESS'; // ...otherwise a general label
-  document.getElementById('callout-name').textContent = place.name ?? UNNAMED; // The place name, or "Unnamed place"
-  document.getElementById('callout-coords').textContent = formatCoords(place.lon, place.lat); // The coordinates
+  document.getElementById('callout-name').textContent = placeTitle(place); // The place name (or its coordinates)
+  document.getElementById('callout-coords').textContent = placeSubtitle(place); // The coordinates (or nothing)
   document.getElementById('callout').classList.add('visible'); // Fade the callout in
 
   // Wait for three things at the same time: the map, the change steps, and the callout's minimum reading time
@@ -330,6 +339,18 @@ locateButton.addEventListener('click', () => {
     { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }, // Options: a rough position is plenty (faster, saves battery), give up after 10 s, a position up to 1 minute old is fine
   ); // End of the position request
 }); // End of the locate handler
+
+// ---------- The pin card (the card beside a tapped spot on the globe) ----------
+
+const pinCoords = document.getElementById('pin-coords'); // The card's coordinates line
+
+// Fill in the card for a new pin spot ([lon, lat]). The globe moves and shows/hides the card itself; this only sets its text.
+// No name lookup here: at globe zoom a tap is tens of kilometres rough, so coordinates are the honest label.
+function fillPinCard(lonLat) {
+  if (!lonLat) return; // The pin was cleared: the globe hides the card, nothing to fill in
+  const [lon, lat] = lonLat; // Take the longitude and latitude out of the pair
+  pinCoords.textContent = formatCoords(lon, lat); // e.g. "39.1787° N, 84.7333° W"
+} // End of fillPinCard
 
 // ---------- Opening a place from the address ----------
 

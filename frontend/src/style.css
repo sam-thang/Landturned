@@ -386,6 +386,25 @@ body {
   color: var(--muted); /* Grey */
 } /* End of the teaser line rule */
 
+/* The card beside a tapped spot (the pin). Same look as the callout's label box below, so both read as annotations on one drawing */
+.pin-card {
+  position: absolute; /* Placed at an exact spot inside the stage (globe.js sets left and top every frame) */
+  left: 0; /* Start at the stage's corner; globe.js moves it... */
+  top: 0; /* ...beside the pin */
+  pointer-events: none; /* For now, let the mouse "see through" it to the globe (the button in step 6b.2b will change this) */
+  padding: 7px 10px; /* Space inside the box, like the callout label */
+  background: rgba(10, 12, 15, 0.85); /* Mostly solid dark background */
+  border: 1px solid rgba(220, 228, 238, 0.35); /* Faint light outline */
+  white-space: nowrap; /* Keep each line on one line */
+} /* End of the pin card rule */
+
+/* The coordinates: the card's main line, in the monospace drawing font (the "mono" class) */
+.pin-card strong {
+  display: block; /* Its own line (the button in step 6b.2b goes below it) */
+  font-size: 13px; /* Readable, but quieter than a place name */
+  font-weight: 500; /* Medium weight */
+} /* End of the coordinates rule */
+
 /* ---------- Callout (annotation at a chosen place) ---------- */
 
 /* The whole callout. Its anchor point is the middle of the stage, where the chosen place ends up. */

@@ -63,7 +63,7 @@ export function showResults(place, change, coordsText) {
 
   if (!change) { // No change data (the backend failed or has nothing here):
     document.getElementById('result-kicker').textContent = coordsText; // Just the coordinates, no years
-    heading.textContent = place.name ?? 'Unnamed place'; // The heading is simply the place name, or "Unnamed place" if it has none
+    heading.textContent = place.name ?? coordsText; // The heading is simply the place name, or its coordinates if it has none
     stats.hidden = true; // Hide the stat rows
     greenLost.hidden = true; // Hide the total line
     note.textContent = "Change data isn't available for this place right now. The map still shows the satellite image."; // Explain

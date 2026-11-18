@@ -71,6 +71,9 @@ const PIN_GAP = 2.5; // The cross's arms start this far from the center, leaving
 const PIN_ARM = 11; // ...and end this far out, a little beyond the circle
 const PIN_INK = 'rgba(240, 244, 248, 0.95)'; // Off-white, like the coastlines but stronger; the four colors are kept for change types
 const PIN_HALO = '#0c1015'; // The ocean color, drawn wide underneath to cut a clean gap through coastlines and grid lines
+// Below this stage width (in pixels) the pin card sits above the mark instead of beside it.
+// Must match the "@container (max-width: 700px)" rules in style.css, where the callout's label moves above its ring the same way.
+const COMPACT_WIDTH = 700;
 
 // Read the four change colors from the CSS tokens in style.css, so each color is defined in one place only
 // We read them when drawing, not once at page load: on phones, Safari sometimes runs our code before the stylesheet
@@ -92,10 +95,11 @@ function limitTilt(lat) {
 
 // Draw the globe on the given canvas, with a teaser box for hovered hotspots.
 // "onSelectPlace" is a function to call when the user clicks a hotspot.
-// "onTapLand" is a function to call when the user taps land away from any hotspot; it gets the spot as [lon, lat].
+// "pinCard" is the card shown beside a tapped spot; the globe moves it so it follows the pin.
+// "onPinChange" is a function to call when the pin moves or goes away; it gets the spot as [lon, lat], or null when cleared.
 // Returns an object with a turnTo function, so other code can tell the globe where to look.
 // "export" lets main.js use this function.
-export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
+export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange) {
   const context = canvas.getContext('2d'); // The "2D context" is the set of drawing tools for the canvas
   const projection = geoOrthographic() // The orthographic projection: the Earth as seen from far out in space
     .clipAngle(90) // Hide everything more than 90° from the center, i.e. the far side of the globe
@@ -223,7 +227,9 @@ export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
     } // End of the places loop
 
     // The pin, if there is one and it's on the front of the globe
-    if (pin && geoDistance(pin, [view.lon, view.lat]) <= MAX_VISIBLE_DISTANCE) { // A pin exists and hasn't turned to the back
+    const pinShown = pin !== null && geoDistance(pin, [view.lon, view.lat]) <= MAX_VISIBLE_DISTANCE; // A pin exists and hasn't turned to the back
+    pinCard.hidden = !pinShown; // The card shows exactly when the pin does
+    if (pinShown) {
       const [x, y] = projection(pin); // Its screen position right now (so it turns with the globe)
       context.beginPath(); // Start the mark's outline: the circle and the four arms of the cross
       context.arc(x, y, PIN_RING, 0, Math.PI * 2); // The circle
@@ -237,8 +243,44 @@ export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
       context.strokeStyle = PIN_INK; // Second pass, on top: the off-white ink...
       context.lineWidth = 1.3; // ...drawn thin, like a pen line
       context.stroke(); // Draw the same outline again
+      placePinCard(x, y, width, height); // Move the card beside the mark
     } // End of the pin
   } // End of draw
+
+  // Keep a number between a smallest and a largest value ("clamping"), e.g. so the card never leaves the stage
+  function clamp(value, smallest, largest) {
+    return Math.max(smallest, Math.min(largest, value)); // Not below "smallest", not above "largest"
+  } // End of clamp
+
+  // Put the pin card next to the mark at (x, y). "width"/"height" are the stage's size.
+  // Narrow stage (phones): above the mark and centered on it, like the callout's label. Wide stage: to its right, like a label on a site plan.
+  // Either way it slides back inside if it would stick out past an edge, so the coordinates are never cut off.
+  function placePinCard(x, y, width, height) {
+    const MARGIN = 8; // Keep at least this many pixels between the card and the stage's edges
+    const GAP = 4; // Space between the end of the cross's arm and the card
+    const cardWidth = pinCard.offsetWidth; // The card's current width
+    const cardHeight = pinCard.offsetHeight; // The card's current height
+    let left; // The card's left edge, worked out below
+    let top; // The card's top edge, worked out below
+    if (width < COMPACT_WIDTH) { // Narrow stage:
+      left = x - cardWidth / 2; // Centered on the mark...
+      top = y - PIN_ARM - GAP - cardHeight; // ...with its bottom edge just above the cross's top arm
+      if (top < MARGIN) top = y + PIN_ARM + GAP; // No room above (mark near the top): put it below the mark instead
+    } else { // Wide stage:
+      left = x + PIN_ARM + GAP; // Just past the cross's right arm...
+      if (left + cardWidth > width - MARGIN) left = x - PIN_ARM - GAP - cardWidth; // ...or, too far right, on the left of the mark
+      top = y - cardHeight / 2; // Centered vertically on the mark
+    } // End of the layout choice
+    pinCard.style.left = `${clamp(left, MARGIN, width - cardWidth - MARGIN)}px`; // Move it across, kept inside the left and right edges
+    pinCard.style.top = `${clamp(top, MARGIN, height - cardHeight - MARGIN)}px`; // ...and down, kept inside the top and bottom edges
+  } // End of placePinCard
+
+  // Remove the pin (and so its card). main.js calls this when a place is chosen another way, e.g. by search.
+  function clearPin() {
+    if (pin === null) return; // No pin: nothing to do
+    pin = null; // Forget the spot; the next frame hides the mark and the card
+    onPinChange(null); // Tell main.js, so it can drop any name lookup still running
+  } // End of clearPin
 
   // Find the visible hotspot nearest to a pointer event, or null if none is close enough
   function hotspotAt(event) {
@@ -483,9 +525,11 @@ export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
     } // End of the hotspot check
     const rect = canvas.getBoundingClientRect(); // Where the canvas is on the page
     const lonLat = placeAt(event.clientX - rect.left, event.clientY - rect.top); // The spot on Earth under the tap, or null if it's off the globe
-    if (lonLat && geoContains(land, lonLat)) { // On the globe and inside the land outlines (sea and space are ignored):
+    if (lonLat && geoContains(land, lonLat)) { // On the globe and inside the land outlines:
       pin = lonLat; // Put the pin there (a new tap moves it); the next frame draws it
-      onTapLand(lonLat); // Tell main.js
+      onPinChange(lonLat); // Tell main.js, which fills in the card
+    } else { // Sea or empty space:
+      clearPin(); // Tapping away removes the pin and its card
     } // End of the land check
   }); // End of pointerup
   // When the system cancels a touch (e.g. a phone call comes in)
@@ -563,5 +607,5 @@ export function startGlobe(canvas, teaser, onSelectPlace, onTapLand) {
     visible = value; // Remember it; the frame loop skips drawing while hidden
   } // End of setVisible
 
-  return { turnTo, reset, setInteractive, setVisible }; // Hand back these functions so main.js can use them
+  return { turnTo, reset, setInteractive, setVisible, clearPin }; // Hand back these functions so main.js can use them
 } // End of startGlobe
