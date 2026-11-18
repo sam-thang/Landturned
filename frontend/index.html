@@ -36,6 +36,10 @@
         <div id="teaser" class="teaser" hidden><strong></strong><small></small></div> <!-- The hover box for hotspots; globe.js fills in the name and teaser, and shows it -->
         <div id="pin-card" class="pin-card" hidden aria-live="polite"> <!-- The card beside a tapped spot: globe.js moves it with the pin, main.js fills it in. aria-live makes screen readers announce the coordinates when they change -->
           <strong id="pin-coords" class="mono"></strong> <!-- The spot's coordinates, labelled like a survey point (no name: at globe zoom a tap is too rough for one) -->
+          <button id="pin-go" type="button"> <!-- The card's second row: analyse this spot (main.js) -->
+            <span>Show change</span> <!-- The label (CSS shows it in capitals) -->
+            <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"><path d="M3 10 H16 M11 5 L16 10 L11 15" /></svg> <!-- The same drawn arrow as the search button; aria-hidden because the label says it all -->
+          </button> <!-- End of the button -->
         </div> <!-- End of the pin card -->
         <div id="callout" class="callout" aria-hidden="true"> <!-- The annotation shown at a chosen place; aria-hidden because the panel says the same for screen readers -->
           <svg class="callout-mark" width="120" height="70"> <!-- A small drawing: a ring at the place and a leader line up to the label -->

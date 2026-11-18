@@ -391,19 +391,54 @@ body {
   position: absolute; /* Placed at an exact spot inside the stage (globe.js sets left and top every frame) */
   left: 0; /* Start at the stage's corner; globe.js moves it... */
   top: 0; /* ...beside the pin */
-  pointer-events: none; /* For now, let the mouse "see through" it to the globe (the button in step 6b.2b will change this) */
-  padding: 7px 10px; /* Space inside the box, like the callout label */
   background: rgba(10, 12, 15, 0.85); /* Mostly solid dark background */
   border: 1px solid rgba(220, 228, 238, 0.35); /* Faint light outline */
   white-space: nowrap; /* Keep each line on one line */
 } /* End of the pin card rule */
 
-/* The coordinates: the card's main line, in the monospace drawing font (the "mono" class) */
+/* Row 1, the coordinates, in the monospace drawing font (the "mono" class) */
 .pin-card strong {
-  display: block; /* Its own line (the button in step 6b.2b goes below it) */
+  display: block; /* Its own row */
+  padding: 7px 10px; /* Space around it, like the callout label */
   font-size: 13px; /* Readable, but quieter than a place name */
   font-weight: 500; /* Medium weight */
 } /* End of the coordinates rule */
+
+/* Row 2, the button: the whole row, split from row 1 by a hairline, like the rows of a drawing's title block */
+.pin-card button {
+  display: flex; /* Label and arrow side by side */
+  align-items: center; /* Lined up vertically */
+  justify-content: space-between; /* Label on the left, arrow pushed to the right */
+  gap: 12px; /* At least this much space between them */
+  width: 100%; /* Fill the card's width */
+  min-height: 40px; /* An easy target for a thumb */
+  padding: 0 10px; /* Same side spacing as the coordinates above */
+  background: none; /* No fill */
+  border: 0; /* No outline of its own... */
+  border-top: 1px solid rgba(220, 228, 238, 0.35); /* ...just the hairline above it, the same as the card's outline */
+  color: var(--ink); /* Off-white label */
+  cursor: pointer; /* Pointing hand on hover */
+} /* End of the card button rule */
+
+/* The button when hovered: a faint light wash */
+.pin-card button:hover {
+  background: rgba(220, 228, 238, 0.06); /* Barely-there light fill */
+} /* End of the hover rule */
+
+/* The arrow drawing in the button */
+.pin-card button svg {
+  fill: none; /* Lines only */
+  stroke: currentColor; /* In the button's text color */
+  stroke-width: 2; /* 2 px lines, like the search arrow */
+  stroke-linecap: square; /* Square line ends, like a technical drawing */
+  flex: none; /* Never squeeze it */
+} /* End of the arrow rule */
+
+/* Blue outline for keyboard users, like the other buttons; drawn inside, so the card's edge doesn't hide it */
+.pin-card button:focus-visible {
+  outline: 2px solid var(--water); /* Blue outline */
+  outline-offset: -2px; /* Inside the button's edge */
+} /* End of the focus rule */
 
 /* ---------- Callout (annotation at a chosen place) ---------- */
 
@@ -989,6 +1024,7 @@ h1:focus {
 .locate,
 .place-button,
 .back,
+.pin-card button,
 .stats li {
   font-family: var(--mono); /* Technical-drawing style font */
   font-size: 12px; /* Smaller than before: capitals in a mono font are wider */

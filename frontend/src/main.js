@@ -91,6 +91,19 @@ function showPanel(id) {
 
 // ---------- Choosing a place ----------
 
+// The callout's small top label for each way of choosing a place ("source"). Hotspots use their teaser instead.
+const SOURCE_LABELS = {
+  search: 'SITE · SEARCHED ADDRESS', // Typed into the search box
+  location: 'SITE · YOUR LOCATION', // From the "My location" button
+  pin: 'SITE · POINT ON THE GLOBE', // Tapped on the globe, then "Show change"
+}; // End of the source labels
+
+// The callout's top label for a place
+function calloutLabel(place) {
+  if (place.teaser) return `SITE · ${place.teaser.toUpperCase()}`; // A hotspot: its story in capitals, e.g. "SITE · FARMLAND → WAREHOUSES"
+  return SOURCE_LABELS[place.source] ?? 'SITE'; // Otherwise how it was chosen; a place reopened from a link has no source, so just "SITE"
+} // End of calloutLabel
+
 // The title for a place in the panel and the callout: its name, or for a place without one (a tapped spot) its coordinates
 function placeTitle(place) {
   return place.name ?? formatCoords(place.lon, place.lat); // "??" means "if the left side is null, use the right side"
@@ -175,9 +188,7 @@ async function selectPlace(place) {
   }); // End of the map-ready handler
 
   // Show the callout at the place (which is now in the middle of the globe area)
-  document.getElementById('callout-kicker').textContent = place.teaser // If the place has a teaser...
-    ? `SITE · ${place.teaser.toUpperCase()}` // ...show it in capitals, e.g. "SITE · FARMLAND → WAREHOUSES"
-    : 'SITE · SEARCHED ADDRESS'; // ...otherwise a general label
+  document.getElementById('callout-kicker').textContent = calloutLabel(place); // e.g. "SITE · FARMLAND → WAREHOUSES" or "SITE · YOUR LOCATION"
   document.getElementById('callout-name').textContent = placeTitle(place); // The place name (or its coordinates)
   document.getElementById('callout-coords').textContent = placeSubtitle(place); // The coordinates (or nothing)
   document.getElementById('callout').classList.add('visible'); // Fade the callout in
@@ -282,7 +293,7 @@ form.addEventListener('submit', async (event) => {
       showMessage("Couldn't find that address. Try adding a city or country."); // Helpful hint
       return; // Stop here (the "finally" part still runs)
     } // End of the not-found check
-    selectPlace({ name: address, lon: result.lng, lat: result.lat }); // Found it: choose it, named as the user typed it
+    selectPlace({ name: address, lon: result.lng, lat: result.lat, source: 'search' }); // Found it: choose it, named as the user typed it ("source" sets the callout label)
   } catch (error) { // If something went wrong:
     console.error(error); // Print the details in the developer console (F12), for us
     showMessage('The address search is not responding. Please try again in a moment.'); // Friendly message
@@ -326,7 +337,7 @@ locateButton.addEventListener('click', () => {
         name = null; // Carry on without a name; the analysis matters more than the label
       } // End of the try/catch
       resetLocateButton(); // Back to normal
-      selectPlace({ name, lat, lon }); // Analyse it, just like a searched address
+      selectPlace({ name, lat, lon, source: 'location' }); // Analyse it, just like a searched address
     }, // End of the success handler
     (error) => { // Failure: no position
       resetLocateButton(); // Back to normal
@@ -343,14 +354,24 @@ locateButton.addEventListener('click', () => {
 // ---------- The pin card (the card beside a tapped spot on the globe) ----------
 
 const pinCoords = document.getElementById('pin-coords'); // The card's coordinates line
+let pinSpot = null; // The pin's spot as [lon, lat], kept for the "Show change" button; null when there's no pin
 
-// Fill in the card for a new pin spot ([lon, lat]). The globe moves and shows/hides the card itself; this only sets its text.
+// Fill in the card for a new pin spot ([lon, lat]), or forget the spot when the pin is cleared (null).
+// The globe moves and shows/hides the card itself; this only sets its text.
 // No name lookup here: at globe zoom a tap is tens of kilometres rough, so coordinates are the honest label.
 function fillPinCard(lonLat) {
+  pinSpot = lonLat; // Remember the spot (or null)
   if (!lonLat) return; // The pin was cleared: the globe hides the card, nothing to fill in
   const [lon, lat] = lonLat; // Take the longitude and latitude out of the pair
   pinCoords.textContent = formatCoords(lon, lat); // e.g. "39.1787° N, 84.7333° W"
 } // End of fillPinCard
+
+// When "Show change" on the card is pressed: analyse the pinned spot, like any other place
+document.getElementById('pin-go').addEventListener('click', () => {
+  if (!pinSpot) return; // No pin (shouldn't happen, the card is hidden then): ignore
+  const [lon, lat] = pinSpot; // Take the longitude and latitude out of the pair
+  selectPlace({ name: null, lon, lat, source: 'pin' }); // No name: the panel and callout show the coordinates, the sentence says "this area"
+}); // End of the button handler
 
 // ---------- Opening a place from the address ----------
 
