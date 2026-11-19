@@ -128,6 +128,11 @@ const HOLD_MS = 500;
 // 'result' (map shown), 'failed' (the map couldn't load; only "← Back to globe" works), or 'returning' (going back to the globe)
 let mode = 'landing';
 
+// A ticket number for the place being loaded. Choosing a place takes a new ticket; going back (or cancelling) takes one too.
+// Loading a place is a chain of waits; after each wait the chain checks its ticket, and if a newer one exists it was
+// cancelled, so it stops quietly instead of carrying on for a place the visitor has already left.
+let placeTicket = 0;
+
 const stage = document.querySelector('.stage'); // The picture area holding the globe and the map
 const mapContainer = document.getElementById('map'); // The element MapLibre draws in
 
@@ -136,6 +141,9 @@ const mapContainer = document.getElementById('map'); // The element MapLibre dra
 async function selectPlace(place) {
   if (mode !== 'landing') return; // Already busy with a place: ignore extra clicks
   mode = 'locating'; // Now we're busy
+  placeTicket += 1; // A new ticket for this place...
+  const myTicket = placeTicket; // ...which this run remembers
+  const cancelled = () => myTicket !== placeTicket; // A small helper: true once a newer ticket exists (the visitor went back)
   globe.clearPin(); // Remove any pin and its card, so they don't sit on top of the callout
   hideMessage(); // Clear any old message
   setUrlPlace(place); // Put the place in the address bar right away, so a reload during loading also comes back here
@@ -171,6 +179,7 @@ async function selectPlace(place) {
   globe.setInteractive(false); // No dragging or clicking while we zoom
   startStep('locate', TURN_MS); // The locate step is running; we know it takes TURN_MS, so the bar's first share fills in step with the turn
   await globe.turnTo(place.lon, place.lat, REGIONAL_ZOOM); // Wait until the globe has finished turning and zooming
+  if (cancelled()) return; // The visitor went back during the turn: stop here
   finishStep('locate'); // Tick off step 1
 
   // Now show the map step. It has been loading in the background all along;
@@ -178,10 +187,11 @@ async function selectPlace(place) {
   // After that, the compare step (the backend has been working all along too).
   startStep('map'); // The map step is running; its duration is unknown, so the bar waits until it finishes
   const changeDone = mapReady.then(async (loaded) => { // When the map is ready (or right away, if it already is)...
-    if (!loaded) return null; // ...unless it failed: then stop here (the failure is handled below)
+    if (!loaded || cancelled()) return null; // ...unless it failed or was cancelled: then stop here (a failure is handled below)
     finishStep('map'); // ...tick off step 2
     startStep('compare'); // Show step 3 as running
     const change = await changeReady; // Wait for the backend's answer (or null if it failed)
+    if (cancelled()) return null; // Cancelled while waiting: don't touch the steps (they may belong to a newer place by now)
     if (change) finishStep('compare'); // Got it: tick off step 3
     else failStep('compare', "Change data isn't available for this place right now"); // No answer: say so honestly, but carry on with the map
     return change; // Hand the answer on (or null)
@@ -195,16 +205,17 @@ async function selectPlace(place) {
 
   // Wait for three things at the same time: the map, the change steps, and the callout's minimum reading time
   const [mapLoaded, change] = await Promise.all([mapReady, changeDone, wait(MIN_CALLOUT_MS)]); // Promise.all waits until all are done; we keep the first two results
+  if (cancelled()) return; // The visitor went back while we waited: stop here
   if (!mapLoaded) { // The map couldn't load (e.g. no WebGL, or the connection dropped):
     failStep('map', "The detailed map couldn't load in this browser."); // Mark the step as failed (dash, grey, no pulsing "…") with the reason
-    mode = 'failed'; // We're stuck on this place, but not busy any more: "← Back to globe" may now work
-    const locatingBack = document.getElementById('locating-back'); // The way out
-    locatingBack.hidden = false; // Show it
-    locatingBack.focus(); // Move keyboard focus to it, so keyboard and screen-reader users find it at once
+    mode = 'failed'; // We're stuck on this place, but not busy any more
+    document.getElementById('locating-back').focus(); // Move keyboard focus to "← Back to globe", the way out, so keyboard and screen-reader users find it at once
     return; // Stop here; the button takes it from there
   } // End of the failure check
   await showChange(change); // Draw the change layer, turn the (still hidden) map grid-up, and wait for any new imagery; with no data, just clear the old drawing
+  if (cancelled()) return; // Went back while the change layer was drawn: stop before showing anything
   await wait(HOLD_MS); // Everything is done: pause briefly so people see all steps completed
+  if (cancelled()) return; // Went back during that short pause: stop before the crossfade
 
   // Fill in the result panel
   showResults(place, change, formatCoords(place.lon, place.lat)); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
@@ -234,12 +245,12 @@ creditToggle.addEventListener('click', () => {
 // ---------- Going back to the globe ----------
 
 // Go back from a place to the landing globe. Used by "← New place" (after a result) and by "← Back to globe"
-// (when the map failed to load), so both take the same path.
+// (while loading, to cancel, or after the map failed to load), so all of them take the same path.
 async function returnToGlobe() {
-  if (mode !== 'result' && mode !== 'failed') return; // Only from a finished result or a failed load ("&&" = and)
+  if (mode !== 'result' && mode !== 'failed' && mode !== 'locating') return; // Only from a result, a failed load, or while loading ("&&" = and)
   mode = 'returning'; // We're busy going back: ignore place clicks until we're done
-  document.getElementById('locating-back').hidden = true; // Hide "← Back to globe" again, ready for next time
-  document.getElementById('callout').classList.remove('visible'); // Fade out the callout (still up after a failed load; already gone after a result)
+  placeTicket += 1; // A new ticket: if a place is still loading, its chain sees this and stops (that's the cancel)
+  document.getElementById('callout').classList.remove('visible'); // Fade out the callout (still up while loading or after a failed load; already gone after a result)
   clearUrlPlace(); // Back to the plain address, so a reload now opens the landing page
   showPanel('panel-landing'); // Show the landing panel again (headline, search, place buttons)
   document.querySelector('.panel').scrollTop = 0; // Scroll the panel back to the top, so the landing page starts at the headline

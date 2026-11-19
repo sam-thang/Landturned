@@ -695,11 +695,6 @@ h1:focus {
   cursor: pointer; /* Pointing hand on hover */
 } /* End of the back button rule */
 
-/* "← Back to globe" in the locating panel (only shown when the map fails): it sits under the progress bar, so the space goes above it */
-.locating-back {
-  margin: 22px 0 0; /* Space above, like the gap above the steps; none below */
-} /* End of the locating back button rule */
-
 /* The back button when hovered */
 .back:hover {
   border-color: var(--muted); /* Brighter outline, like the place buttons */

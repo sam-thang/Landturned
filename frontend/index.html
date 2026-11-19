@@ -78,6 +78,7 @@
         <div id="places" class="places"></div> <!-- Empty area; main.js adds one button per place here -->
         </div> <!-- End of the landing section -->
         <div id="panel-locating" hidden> <!-- Panel contents while zooming to a place and loading; hidden until then -->
+          <button id="locating-back" class="back" type="button">← Back to globe</button> <!-- Cancel while loading, or get out if the map fails; same spot as "← New place" on the result panel -->
           <p class="kicker">LOCATING</p> <!-- Small label -->
           <h2 id="locating-name" class="place-title"></h2> <!-- The chosen place's name -->
           <p id="locating-coords" class="coords mono"></p> <!-- Its coordinates -->
@@ -87,7 +88,6 @@
             <li id="step-compare">Comparing land cover</li> <!-- Step 3: the backend compares the two years -->
           </ol> <!-- End of the steps -->
           <div id="progress" class="progress" aria-hidden="true"><i></i></div> <!-- One progress bar; the <i> is the fill (screen readers get the step list instead) -->
-          <button id="locating-back" class="back locating-back" type="button" hidden>← Back to globe</button> <!-- Only shown if the map fails to load, so people are never stuck; main.js shows it -->
 
         </div> <!-- End of the locating section -->
         <div id="panel-result" hidden> <!-- Panel contents once the map is shown; hidden until then -->

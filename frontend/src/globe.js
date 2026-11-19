@@ -565,6 +565,7 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange) 
     stopMoving(); // Cancel any coasting from a fling, so it can't fight the turn
     showTeaser(null); // Hide any teaser box
     const target = [lon, limitTilt(lat)]; // Where to end up, with the tilt kept in the allowed range
+    if (turn) turn.resolve(); // A turn is still running (e.g. the user cancelled mid-turn): finish it now, so whoever waits for it doesn't wait forever
     return new Promise((resolve) => { // Create the Promise; we call "resolve" when the turn is done
       if (REDUCE_MOTION) { // If the user prefers less motion:
         [view.lon, view.lat] = target; // jump straight there,
