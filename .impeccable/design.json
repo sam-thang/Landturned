@@ -1,0 +1,139 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-19T09:00:00Z",
+  "title": "Design System: Landturn",
+  "extensions": {
+    "colorMeta": {
+      "night-sheet": { "role": "neutral", "displayName": "Night Sheet", "canonical": "#0a0c0f", "tonalRamp": ["oklch(12% 0.008 250)", "oklch(15% 0.008 250)", "oklch(20% 0.01 250)", "oklch(30% 0.012 250)", "oklch(45% 0.014 250)", "oklch(62% 0.014 250)", "oklch(80% 0.01 250)", "oklch(95% 0.005 250)"] },
+      "night-board": { "role": "neutral", "displayName": "Night Board", "canonical": "#0e1115", "tonalRamp": ["oklch(13% 0.009 250)", "oklch(16% 0.01 250)", "oklch(21% 0.012 250)", "oklch(31% 0.014 250)", "oklch(46% 0.015 250)", "oklch(63% 0.014 250)", "oklch(80% 0.01 250)", "oklch(95% 0.005 250)"] },
+      "hairline": { "role": "neutral", "displayName": "Hairline", "canonical": "#1f252d", "tonalRamp": ["oklch(15% 0.012 250)", "oklch(20% 0.014 250)", "oklch(25% 0.016 250)", "oklch(35% 0.018 250)", "oklch(50% 0.018 250)", "oklch(65% 0.016 250)", "oklch(82% 0.01 250)", "oklch(95% 0.005 250)"] },
+      "drafting-ink": { "role": "neutral", "displayName": "Drafting Ink", "canonical": "#e6e9ee", "tonalRamp": ["oklch(18% 0.006 255)", "oklch(30% 0.008 255)", "oklch(45% 0.01 255)", "oklch(60% 0.01 255)", "oklch(74% 0.009 255)", "oklch(85% 0.007 255)", "oklch(93% 0.006 255)", "oklch(97% 0.003 255)"] },
+      "pencil-grey": { "role": "neutral", "displayName": "Pencil Grey", "canonical": "#8c96a3", "tonalRamp": ["oklch(18% 0.012 255)", "oklch(30% 0.016 255)", "oklch(45% 0.02 255)", "oklch(56% 0.021 255)", "oklch(67% 0.021 255)", "oklch(78% 0.016 255)", "oklch(88% 0.01 255)", "oklch(96% 0.005 255)"] },
+      "faint-pencil": { "role": "neutral", "displayName": "Faint Pencil", "canonical": "#747f8e", "tonalRamp": ["oklch(18% 0.014 255)", "oklch(28% 0.018 255)", "oklch(40% 0.022 255)", "oklch(50% 0.024 255)", "oklch(60% 0.024 255)", "oklch(72% 0.018 255)", "oklch(85% 0.01 255)", "oklch(95% 0.005 255)"] },
+      "built-orange": { "role": "primary", "displayName": "Built Orange", "canonical": "#ffa01f", "tonalRamp": ["oklch(25% 0.06 65)", "oklch(38% 0.1 65)", "oklch(52% 0.14 65)", "oklch(65% 0.17 65)", "oklch(78% 0.17 68)", "oklch(85% 0.12 72)", "oklch(91% 0.07 75)", "oklch(96% 0.03 78)"] },
+      "cleared-red": { "role": "primary", "displayName": "Cleared Red", "canonical": "#ff5a4f", "tonalRamp": ["oklch(22% 0.07 27)", "oklch(34% 0.12 27)", "oklch(48% 0.17 27)", "oklch(60% 0.2 27)", "oklch(68% 0.2 27)", "oklch(78% 0.13 27)", "oklch(88% 0.07 27)", "oklch(95% 0.03 27)"] },
+      "gained-green": { "role": "primary", "displayName": "Gained Green", "canonical": "#4fd98a", "tonalRamp": ["oklch(24% 0.05 155)", "oklch(36% 0.09 155)", "oklch(50% 0.13 155)", "oklch(63% 0.16 155)", "oklch(79% 0.16 155)", "oklch(86% 0.11 155)", "oklch(92% 0.06 155)", "oklch(97% 0.025 155)"] },
+      "new-water-blue": { "role": "primary", "displayName": "New-Water Blue", "canonical": "#3db8f5", "tonalRamp": ["oklch(24% 0.05 235)", "oklch(36% 0.09 235)", "oklch(50% 0.12 235)", "oklch(62% 0.14 235)", "oklch(74% 0.14 235)", "oklch(84% 0.09 235)", "oklch(91% 0.05 235)", "oklch(97% 0.02 235)"] },
+      "night-veil": { "role": "neutral", "displayName": "Night Veil", "canonical": "rgba(10, 12, 15, 0.7)" },
+      "ghost-line": { "role": "neutral", "displayName": "Ghost Line", "canonical": "rgba(220, 228, 238, 0.35)" }
+    },
+    "typographyMeta": {
+      "display": { "displayName": "Display", "purpose": "The landing headline only, with its four-colour underline under \"turned.\"." },
+      "headline": { "displayName": "Headline", "purpose": "The reveal sentence on the result page." },
+      "title": { "displayName": "Title", "purpose": "The place name or coordinates in the locating panel." },
+      "body": { "displayName": "Body", "purpose": "Intro and reading text, in Pencil Grey." },
+      "small": { "displayName": "Small", "purpose": "Data note, totals, messages and loading steps." },
+      "label": { "displayName": "Label", "purpose": "The drawing voice: buttons, place buttons and stats rows, uppercase via CSS." },
+      "kicker": { "displayName": "Kicker", "purpose": "Small sheet labels such as LOCATING and the callout's SITE line." },
+      "coordinates": { "displayName": "Coordinates", "purpose": "Coordinates on the pin card; map labels use mono at 10-11 px." }
+    },
+    "shadows": [],
+    "motion": [
+      { "name": "crossfade", "value": "opacity 0.9s ease", "purpose": "Globe-to-map crossfade; matches CROSSFADE_MS in main.js. Instant under reduced motion." },
+      { "name": "annotation-fade", "value": "opacity 0.4s ease", "purpose": "The callout fading in and out at a chosen place." },
+      { "name": "step-brighten", "value": "color 0.3s", "purpose": "A loading step brightening when it finishes." },
+      { "name": "hotspot-pulse", "value": "1800ms ring grow-and-fade (canvas)", "purpose": "Hotspot rings on the globe; drawn still under reduced motion." },
+      { "name": "busy-pulse", "value": "0.9s ease-in-out infinite alternate", "purpose": "Drawn icon of a busy button; still and faded under reduced motion." }
+    ],
+    "breakpoints": [
+      { "name": "narrowest-phone", "value": "379px" },
+      { "name": "compact-stage", "value": "700px" },
+      { "name": "desktop", "value": "900px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Outline Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "The quiet, drafted button: 1 px Hairline outline, no fill, drawing-voice label.",
+      "html": "<button class=\"ds-btn-outline\" type=\"button\">← New place</button>",
+      "css": ".ds-btn-outline { background: none; border: 1px solid var(--line, #1f252d); border-radius: 0; color: var(--ink, #e6e9ee); padding: 8px 14px; font-family: var(--mono, 'JetBrains Mono', monospace); font-size: 12px; font-weight: 400; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; } .ds-btn-outline:hover { border-color: var(--muted, #8c96a3); } .ds-btn-outline:focus-visible { outline: 2px solid var(--water, #3db8f5); outline-offset: 2px; }"
+    },
+    {
+      "name": "Locate Button",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Outline button with a drawn crosshair, at the height of the search field.",
+      "html": "<button class=\"ds-btn-locate\" type=\"button\"><svg viewBox=\"0 0 20 20\" width=\"18\" height=\"18\" aria-hidden=\"true\"><circle cx=\"10\" cy=\"10\" r=\"5\" /><path d=\"M10 1 V5 M10 15 V19 M1 10 H5 M15 10 H19\" /></svg><span>My location</span></button>",
+      "css": ".ds-btn-locate { display: flex; align-items: center; gap: 7px; min-height: 50px; padding: 0 10px; background: none; border: 1px solid var(--line, #1f252d); border-radius: 0; color: var(--ink, #e6e9ee); font-family: var(--mono, 'JetBrains Mono', monospace); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; cursor: pointer; } .ds-btn-locate svg { fill: none; stroke: var(--muted, #8c96a3); stroke-width: 2; } .ds-btn-locate:hover { border-color: var(--muted, #8c96a3); } .ds-btn-locate:focus-visible { outline: 2px solid var(--water, #3db8f5); outline-offset: 2px; }"
+    },
+    {
+      "name": "Search Field",
+      "kind": "input",
+      "refersTo": "search-field",
+      "description": "One outlined bar, a step darker than the panel, with a drawn magnifier.",
+      "html": "<form class=\"ds-search\"><svg viewBox=\"0 0 20 20\" width=\"18\" height=\"18\" aria-hidden=\"true\"><circle cx=\"8.5\" cy=\"8.5\" r=\"5.5\" /><path d=\"M12.5 12.5 L17 17\" /></svg><input type=\"text\" placeholder=\"Enter any address\" aria-label=\"Address\" /></form>",
+      "css": ".ds-search { display: flex; align-items: center; border: 1px solid var(--line, #1f252d); background: var(--bg, #0a0c0f); border-radius: 0; } .ds-search svg { margin-left: 12px; fill: none; stroke: var(--faint, #747f8e); stroke-width: 2; stroke-linecap: round; flex: none; } .ds-search input { flex: 1; min-width: 0; background: none; border: 0; outline: none; color: var(--ink, #e6e9ee); font-family: var(--sans, 'Space Grotesk', sans-serif); font-size: 16px; padding: 14px 12px 14px 8px; } .ds-search input::placeholder { color: var(--faint, #747f8e); } .ds-search:has(input:focus-visible) { outline: 2px solid var(--water, #3db8f5); outline-offset: 2px; }"
+    },
+    {
+      "name": "Place Chip",
+      "kind": "chip",
+      "refersTo": "place-chip",
+      "description": "A highlighted place: outline, a dot in its change colour, the name in the drawing voice.",
+      "html": "<button class=\"ds-chip\" type=\"button\" style=\"--dot-color: #ffa01f\"><span class=\"ds-chip-dot\"></span>Ontario Ranch</button>",
+      "css": ".ds-chip { display: flex; align-items: center; gap: 7px; background: none; border: 1px solid var(--line, #1f252d); border-radius: 0; color: var(--ink, #e6e9ee); padding: 7px 11px; font-family: var(--mono, 'JetBrains Mono', monospace); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; } .ds-chip-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--dot-color); flex: none; } .ds-chip:hover { border-color: var(--muted, #8c96a3); } .ds-chip:focus-visible { outline: 2px solid var(--water, #3db8f5); outline-offset: 2px; }"
+    },
+    {
+      "name": "Pin Card",
+      "kind": "custom",
+      "refersTo": "pin-card",
+      "description": "A two-row title block beside a tapped point: coordinates, then SHOW CHANGE.",
+      "html": "<div class=\"ds-pin-card\"><strong>39.1787° N, 84.7649° W</strong><button type=\"button\"><span>Show change</span><svg viewBox=\"0 0 20 20\" width=\"16\" height=\"16\" aria-hidden=\"true\"><path d=\"M3 10 H16 M11 5 L16 10 L11 15\" /></svg></button></div>",
+      "css": ".ds-pin-card { display: inline-block; background: rgba(10, 12, 15, 0.85); border: 1px solid rgba(220, 228, 238, 0.35); border-radius: 0; color: var(--ink, #e6e9ee); white-space: nowrap; } .ds-pin-card strong { display: block; padding: 7px 10px; font-family: var(--mono, 'JetBrains Mono', monospace); font-size: 13px; font-weight: 500; } .ds-pin-card button { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; min-height: 40px; padding: 0 10px; background: none; border: 0; border-top: 1px solid rgba(220, 228, 238, 0.35); color: var(--ink, #e6e9ee); font-family: var(--mono, 'JetBrains Mono', monospace); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; cursor: pointer; } .ds-pin-card button svg { fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: square; } .ds-pin-card button:hover { background: rgba(220, 228, 238, 0.06); } .ds-pin-card button:focus-visible { outline: 2px solid var(--water, #3db8f5); outline-offset: -2px; }"
+    },
+    {
+      "name": "Callout Label",
+      "kind": "custom",
+      "refersTo": "callout-label",
+      "description": "The annotation box at a chosen place: a SITE kicker and the place name.",
+      "html": "<div class=\"ds-callout\"><span>SITE · FARMLAND → WAREHOUSES</span><strong>Ontario Ranch</strong><span>33.9747° N, 117.5665° W</span></div>",
+      "css": ".ds-callout { display: inline-block; padding: 7px 10px; background: rgba(10, 12, 15, 0.85); border: 1px solid rgba(220, 228, 238, 0.35); border-radius: 0; color: var(--ink, #e6e9ee); white-space: nowrap; } .ds-callout span { display: block; font-family: var(--mono, 'JetBrains Mono', monospace); font-size: 11px; color: var(--muted, #8c96a3); letter-spacing: 0.06em; } .ds-callout strong { display: block; font-family: var(--sans, 'Space Grotesk', sans-serif); font-size: 15px; font-weight: 500; }"
+    },
+    {
+      "name": "Stats Row",
+      "kind": "custom",
+      "refersTo": "stat-row",
+      "description": "One legend-and-schedule row: swatch, change name, hectares in tabular figures.",
+      "html": "<ul class=\"ds-stats\"><li style=\"--swatch: #ffa01f\"><i></i>Newly built<b>17.9 ha</b></li><li style=\"--swatch: #ff5a4f\"><i></i>Green space cleared<b>2.4 ha</b></li></ul>",
+      "css": ".ds-stats { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--line, #1f252d); } .ds-stats li { display: flex; align-items: center; gap: 10px; padding: 11px 0; border-bottom: 1px solid var(--line, #1f252d); color: var(--ink, #e6e9ee); font-family: var(--mono, 'JetBrains Mono', monospace); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; } .ds-stats i { width: 12px; height: 12px; background: var(--swatch); flex: none; } .ds-stats b { margin-left: auto; font-size: 13px; font-weight: 500; text-transform: none; letter-spacing: 0; font-variant-numeric: tabular-nums; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Site Plan at Night",
+    "overview": "Landturn is a planner's drawing set laid out on a dark sheet. The satellite photo is the drawing's base layer, and everything Landturn adds sits on top of it the way annotations sit on a site plan: a square analysis boundary, a north arrow, a scale bar, a title block, a short legend, and a few lines of plain lettering. The interface is the drafting around the picture, never the picture itself. It is calm and honest: it states what was measured, where, between which years, and how rough the estimate is, without dramatising the change.\n\nThe sheet is dark because the photo and the four change colours need to glow against it, and because a lit plan read at night is the mood: quiet, focused, unhurried. Density is low. A visitor sees one image, one sentence and one short table at a time. Hierarchy comes from size, weight and the step from drafting ink down to pencil grey, never from boxes, fills or shadows.\n\nEverything is square-cornered and drawn with 1 px lines. Labels and buttons speak in the \"drawing voice\", small uppercase monospace lettering spread a little apart, as on an architectural sheet, while sentences people actually read stay in normal sentence case. The four change colours are the only colour in the whole system, and each one means exactly one kind of change.",
+    "keyCharacteristics": [
+      "A dark sheet with off-white \"ink\": near-black backgrounds, light text, no light theme.",
+      "The satellite photo and the globe lead; controls are quiet and drafted (thin outlines, no fills).",
+      "Exactly four accent colours, each tied to one meaning (built, cleared, gained, water).",
+      "Square corners, 1 px hairlines, no shadows.",
+      "Two type voices: Space Grotesk for reading, JetBrains Mono uppercase for labels, buttons and coordinates.",
+      "Drawing conventions as identity: survey marks, a north arrow, a scale bar, a square boundary, a title block, a legend."
+    ],
+    "rules": [
+      { "name": "The Four Meanings Rule", "body": "The only accent colours are the four change colours, and each one means exactly one kind of land change. Never use them for decoration, branding, or a generic state (the ✓ and the focus outline are the only reuses, and they are fixed).", "section": "colors" },
+      { "name": "The Ink and Pencil Rule", "body": "Text has three levels only: Drafting Ink for what people should read, Pencil Grey for support, Faint Pencil for small print. Any new text picks one of the three, and Faint Pencil never goes below 4.5:1.", "section": "colors" },
+      { "name": "The Drawing Voice Rule", "body": "Labels, buttons and tags are lettered like drawing annotations: mono, uppercase through `text-transform` (so screen readers read words, not letters), slightly spread. Anything people read as a sentence stays in sentence case; on a drawing too, long text is never set in capitals.", "section": "typography" },
+      { "name": "The No-Bold Rule", "body": "The heaviest weight in use is 500. Emphasis comes from size, ink level or a change colour, never from bold.", "section": "typography" },
+      { "name": "The Flat Sheet Rule", "body": "Nothing casts a shadow. To separate a layer, use a darker tone, a translucent veil or a hairline, the way a drawing separates its parts.", "section": "elevation" }
+    ],
+    "dos": [
+      "**Do** keep every corner square (0 px) and every boundary a 1 px line.",
+      "**Do** use the four change colours only for their meanings: Built Orange (#ffa01f), Cleared Red (#ff5a4f), Gained Green (#4fd98a), New-Water Blue (#3db8f5).",
+      "**Do** letter labels, buttons and tags in the drawing voice (JetBrains Mono, 12 px, uppercase via CSS, 0.06em) and keep sentences in sentence case.",
+      "**Do** put anything drawn over the photo or the globe on a Night Veil backing or a Night Sheet (85%) box with a Ghost Line border.",
+      "**Do** keep small text at 4.5:1 or more; Faint Pencil (#747f8e) is the lowest allowed text colour on the dark sheet.",
+      "**Do** show keyboard focus with a 2 px New-Water Blue outline.",
+      "**Do** reach for drawing conventions (survey marks, scale bars, north arrows, legends, title blocks) when a new element needs a form."
+    ],
+    "donts": [
+      "**Don't** add shadows, glows or gradients to interface elements; the system is flat.",
+      "**Don't** draw patterns, hatching or textures over the satellite imagery; overlays on the photo stay clean colour.",
+      "**Don't** introduce a fifth accent colour or use a change colour as decoration.",
+      "**Don't** use bold; 500 is the heaviest weight.",
+      "**Don't** fill buttons or give them rounded corners; controls stay quiet and drafted so the imagery leads.",
+      "**Don't** use MapLibre's built-in globe or a small locator \"key map\" globe; the landing globe is D3 linework only.",
+      "**Don't** imitate watch.earth's signatures, such as a serif-italic accent word in the headline."
+    ]
+  }
+}
