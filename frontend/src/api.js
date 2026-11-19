@@ -13,6 +13,17 @@ export async function fetchChange(lat, lon) {
   return response.json(); // Read the reply as JSON and hand it back
 } // End of fetchChange
 
+// Ask the backend for every comparison from the first year to each later year (for the year slider).
+// Returns a Promise with { years: { from, available }, changes: [one /api/change-style answer per later year] }.
+export async function fetchTimeline(lat, lon) {
+  const params = new URLSearchParams({ lat, lon }); // Build the "?lat=...&lon=..." part safely
+  const response = await fetch(`/api/timeline?${params}`); // Send the request and wait for the reply (about 5 seconds)
+  if (!response.ok) { // Not a success?
+    throw new Error(`Timeline request failed: ${response.status}`); // Stop with an error, including the status number for the console
+  } // End of the error check
+  return response.json(); // Read the reply as JSON and hand it back
+} // End of fetchTimeline
+
 // Esri's metadata service: for any point it says which piece of photo World Imagery shows there, and when it was taken.
 const ESRI_IDENTIFY = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/identify';
 

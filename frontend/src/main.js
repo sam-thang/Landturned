@@ -5,7 +5,7 @@ import { startGlobe, TURN_MS } from './globe.js';
 // Bring in the functions for the loading steps and progress bar, from loading.js
 import { resetSteps, startStep, finishStep, failStep } from './loading.js';
 // Bring in the function that asks our backend for the land-cover change, from api.js
-import { fetchChange, fetchPhotoDate } from './api.js';
+import { fetchChange, fetchPhotoDate, fetchTimeline } from './api.js';
 // Bring in the function that fills in the result panel, from results.js
 import { showResults } from './results.js';
 // Bring in the list of hotspot places, from places.js
@@ -13,7 +13,7 @@ import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange } from './map.js';
+import { showPlace, showChange, swapChange } from './map.js';
 
 // ---------- Globe ----------
 
@@ -222,6 +222,7 @@ async function selectPlace(place) {
 
   // Fill in the result panel
   showResults(place, change, formatCoords(place.lon, place.lat), photoDate); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
+  setUpTimeline(place, change, formatCoords(place.lon, place.lat), photoDate, myTicket); // The year slider: its years at once, greyed out until the timeline has loaded in the background
 
   // Stage 2: crossfade from the globe to the map, and switch the panel at the same time
   document.getElementById('callout').classList.remove('visible'); // Fade the callout out
@@ -232,6 +233,70 @@ async function selectPlace(place) {
   await wait(CROSSFADE_MS); // Wait until the crossfade has finished
   if (mode === 'result') globe.setVisible(false); // Still showing the map? Then stop drawing the hidden globe, to save battery (skip if the user already went back)
 } // End of selectPlace
+
+// ---------- Year slider: compare the first year with any later year ----------
+
+const timeline = document.getElementById('timeline'); // The whole slider block
+const timelineLabel = document.getElementById('timeline-label'); // "Loading years…", then "Since 2017"
+const timelineYear = document.getElementById('timeline-year'); // The chosen end year, large
+const timelineRange = document.getElementById('timeline-range'); // The slider itself
+const timelineTicks = document.getElementById('timeline-ticks'); // The tick marks and year labels under it
+let shown = null; // What the result panel shows: { place, coordsText, photoDate, changes: { year: answer } }, or null
+
+// Put the handle at a year and update everything that belongs to the slider itself: the big year, the ink part of the
+// track, and what screen readers say. (The map and the text are updated separately, in showYear.)
+function setSliderYear(year) {
+  const min = Number(timelineRange.min); // The first end year on the slider, e.g. 2018
+  const max = Number(timelineRange.max); // The last, e.g. 2023
+  timelineRange.value = year; // Move the handle
+  timelineYear.textContent = year; // The big year
+  timelineRange.style.setProperty('--filled', `${max > min ? ((year - min) / (max - min)) * 100 : 100}%`); // How much of the track is ink (all of it if there's only one end year)
+  timelineRange.setAttribute('aria-valuetext', `${timelineRange.dataset.from} to ${year}`); // Screen readers say "2017 to 2020" instead of just "2020"
+} // End of setSliderYear
+
+// Prepare the slider for a new result. "change" is the first answer (first -> latest year), or null (then no slider).
+// The ticks are built at once from the years the answer lists; the slider stays greyed out until the timeline has loaded.
+function setUpTimeline(place, change, coordsText, photoDate, ticket) {
+  shown = null; // Forget the previous place's timeline
+  timeline.hidden = !change; // No change data: no slider
+  if (!change) return; // Nothing more to do
+
+  const { from, available } = change.years; // The start year and every year there is, e.g. 2017 and [2017, ..., 2023]
+  const ends = available.filter((year) => year > from); // The possible end years: every year after the start
+  timelineRange.min = ends[0]; // The slider's first stop, e.g. 2018
+  timelineRange.max = ends.at(-1); // ...and its last, e.g. 2023 ("at(-1)" = the last item)
+  timelineRange.dataset.from = from; // Remember the start year for what screen readers say ("dataset" stores it on the element)
+  timelineTicks.replaceChildren(...ends.map((year) => { // One tick and label per end year:
+    const tick = document.createElement('span'); // A new element
+    tick.textContent = year; // Its label
+    return tick; // Hand it to replaceChildren
+  })); // End of the ticks
+  setSliderYear(change.years.to); // The handle starts at the year shown (the latest)
+  timelineRange.disabled = true; // Greyed out...
+  timelineLabel.textContent = 'Loading years…'; // ...and say why
+
+  fetchTimeline(place.lat, place.lon).then((answer) => { // In the background (about 5 seconds):
+    if (ticket !== placeTicket) return; // The visitor went back or chose another place meanwhile: ignore this late answer
+    const changes = {}; // year -> that comparison's answer, e.g. changes[2020] = 2017 -> 2020
+    for (const step of answer.changes) changes[step.years.to] = step; // Fill it in
+    shown = { place, coordsText, photoDate, changes }; // Everything needed to show any year
+    timelineLabel.textContent = `Since ${from}`; // e.g. "Since 2017"
+    timelineRange.disabled = false; // Ready to use
+  }).catch((error) => { // The timeline couldn't load:
+    console.error(error); // Details for the developer console (F12)
+    if (ticket === placeTicket) timeline.hidden = true; // Hide the slider; the result itself is unaffected
+  }); // End of the timeline request
+} // End of setUpTimeline
+
+// Show one end year: the map's colours, the sentence, the stats and the notes all switch to "first -> year" at once
+function showYear(year) {
+  if (!shown || !shown.changes[year]) return; // Not loaded (or no such year): nothing to show
+  setSliderYear(year); // The big year, the ink, and the screen-reader text
+  swapChange(shown.changes[year]); // The map's change colours
+  showResults(shown.place, shown.changes[year], shown.coordsText, shown.photoDate); // The sentence, the stats, and the small print
+} // End of showYear
+
+timelineRange.addEventListener('input', () => showYear(Number(timelineRange.value))); // "input" fires on every step while dragging (and on arrow keys), so the result follows the handle live
 
 // ---------- Imagery credit (phones: opened and closed with the ⓘ button) ----------
 

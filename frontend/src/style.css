@@ -803,6 +803,12 @@ h1:focus {
   outline-offset: 2px; /* Small gap */
 } /* End of the Firefox focus rule */
 
+/* While the years are still loading: the slider is greyed out and can't be moved */
+.timeline-range:disabled {
+  opacity: 0.35; /* Faded, so it clearly isn't ready */
+  cursor: progress; /* The "busy" cursor */
+} /* End of the loading rule */
+
 /* No outline around the whole slider: the handle carries the focus outline instead */
 .timeline-range:focus {
   outline: none; /* Removed only because the handle shows it (see above) */
