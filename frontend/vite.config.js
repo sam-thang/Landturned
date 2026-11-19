@@ -1,6 +1,7 @@
 // Settings for Vite (the development server and build tool)
 import { defineConfig } from 'vite'; // A helper that gives editors hints about which settings exist
 import basicSsl from '@vitejs/plugin-basic-ssl'; // Official plugin that makes the dev server use https with a homemade ("self-signed") certificate
+import { resolve } from 'node:path'; // Node's helper for building full file paths
 
 // Export the settings so Vite can read them when it starts
 export default defineConfig({
@@ -17,4 +18,12 @@ export default defineConfig({
       '/api': 'http://127.0.0.1:8000', // Any address starting with /api goes to the FastAPI backend running on this computer
     }, // End of the proxy settings
   }, // End of the server settings
+  build: { // Settings for the finished site (npm run build)
+    rollupOptions: { // Settings for Rollup, the tool Vite uses to bundle the files
+      input: { // The site has two pages, so the build must know both (the dev server finds them on its own)
+        main: resolve(import.meta.dirname, 'index.html'), // The app: the globe, the map, the results
+        how: resolve(import.meta.dirname, 'how/index.html'), // "How this works" (served at /how/)
+      }, // End of the pages
+    }, // End of the Rollup settings
+  }, // End of the build settings
 }); // End of the settings

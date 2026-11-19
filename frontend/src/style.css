@@ -1,18 +1,6 @@
 /* ---------- Design tokens ---------- */
-/* "Custom properties" (names starting with --) store values once, so we can reuse them everywhere with var(--name) */
-:root {
-  --bg: #0a0c0f; /* Page background: almost black */
-  --panel: #0e1115; /* Text panel background: a touch lighter than the page */
-  --line: #1f252d; /* Thin divider lines */
-  --ink: #e6e9ee; /* Main text color: off-white */
-  --muted: #8c96a3; /* Secondary text: grey */
-  --faint: #747f8e; /* Least important text: dark grey, but still 4.66:1 against the panel, so small text meets WCAG AA (4.5:1) */
-  --loss: #ff5a4f; /* Red: green space cleared (green -> bare ground); one of the four change colors */
-  --gain: #4fd98a; /* Green: green space gained */
-  --built: #ffa01f; /* Orange: newly built (any land that became built) */
-  --water: #3db8f5; /* Blue: new water */
-  --sans: 'Space Grotesk', system-ui, sans-serif; /* Main font, with standard fonts as backups if it fails to load */
-  --mono: 'JetBrains Mono', ui-monospace, monospace; /* "Monospace" font (every letter equally wide) for labels and numbers, like on a technical drawing */} /* End of the design tokens */
+/* The colours and fonts live in tokens.css, shared with the "How this works" page. "@import" must come first in a CSS file. */
+@import './tokens.css';
 
 /* ---------- Page ---------- */
 

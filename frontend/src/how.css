@@ -1,0 +1,272 @@
+/* Styles for the "How this works" page (SHEET 01 · METHOD). A reading page in the same drawing style as the app (DESIGN.md). */
+
+@import './tokens.css'; /* The shared colours and fonts; "@import" must come first in a CSS file */
+
+/* Make every element's width include its padding and border, which makes sizes easier to reason about */
+* {
+  box-sizing: border-box; /* Width = content + padding + border */
+} /* End of the rule for every element */
+
+/* The whole page: the dark sheet with off-white ink. Unlike the app, this page scrolls normally. */
+html,
+body {
+  margin: 0; /* No browser border around the page */
+  background: var(--bg); /* Night Sheet: almost black */
+  color: var(--ink); /* Drafting Ink: off-white text */
+  font-family: var(--sans); /* Space Grotesk for reading */
+} /* End of the page rule */
+
+/* Selected text: a faint ink wash instead of the browser's bright blue (blue is kept for "new water" and focus) */
+::selection {
+  background: rgba(230, 233, 238, 0.25); /* Drafting ink at 25% */
+} /* End of the selection rule */
+
+/* ---------- Top strip: back link and sheet label ---------- */
+
+/* The strip along the top, like the edge of a drawing sheet */
+.sheet-bar {
+  display: flex; /* Back link and label in a row... */
+  justify-content: space-between; /* ...pushed to opposite ends */
+  align-items: center; /* ...vertically centered */
+  gap: 16px; /* At least this much space between them */
+  padding: 14px 16px; /* Space inside the strip (top/bottom, left/right) */
+  border-bottom: 1px solid var(--line); /* Hairline under the strip */
+  background: var(--panel); /* Night Board: one step lighter than the page */
+} /* End of the strip rule */
+
+/* "← Back to the globe": a link in the drawing voice */
+.sheet-back {
+  color: var(--ink); /* Off-white */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 12px; /* Small, like the app's buttons */
+  text-transform: uppercase; /* Capitals, from CSS so screen readers read the words normally */
+  letter-spacing: 0.06em; /* Spread a little */
+  text-decoration: none; /* No underline at rest */
+} /* End of the back link rule */
+
+/* The back link when hovered: an underline appears */
+.sheet-back:hover {
+  text-decoration: underline; /* Underline on hover */
+  text-underline-offset: 4px; /* A little below the letters */
+} /* End of the hover rule */
+
+/* "SHEET 01 · METHOD": the sheet's label, like the app's small labels */
+.sheet-label {
+  color: var(--muted); /* Pencil Grey */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 11px; /* Small */
+  text-transform: uppercase; /* Capitals */
+  letter-spacing: 0.12em; /* Spread out, like the app's kickers */
+  white-space: nowrap; /* Always one line */
+} /* End of the label rule */
+
+/* ---------- The reading column ---------- */
+
+/* One centred column, narrow enough for comfortable reading (about 65 characters per line) */
+.method {
+  max-width: 680px; /* Never wider than this */
+  margin: 0 auto; /* Centred on wide screens */
+  padding: 0 16px 72px; /* Side space on phones, and room at the bottom */
+} /* End of the column rule */
+
+/* Each section after the first starts with a hairline, like the bands of a drawing sheet */
+.method section + section {
+  margin-top: 48px; /* Space above the line */
+  padding-top: 40px; /* Space below the line */
+  border-top: 1px solid var(--line); /* The hairline */
+} /* End of the section rule */
+
+/* The page title: the app's display style */
+h1 {
+  margin: 40px 0 16px; /* Space above and below */
+  font-size: clamp(30px, 6vw, 40px); /* Between 30 and 40 px, growing with the window */
+  font-weight: 500; /* Medium: the system's heaviest weight */
+  line-height: 1.05; /* Tight, for big text */
+  letter-spacing: -0.02em; /* Letters slightly closer together */
+  text-wrap: balance; /* Even line lengths, so no word sits alone on the last line */
+} /* End of the title rule */
+
+/* The opening paragraph */
+.lede {
+  font-size: 17px; /* A touch bigger than the body text */
+  color: var(--muted); /* Pencil Grey, so the title leads */
+} /* End of the lede rule */
+
+/* "estimates" in the opening paragraph: in ink, not bold (the No-Bold Rule) */
+.lede strong {
+  color: var(--ink); /* Off-white stands out against the grey */
+  font-weight: 500; /* Medium, never bold */
+} /* End of the emphasis rule */
+
+/* Section headings */
+h2 {
+  margin: 0 0 16px; /* Space below */
+  font-size: 24px; /* Clearly smaller than the title */
+  font-weight: 500; /* Medium */
+  line-height: 1.2; /* Comfortable */
+  text-wrap: balance; /* Even line lengths */
+} /* End of the section heading rule */
+
+/* Headings inside a section (each step, each limit) */
+h3,
+.limits dt {
+  margin: 0 0 4px; /* A little space below */
+  font-size: 17px; /* Just above the body text */
+  font-weight: 500; /* Medium */
+} /* End of the small heading rule */
+
+/* Reading text */
+p,
+dd {
+  margin: 0 0 14px; /* Space between paragraphs */
+  font-size: 16px; /* Readable on phones */
+  line-height: 1.6; /* Comfortable line spacing for longer reading */
+} /* End of the reading text rule */
+
+/* ---------- The four steps ---------- */
+
+/* The numbered list of steps: each step's number sits in its own narrow column */
+.steps-list {
+  margin: 24px 0 0; /* Space above */
+  padding: 0; /* No browser indent */
+  list-style: none; /* We draw our own numbers */
+  counter-reset: step; /* Start a counter named "step" at 0 */
+} /* End of the steps rule */
+
+/* One step: number on the left, text on the right */
+.steps-list li {
+  display: grid; /* Two columns... */
+  grid-template-columns: 28px 1fr; /* ...a narrow one for the number, the rest for the text */
+  column-gap: 8px; /* Space between them */
+  padding: 16px 0; /* Space above and below each step */
+  border-top: 1px solid var(--line); /* A hairline between steps, like rows in a schedule */
+  counter-increment: step; /* Count this step: 1, 2, 3, 4 */
+} /* End of the step rule */
+
+/* The step number, drawn by CSS from the counter, in the drawing lettering */
+.steps-list li::before {
+  content: counter(step); /* The step's number */
+  grid-row: 1 / span 3; /* Stay in the left column, next to all of the step's text */
+  padding-top: 3px; /* Line it up with the heading's letters */
+  color: var(--muted); /* Pencil Grey */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 13px; /* Small */
+} /* End of the step number rule */
+
+/* Everything else in a step goes in the right column */
+.steps-list li > * {
+  grid-column: 2; /* The text column */
+} /* End of the step content rule */
+
+/* A change-colour word: a small square in its colour before the word, so the colour is always named */
+.swatch-word {
+  white-space: nowrap; /* Keep the swatch and its words together */
+} /* End of the colour word rule */
+
+/* The small square itself */
+.swatch-word::before {
+  content: ''; /* An empty box, drawn by CSS */
+  display: inline-block; /* Sits in the line of text */
+  width: 0.6em; /* About the height of a small letter */
+  height: 0.6em; /* Square */
+  margin-right: 0.3em; /* Space before the word */
+  background: var(--swatch); /* The word's change colour (set below) */
+} /* End of the square rule */
+
+/* Each word's colour */
+.swatch-word.built { --swatch: var(--built); } /* Orange: newly built */
+.swatch-word.loss { --swatch: var(--loss); } /* Red: green space cleared */
+.swatch-word.gain { --swatch: var(--gain); } /* Green: green space gained */
+.swatch-word.water { --swatch: var(--water); } /* Blue: new water */
+
+/* A side note, quieter than the main text */
+.aside {
+  color: var(--muted); /* Pencil Grey */
+  font-size: 15px; /* A little smaller */
+} /* End of the side note rule */
+
+/* ---------- Limits and sources ---------- */
+
+/* The list of limits: each name on its own line, its explanation below */
+.limits {
+  margin: 0; /* No browser spacing */
+} /* End of the limits rule */
+
+/* Space between one limit and the next */
+.limits dt:not(:first-child) {
+  margin-top: 22px; /* Separates the limits */
+} /* End of the limit spacing rule */
+
+/* The explanations sit flush left (browsers indent "dd" by default) */
+.limits dd,
+.sources dd {
+  margin-left: 0; /* No indent */
+} /* End of the indent rule */
+
+/* The closing sentence of the estimate section: a little larger, as the takeaway */
+.takeaway {
+  margin-top: 8px; /* Space above */
+  font-size: 18px; /* Larger than the body */
+  line-height: 1.5; /* Comfortable */
+} /* End of the takeaway rule */
+
+/* Source names: small drawing-voice labels */
+.sources dt {
+  margin-top: 18px; /* Space above each source */
+  color: var(--muted); /* Pencil Grey */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 12px; /* Small */
+  text-transform: uppercase; /* Capitals */
+  letter-spacing: 0.06em; /* Spread a little */
+} /* End of the source name rule */
+
+/* The first source needs no extra space above */
+.sources dt:first-child {
+  margin-top: 0; /* Flush with the heading's spacing */
+} /* End of the first source rule */
+
+/* ---------- Placeholders for the pictures still to come (build steps 3 to 6) ---------- */
+
+/* An empty outlined box with a short note, so the reading flow can be judged before the pictures exist */
+.placeholder {
+  display: grid; /* Grid makes centring the note easy... */
+  place-items: center; /* ...in the middle of the box */
+  min-height: 160px; /* Roughly the size the pictures will take */
+  margin: 20px 0 24px; /* Space around it */
+  padding: 16px; /* Space inside */
+  border: 1px dashed var(--line); /* A dashed hairline: clearly temporary */
+} /* End of the placeholder rule */
+
+/* The note inside a placeholder */
+.placeholder figcaption {
+  max-width: 40ch; /* Short lines */
+  color: var(--faint); /* Faint Pencil: least important */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 12px; /* Small */
+  text-align: center; /* Centred */
+} /* End of the placeholder note rule */
+
+/* ---------- Keyboard focus ---------- */
+
+/* A visible blue outline for keyboard users, like everywhere in the app */
+a:focus-visible {
+  outline: 2px solid var(--water); /* New-Water Blue, the system's focus colour */
+  outline-offset: 3px; /* A small gap around the link */
+} /* End of the focus rule */
+
+/* ---------- Wider screens ---------- */
+
+/* Computers: more side space, more air above the title */
+@media (min-width: 900px) {
+  .sheet-bar {
+    padding: 16px 28px; /* Wider side space, like the app's panel on desktop */
+  } /* End of the wide strip rule */
+
+  .method {
+    padding: 0 28px 96px; /* Wider side space and more room at the bottom */
+  } /* End of the wide column rule */
+
+  h1 {
+    margin-top: 64px; /* More air above the title */
+  } /* End of the wide title rule */
+} /* End of the wide-screen rules */
