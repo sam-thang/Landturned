@@ -6,7 +6,7 @@ from typing import Annotated  # Lets us attach extra rules to a function input (
 # HTTPException (for sending back an error answer) and Query (rules for ?name=value inputs in the address)
 from fastapi import FastAPI, HTTPException, Query
 
-from app import change_image, landcover  # Our own code: the change picture and the land-cover data
+from app import change_image, imagery, landcover  # Our own code: the change picture, the satellite photo, and the land-cover data
 
 # Create the app. The title is shown on FastAPI's automatic documentation page (at /docs).
 app = FastAPI(title="Landturn backend")
@@ -50,3 +50,18 @@ def change(
         },  # End of the image
         "source": "Impact Observatory annual land cover, 10 m (Microsoft Planetary Computer)",  # Where the data comes from, for the title block
     }  # End of the answer
+
+
+# The Sentinel-2 photo of the 2 x 2 km square for one year, on the same pixel grid as the land-cover data.
+# Example: /api/imagery?lat=33.9785&lon=-117.5962&year=2017
+# A plain "def" again: reading the images takes a few seconds, and FastAPI runs it in a worker thread meanwhile.
+@app.get("/api/imagery")
+def imagery_photo(
+    lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90
+    lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
+    year: Annotated[int, Query(ge=2015, le=2100, description="The year of the photo")],  # Sentinel-2 started in 2015
+) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
+    try:  # Try to make the photo...
+        return imagery.square_photo(round(lat, 5), round(lon, 5), year)  # Rounded to about 1 m, so the memory (cache) recognises the same place asked twice
+    except LookupError as error:  # ...but if there's no data or no usable image:
+        raise HTTPException(status_code=404, detail=str(error)) from error  # Answer with 404 ("not found") and the reason

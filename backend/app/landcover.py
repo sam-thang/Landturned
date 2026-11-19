@@ -1,6 +1,16 @@
 # Land-cover data: find the yearly maps for a place, read our 2 x 2 km square, and translate the
 # dataset's classes into Landturn's own six categories. Used by the exploration script now, and by the API later.
 
+import os  # Built into Python; os.environ holds settings that GDAL reads
+
+# Settings for GDAL, the library rasterio uses to read files over the internet. They must be set before any file is opened.
+# Without them, every file opening first lists the whole online folder and makes many small requests: about 2 seconds
+# each time. With them, an opening takes about 0.4 seconds (measured on Planetary Computer, 2026-11-19).
+os.environ.setdefault("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")  # Don't list the online folder before opening a file in it
+os.environ.setdefault("GDAL_HTTP_MERGE_CONSECUTIVE_RANGES", "YES")  # Combine neighbouring small reads into one request
+os.environ.setdefault("GDAL_HTTP_MULTIPLEX", "YES")  # Send several requests over one connection at the same time
+os.environ.setdefault("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", ".tif")  # Only treat .tif links as files (no guessing about other kinds)
+
 import numpy as np  # numpy: fast math on big grids of numbers
 import planetary_computer  # Signs Planetary Computer file links so we're allowed to download them
 import pystac_client  # Searches the STAC catalog (the index of available maps)
@@ -160,12 +170,17 @@ def summarize(before, after, change):
 
 # ---------- Finding the maps ----------
 
-def find_items_by_year(lon, lat):
-    """Search the catalog for all maps covering the point, and return them as {year: item}, oldest year first."""
-    catalog = pystac_client.Client.open(  # Connect to the catalog...
+def open_catalog():
+    """Connect to Planetary Computer's catalog, with every file link signed automatically. Also used by imagery.py."""
+    return pystac_client.Client.open(  # Connect to the catalog...
         CATALOG_URL,  # ...at this address...
         modifier=planetary_computer.sign_inplace,  # ...and sign every file link we get back, automatically
     )  # End of the connection
+
+
+def find_items_by_year(lon, lat):
+    """Search the catalog for all maps covering the point, and return them as {year: item}, oldest year first."""
+    catalog = open_catalog()  # Connect to the catalog (see open_catalog above)
     search = catalog.search(  # Ask the catalog a question:
         collections=[COLLECTION],  # look only in this dataset,
         intersects={"type": "Point", "coordinates": [lon, lat]},  # for maps that cover the point (GeoJSON: longitude first)
@@ -179,20 +194,35 @@ def find_items_by_year(lon, lat):
 
 # ---------- Reading our square ----------
 
+def square_window(src, lon, lat):
+    """Which rows and columns of an open map file our 2 x 2 km square covers, snapped to whole pixels.
+    Shared by read_square and by the satellite photo (imagery.py), so both always use exactly the same pixel grid."""
+    xs, ys = transform("EPSG:4326", src.crs, [lon], [lat])  # Convert the point from longitude/latitude (EPSG:4326) to the file's projection (a UTM zone, in meters)
+    x, y = xs[0], ys[0]  # transform works on lists, so take the first (only) point
+    exact = from_bounds(  # Work out which rows and columns of the file our square covers:
+        x - HALF_SIZE_M, y - HALF_SIZE_M,  # the square's left and bottom edges (in meters),
+        x + HALF_SIZE_M, y + HALF_SIZE_M,  # and its right and top edges,
+        transform=src.transform,  # using the file's "transform", which links pixel rows/columns to meters
+    )  # End of the exact window (its edges can fall partway through a pixel)
+    size = round(2 * HALF_SIZE_M / src.res[0])  # How many pixels across: 2,000 m / 10 m = 200
+    return Window(round(exact.col_off), round(exact.row_off), size, size)  # Snap to whole pixels: round the starting column and row, keep 200 x 200
+
+
+def square_grid(item, lon, lat):
+    """The square's pixel grid in one land-cover map: (its projection, its "transform", its size in pixels).
+    The satellite photo is drawn onto this grid, so every photo pixel sits exactly on one land-cover pixel."""
+    with rasterio.open(item.assets["data"].href) as src:  # Open the map file over the internet (only its header is read)
+        window = square_window(src, lon, lat)  # Our square's rows and columns
+        return src.crs, src.window_transform(window), window.width  # The projection, the square's own transform, and 200
+
+
 def read_square(item, lon, lat):
     """Read only the 2 x 2 km square around the point from one map.
     Returns (grid of dataset class numbers, the square's four corners as [longitude, latitude])."""
     url = item.assets["data"].href  # The (signed) web address of the map's GeoTIFF file
     with rasterio.open(url) as src:  # Open the file over the internet; nothing big is downloaded yet
-        xs, ys = transform("EPSG:4326", src.crs, [lon], [lat])  # Convert the point from longitude/latitude (EPSG:4326) to the file's projection (a UTM zone, in meters)
-        x, y = xs[0], ys[0]  # transform works on lists, so take the first (only) point
-        exact = from_bounds(  # Work out which rows and columns of the file our square covers:
-            x - HALF_SIZE_M, y - HALF_SIZE_M,  # the square's left and bottom edges (in meters),
-            x + HALF_SIZE_M, y + HALF_SIZE_M,  # and its right and top edges,
-            transform=src.transform,  # using the file's "transform", which links pixel rows/columns to meters
-        )  # End of the exact window (its edges can fall partway through a pixel)
-        size = round(2 * HALF_SIZE_M / src.res[0])  # How many pixels across: 2,000 m / 10 m = 200
-        window = Window(round(exact.col_off), round(exact.row_off), size, size)  # Snap to whole pixels: round the starting column and row, keep 200 x 200
+        window = square_window(src, lon, lat)  # Our square's rows and columns (see square_window above)
+        size = window.width  # How many pixels across: 200
         data = src.read(  # Download and read just that window...
             1,  # ...of band 1 (the only band: class numbers)...
             window=window,  # ...in our snapped window...
