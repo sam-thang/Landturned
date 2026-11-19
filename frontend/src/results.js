@@ -84,7 +84,7 @@ export function showResults(place, change, coordsText) {
   greenLost.textContent = `Green space lost in total: ${formatHa(s.green_lost)} ha, including land now built on or under water.`; // The overall green-loss figure
   greenLost.hidden = false; // Show it
 
-  let noteText = `Estimates from 10 m land-cover maps (Impact Observatory, ${from} and ${to}), compared pixel by pixel. Area: the 2 × 2 km square outlined on the map.`; // The standard small print
+  let noteText = `Estimates from 10 m land-cover maps (Impact Observatory, ${from} and ${to}), compared pixel by pixel. Changes narrower than 30 m are left out as likely mapping noise. Area: the 2 × 2 km square outlined on the map.`; // The standard small print; the 30 m sentence matches remove_thin_changes in backend/app/landcover.py. " " is a non-breaking space: a number never gets split from its unit at a line end (e.g. "2 × 2" and "km")
   if (s.no_data > 0) noteText += ` No data (e.g. clouds) for ${formatHa(s.no_data)} ha of it.`; // Mention gaps, if there are any
   note.textContent = noteText; // Put it in
 } // End of showResults
