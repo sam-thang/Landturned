@@ -27,7 +27,8 @@ def make_png(change):
     return buffer.getvalue()  # Hand back the PNG's raw bytes
 
 
-def to_data_url(png_bytes):
-    """Write PNG bytes as a data URL: a web address that contains the picture itself, as text."""
-    text = base64.b64encode(png_bytes).decode("ascii")  # Base64 turns the bytes into letters, digits, + and /
-    return f"data:image/png;base64,{text}"  # Browsers read this like an image link
+def to_data_url(image_bytes, media_type="image/png"):
+    """Write picture bytes as a data URL: a web address that contains the picture itself, as text.
+    media_type says what kind of picture it is: PNG by default, "image/jpeg" for the satellite photo."""
+    text = base64.b64encode(image_bytes).decode("ascii")  # Base64 turns the bytes into letters, digits, + and /
+    return f"data:{media_type};base64,{text}"  # Browsers read this like an image link

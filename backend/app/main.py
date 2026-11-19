@@ -59,9 +59,14 @@ def change(
 def imagery_photo(
     lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90
     lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
-    year: Annotated[int, Query(ge=2015, le=2100, description="The year of the photo")],  # Sentinel-2 started in 2015
+    year: Annotated[int | None, Query(ge=2015, le=2100, description="The year of the photo; leave out for the latest land-cover year")] = None,  # Sentinel-2 started in 2015; "None" = not given
 ) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
     try:  # Try to make the photo...
+        if year is None:  # No year given (the app's first request, before it knows the years):
+            maps = landcover.find_items_by_year(lon, lat)  # The land-cover maps for the point
+            if not maps:  # None here:
+                raise LookupError("No land-cover data for this location.")  # Nothing to match
+            year = max(maps)  # The latest year with a land-cover map, so the photo matches the "after" year of the change
         return imagery.square_photo(round(lat, 5), round(lon, 5), year)  # Rounded to about 1 m, so the memory (cache) recognises the same place asked twice
     except LookupError as error:  # ...but if there's no data or no usable image:
         raise HTTPException(status_code=404, detail=str(error)) from error  # Answer with 404 ("not found") and the reason
