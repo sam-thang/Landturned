@@ -154,3 +154,6 @@ vite.config.ts.timestamp-*
 # Python's cache of pre-compiled code, recreated automatically
 __pycache__/
 *.pyc
+
+# Landturn: generated satellite photos saved by backend/app/imagery.py (made again on demand, so not kept in git)
+backend/cache/

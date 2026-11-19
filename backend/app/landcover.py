@@ -194,26 +194,36 @@ def find_items_by_year(lon, lat):
 
 # ---------- Reading our square ----------
 
-def square_window(src, lon, lat):
-    """Which rows and columns of an open map file our 2 x 2 km square covers, snapped to whole pixels.
+def square_window(crs, file_transform, lon, lat):
+    """Which rows and columns of a map file our 2 x 2 km square covers, snapped to whole pixels.
+    "crs" is the file's projection and "file_transform" links its pixel rows/columns to meters.
     Shared by read_square and by the satellite photo (imagery.py), so both always use exactly the same pixel grid."""
-    xs, ys = transform("EPSG:4326", src.crs, [lon], [lat])  # Convert the point from longitude/latitude (EPSG:4326) to the file's projection (a UTM zone, in meters)
+    xs, ys = transform("EPSG:4326", crs, [lon], [lat])  # Convert the point from longitude/latitude (EPSG:4326) to the file's projection (a UTM zone, in meters)
     x, y = xs[0], ys[0]  # transform works on lists, so take the first (only) point
     exact = from_bounds(  # Work out which rows and columns of the file our square covers:
         x - HALF_SIZE_M, y - HALF_SIZE_M,  # the square's left and bottom edges (in meters),
         x + HALF_SIZE_M, y + HALF_SIZE_M,  # and its right and top edges,
-        transform=src.transform,  # using the file's "transform", which links pixel rows/columns to meters
+        transform=file_transform,  # using the file's "transform"
     )  # End of the exact window (its edges can fall partway through a pixel)
-    size = round(2 * HALF_SIZE_M / src.res[0])  # How many pixels across: 2,000 m / 10 m = 200
+    size = round(2 * HALF_SIZE_M / file_transform.a)  # How many pixels across: 2,000 m / 10 m = 200 ("a" is the pixel width in the transform)
     return Window(round(exact.col_off), round(exact.row_off), size, size)  # Snap to whole pixels: round the starting column and row, keep 200 x 200
 
 
 def square_grid(item, lon, lat):
     """The square's pixel grid in one land-cover map: (its projection, its "transform", its size in pixels).
-    The satellite photo is drawn onto this grid, so every photo pixel sits exactly on one land-cover pixel."""
-    with rasterio.open(item.assets["data"].href) as src:  # Open the map file over the internet (only its header is read)
-        window = square_window(src, lon, lat)  # Our square's rows and columns
-        return src.crs, src.window_transform(window), window.width  # The projection, the square's own transform, and 200
+    The satellite photo is drawn onto this grid, so every photo pixel sits exactly on one land-cover pixel.
+    The catalog records each map's projection and grid ("proj:code", "proj:transform"), so normally no file is opened;
+    only if those records are missing do we open the file and read them from its header (about 1.5 s slower)."""
+    code = item.properties.get("proj:code")  # The projection's name in the catalog, e.g. "EPSG:32611" (UTM zone 11 north)
+    numbers = item.properties.get("proj:transform")  # The file's transform in the catalog: [pixel width, 0, left edge, 0, -pixel height, top edge]
+    if code and numbers:  # Both recorded:
+        crs = rasterio.crs.CRS.from_string(code)  # Turn the name into a projection object
+        file_transform = rasterio.Affine(*numbers[:6])  # Turn the six numbers into a transform ("*" spreads the list into separate inputs)
+    else:  # Not recorded (shouldn't happen, but just in case):
+        with rasterio.open(item.assets["data"].href) as src:  # Open the map file over the internet (only its header is read)
+            crs, file_transform = src.crs, src.transform  # Take them from the file
+    window = square_window(crs, file_transform, lon, lat)  # Our square's rows and columns
+    return crs, rasterio.windows.transform(window, file_transform), window.width  # The projection, the square's own transform, and 200
 
 
 def read_square(item, lon, lat):
@@ -221,7 +231,7 @@ def read_square(item, lon, lat):
     Returns (grid of dataset class numbers, the square's four corners as [longitude, latitude])."""
     url = item.assets["data"].href  # The (signed) web address of the map's GeoTIFF file
     with rasterio.open(url) as src:  # Open the file over the internet; nothing big is downloaded yet
-        window = square_window(src, lon, lat)  # Our square's rows and columns (see square_window above)
+        window = square_window(src.crs, src.transform, lon, lat)  # Our square's rows and columns (see square_window above)
         size = window.width  # How many pixels across: 200
         data = src.read(  # Download and read just that window...
             1,  # ...of band 1 (the only band: class numbers)...

@@ -4,7 +4,9 @@
 
 import functools  # Built into Python; lru_cache remembers answers so the same photo isn't made twice
 import io  # Built into Python; lets us "save a file" into memory instead of onto the disk
+import json  # Built into Python; reads and writes the saved photos as JSON text
 from concurrent.futures import ThreadPoolExecutor  # Built into Python; runs several downloads at the same time
+from pathlib import Path  # Built into Python; a handy way to build file paths
 
 import numpy as np  # numpy: fast math on big grids of numbers
 import rasterio  # Reads raster files, including just a small window of a big file
@@ -19,7 +21,10 @@ from app import change_image, landcover  # Our own code: data URLs (change_image
 
 COLLECTION = "sentinel-2-l2a"  # Sentinel-2 images corrected to surface reflectance ("Level-2A"), on Planetary Computer
 MAX_SCENE_CLOUD = 80  # Look at images up to 80% cloudy over their whole 110 km tile: our small square can still be clear
-CANDIDATES = 12  # How many images to check over our square (summer and least cloudy first)
+CANDIDATES = 6  # How many images to check over our square (summer and least cloudy first, so the best is nearly always among them)
+# Finished photos are saved here, one small JSON file per place and year: a photo of 2017 never changes, so once made it
+# can be reused, even after the server restarts. Generated data, not code: the folder is listed in .gitignore.
+CACHE_DIR = Path(__file__).resolve().parents[1] / "cache" / "imagery"  # backend/cache/imagery
 WORKERS = 6  # How many images to open at the same time. Most of the time is spent waiting for the internet, so the waits overlap
 CLEAR_ENOUGH = 0.01  # An image is "clear" when clouds hide at most 1% of our square; among clear ones, summer wins
 # Sentinel-2's "scene classification" layer gives every pixel a class; these mean we can't see the ground there:
@@ -102,10 +107,24 @@ def corners_lonlat(crs, grid, size):
     return [[lo, la] for lo, la in zip(lons, lats)]  # Pair them up
 
 
-@functools.lru_cache(maxsize=64)  # Remember the last 64 answers: the same place and year come back instantly
+@functools.lru_cache(maxsize=64)  # Remember the last 64 answers in memory: the same place and year come back instantly
 def square_photo(lat, lon, year):
     """The clearest summer Sentinel-2 photo of the square in one year, as a dictionary ready for the API.
+    Looks in the disk cache first; makes (and saves) the photo only if it isn't there yet.
     Raises LookupError when there is no land-cover map or no usable image for the place and year."""
+    path = CACHE_DIR / f"{lat:.5f}_{lon:.5f}_{year}.json"  # This place and year's file, e.g. "33.97850_-117.59620_2017.json"
+    if path.exists():  # Made before:
+        return json.loads(path.read_text(encoding="utf-8"))  # Read it back: no need to ask Planetary Computer at all
+    answer = make_photo(lat, lon, year)  # Make it (raises LookupError if there's nothing to make)
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)  # Create the cache folder the first time
+    temporary = path.with_suffix(".tmp")  # Write under a temporary name first...
+    temporary.write_text(json.dumps(answer), encoding="utf-8")  # ...the whole answer...
+    temporary.replace(path)  # ...then rename it in one go, so a half-written file can never be read
+    return answer  # Hand back the photo
+
+
+def make_photo(lat, lon, year):
+    """Find, read and colour the photo (the slow part: about 6-10 seconds over the internet)."""
     with ThreadPoolExecutor(max_workers=2) as pool:  # Two helpers: the two catalog searches don't depend on each other, so they run at the same time
         maps_job = pool.submit(landcover.find_items_by_year, lon, lat)  # The land-cover maps for the point (any year gives the same grid)
         items_job = pool.submit(candidates, lon, lat, year)  # The Sentinel-2 images worth checking, summer first
