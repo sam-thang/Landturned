@@ -30,7 +30,7 @@
           </div> <!-- End of the drawing marks -->
           <div id="map-credit" class="map-credit"> <!-- The imagery credit the licence requires, in our own small dark style -->
             <button id="credit-toggle" class="credit-toggle" type="button" aria-expanded="false" aria-controls="credit-text" aria-label="Image credits">i</button> <!-- On phones: the small ⓘ that opens and closes the credit (hidden on wide screens); aria-expanded tells screen readers whether it's open -->
-            <span id="credit-text" class="credit-text">Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community</span> <!-- The credit text itself -->
+            <span id="credit-text" class="credit-text">Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community</span> <!-- The credit text itself; main.js swaps it for the Sentinel-2 credit when that photo is chosen -->
           </div> <!-- End of the credit -->
         </div> <!-- End of the map wrapper -->
         <div id="teaser" class="teaser" hidden><strong></strong><small></small></div> <!-- The hover box for hotspots; globe.js fills in the name and teaser, and shows it -->
@@ -101,6 +101,14 @@
             <li style="--swatch: var(--water)"><i class="swatch"></i>New water<b id="stat-water"></b></li> <!-- Blue -->
           </ul> <!-- End of the stats -->
           <p id="green-lost" class="stat-total"></p> <!-- "Green space lost in total: …" -->
+          <div id="photo-switch" class="photo-switch" hidden> <!-- Which photo the map shows under the colours; hidden when this place has no Sentinel-2 photo -->
+            <span id="photo-switch-label" class="photo-switch-label">Base photo</span> <!-- The control's name -->
+            <div class="photo-switch-options" role="group" aria-labelledby="photo-switch-label"> <!-- The two choices; role="group" + the label tell screen readers they belong together -->
+              <button id="photo-sharp" type="button" aria-pressed="true">Sharp photo</button> <!-- Esri: crisp, recent, date may differ (the default) -->
+              <button id="photo-satellite" type="button" aria-pressed="false">Satellite</button> <!-- Sentinel-2 from the year analysed; main.js adds the year, e.g. "2023 satellite" -->
+            </div> <!-- End of the choices -->
+            <p id="photo-switch-hint" class="photo-switch-hint"></p> <!-- One line saying what the chosen photo is (main.js fills it in) -->
+          </div> <!-- End of the photo switch -->
           <p id="result-note" class="note"></p> <!-- Small print: data source, estimates, the analysis area -->
         </div> <!-- End of the result section -->
       </section> <!-- End of the panel -->

@@ -8,13 +8,17 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 // Bring in the function that redraws the scale bar, from scalebar.js
 import { updateScaleBar } from './scalebar.js';
 
-// The web address pattern for Esri's satellite image tiles.
+// The web address pattern for Esri's satellite image tiles: the sharp photo the map shows by default.
 // {z} = zoom level, {y} = tile row, {x} = tile column. Note: Esri puts y before x.
+// Its photos are recent and often taken in a different year than the land-cover maps, so the change colours won't
+// line up perfectly with it. The optional Sentinel-2 photo (showPhoto below) is the one that matches.
 const SATELLITE_TILES = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 // How big MapLibre should treat each satellite tile, in CSS pixels. Sharp screens (phones, "Retina" laptops) have 2 or more
 // physical pixels per CSS pixel ("device pixel ratio"). Telling MapLibre the tiles are 128 instead of 256 makes it load tiles
 // one zoom level more detailed for the same view: sharper imagery, at the cost of about 4 times as many tiles.
 const TILE_SIZE = window.devicePixelRatio >= 2 ? 128 : 256; // "? :" picks 128 if the ratio is 2 or more, otherwise 256
+// The map's background colour where no tiles have loaded yet: the page's near-black (Night Sheet, --bg in tokens.css).
+const SHEET_COLOR = '#0a0c0f';
 // The analysis area: everything within 1 km (1000 m) of the address
 const RADIUS_METERS = 1000;
 // How many meters one degree of latitude covers (about the same everywhere on Earth)
@@ -30,12 +34,17 @@ let map = null; // The MapLibre map, once it has been created (null until then)
 let maplibre = null; // The MapLibre library itself, once downloaded (we need it again for the label marker)
 let areaLabel = null; // The "ANALYSIS AREA" label on the map, once shown (null until then)
 
-// Work out the square that reaches RADIUS_METERS north, south, east, and west of a point.
+// How far from the place people can pan and zoom out, in meters: 2.9 km each way, a 5.8 km box. The Sentinel-2 photo
+// covers 3 km each way (the square plus 2 km), so the box stays just inside it, even where the photo's UTM grid is
+// slightly turned. Both photos get the same limit, so switching photos never changes what you can see.
+const VIEW_RADIUS_METERS = 2900;
+
+// Work out the square that reaches "radius" meters (RADIUS_METERS, 1 km, unless given) north, south, east, and west of a point.
 // Returns [[west, south], [east, north]] in degrees, the "bounds" format MapLibre expects.
-function siteBounds(lon, lat) {
-  const latStep = RADIUS_METERS / METERS_PER_DEGREE; // 1 km as degrees of latitude (≈ 0.009°)
+function siteBounds(lon, lat, radius = RADIUS_METERS) {
+  const latStep = radius / METERS_PER_DEGREE; // The radius as degrees of latitude (1 km ≈ 0.009°)
   const latRadians = (lat * Math.PI) / 180; // The latitude converted from degrees to radians, which Math.cos needs
-  const lonStep = RADIUS_METERS / (METERS_PER_DEGREE * Math.cos(latRadians)); // 1 km as degrees of longitude; degrees get shorter toward the poles, so divide by cos(latitude)
+  const lonStep = radius / (METERS_PER_DEGREE * Math.cos(latRadians)); // The radius as degrees of longitude; degrees get shorter toward the poles, so divide by cos(latitude)
   return [ // The square's corners:
     [lon - lonStep, lat - latStep], // south-west corner
     [lon + lonStep, lat + latStep], // north-east corner
@@ -71,7 +80,9 @@ export async function showPlace(container, lon, lat) {
     } // End of the start-creating check
     await mapCreation; // Wait for the creation (ours, or the one already running). If it fails, the error goes to main.js as before
   } // End of the no-map check
+  map.setMaxBounds(null); // Lift the previous place's limit first, or it would stop the map from reaching the new place
   map.fitBounds(bounds, { padding: FIT_PADDING, animate: false, bearing: 0 }); // Jump, don't fly, to this square, north-up again (showChange turns it to grid-up later). A brand-new map is already framed, so this changes nothing then; it matters when two calls shared one creation: the later place wins. It also fires "move", which updates the scale bar
+  map.setMaxBounds(siteBounds(lon, lat, VIEW_RADIUS_METERS)); // Keep panning and zooming out within about 3 km of the place (see VIEW_RADIUS_METERS)
   await waitForIdle(); // Wait for the imagery to finish loading
 } // End of showPlace
 
@@ -93,16 +104,18 @@ async function createMap(container, bounds) {
     attributionControl: false, // Hide MapLibre's own white credit box; we show the imagery credit ourselves, in our style (see .map-credit in index.html)
     style: { // What the map shows: its data sources and how to draw them
       version: 8, // The version of MapLibre's style format
-      sources: { // Where the map gets its data from
-        satellite: { // Our one source, named "satellite"
+      sources: { // Where the map gets its data from (the Sentinel-2 photo and the change colours are added per place)
+        satellite: { // The sharp Esri photo, named "satellite"
           type: 'raster', // Ready-made images (pixels)
           tiles: [SATELLITE_TILES], // Where to download the image tiles from
           tileSize: TILE_SIZE, // Each tile is really 256 × 256 pixels, but on sharp screens we show it at 128 CSS pixels (see TILE_SIZE above)
           maxzoom: 19, // Esri has no sharper tiles past zoom 19
-          attribution: 'Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community', // Credit the imagery licence requires (displayed by our own .map-credit line in index.html)
         }, // End of the satellite source
       }, // End of the sources
-      layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite' }], // Draw the satellite images as one layer
+      layers: [ // What is drawn, bottom to top:
+        { id: 'sheet', type: 'background', paint: { 'background-color': SHEET_COLOR } }, // A plain dark background, seen only before tiles arrive
+        { id: 'satellite-layer', type: 'raster', source: 'satellite' }, // The Esri photo
+      ], // End of the layers
     }, // End of the style
   }); // End of creating the map
   map.touchZoomRotate.disableRotation(); // Two-finger pinch still zooms, but no longer twists the map
@@ -113,6 +126,35 @@ async function createMap(container, bounds) {
   updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
   map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
 } // End of createMap
+
+// ---------- The satellite photo ----------
+
+// Put the backend's Sentinel-2 photo on the map, hidden: one picture pinned to its four corners, above the Esri photo
+// and under the change colours. It's the image from the year analysed, so the colours line up with it exactly, but at
+// 10 m it is far softer than Esri's photo, so it is only shown when the visitor switches to it (setPhotoVisible).
+// "photo" is the /api/imagery answer (6 x 6 km around the place), or null if there is none.
+export function showPhoto(photo) {
+  if (map.getLayer('photo-layer')) map.removeLayer('photo-layer'); // Remove the previous place's photo layer, if there is one...
+  if (map.getSource('photo')) map.removeSource('photo'); // ...and its source (layers must go first, sources second)
+  if (!photo) return; // No photo: nothing to add
+
+  map.addSource('photo', { type: 'image', url: photo.url, coordinates: photo.corners }); // The JPEG (as a data URL) and its four corners
+  map.addLayer( // Draw it:
+    {
+      id: 'photo-layer', // The layer's name
+      type: 'raster', // A picture made of pixels
+      source: 'photo', // Using the source above
+      layout: { visibility: 'none' }, // Hidden until the visitor switches to it
+      paint: { 'raster-fade-duration': 0 }, // Appear at once when switched on
+    }, // End of the layer
+    map.getLayer('site-mask-layer') ? 'site-mask-layer' : undefined, // Put it under the darkening and the change colours if they're already there
+  ); // End of adding the layer
+} // End of showPhoto
+
+// Show (true) or hide (false) the Sentinel-2 photo. Does nothing if this place has no photo.
+export function setPhotoVisible(visible) {
+  if (map.getLayer('photo-layer')) map.setLayoutProperty('photo-layer', 'visibility', visible ? 'visible' : 'none'); // Switch its visibility
+} // End of setPhotoVisible
 
 // ---------- The change layer ----------
 

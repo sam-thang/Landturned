@@ -5,7 +5,7 @@ import { startGlobe, TURN_MS } from './globe.js';
 // Bring in the functions for the loading steps and progress bar, from loading.js
 import { resetSteps, startStep, finishStep, failStep } from './loading.js';
 // Bring in the function that asks our backend for the land-cover change, from api.js
-import { fetchChange } from './api.js';
+import { fetchChange, fetchPhoto } from './api.js';
 // Bring in the function that fills in the result panel, from results.js
 import { showResults } from './results.js';
 // Bring in the list of hotspot places, from places.js
@@ -13,7 +13,7 @@ import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange } from './map.js';
+import { showPlace, showPhoto, setPhotoVisible, showChange } from './map.js';
 
 // ---------- Globe ----------
 
@@ -156,6 +156,13 @@ async function selectPlace(place) {
   document.getElementById('step-compare').textContent = 'Comparing land cover'; // Same for the compare step
   showPanel('panel-locating'); // Swap the landing panel for the locating panel
 
+  // Ask the backend for the Sentinel-2 photo right away too: it takes several seconds the first time, so it runs
+  // alongside the globe turn and the change analysis. A failure becomes null: the map then shows the dark sheet.
+  const photoReady = fetchPhoto(place.lat, place.lon).catch((error) => { // If the request fails...
+    console.error(error); // ...print the details in the developer console (F12)
+    return null; // ...and carry on without a photo
+  }); // End of photoReady
+
   // Start loading the satellite map right away, hidden, so it loads while the globe turns.
   // We don't "await" it yet. ".then" turns the result into true (it worked) or false (it failed),
   // so a failure can't go unnoticed while we're busy with the globe.
@@ -167,6 +174,15 @@ async function selectPlace(place) {
       return false; // and report failure
     }, // End of the failure handler
   ); // End of mapReady
+
+  // The Sentinel-2 photo is optional (the map shows the sharp Esri photo by default), so the result doesn't wait for it:
+  // the switch stays hidden until the photo has arrived, then appears. That can be before or after the result is shown.
+  setUpPhotoSwitch(null); // Hide the switch (and show the Esri credit) until this place's photo is here
+  Promise.all([mapReady, photoReady]).then(([loaded, photo]) => { // When both the map and the photo are ready (or failed):
+    if (!loaded || cancelled()) return; // No map, or the visitor went back meanwhile: don't touch the map
+    showPhoto(photo); // Add the photo to the map, hidden, under the change colours (nothing happens without a photo)
+    setUpPhotoSwitch(photo); // Show the switch (if there is a photo), starting on the sharp photo
+  }); // End of the photo handler
 
   // Also ask the backend for the land-cover change right away; it takes a few seconds, so it runs alongside everything else.
   // A failure becomes null (no change data), so the map can still be shown without it.
@@ -229,6 +245,44 @@ async function selectPlace(place) {
   await wait(CROSSFADE_MS); // Wait until the crossfade has finished
   if (mode === 'result') globe.setVisible(false); // Still showing the map? Then stop drawing the hidden globe, to save battery (skip if the user already went back)
 } // End of selectPlace
+
+// ---------- Photo switch: the sharp Esri photo or the Sentinel-2 image from the year analysed ----------
+
+const ESRI_CREDIT = 'Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community'; // The credit Esri's licence requires
+const photoSwitch = document.getElementById('photo-switch'); // The whole control
+const sharpButton = document.getElementById('photo-sharp'); // "Sharp photo"
+const satelliteButton = document.getElementById('photo-satellite'); // "2023 satellite"
+const photoHint = document.getElementById('photo-switch-hint'); // The line explaining the chosen photo
+let currentPhoto = null; // This place's Sentinel-2 photo (the /api/imagery answer), or null
+
+// Turn "2023-06-05" into "5 June 2023". The "T00:00" makes the browser read it as a local date, so it can't slip a day.
+function readableDate(isoDate) {
+  return new Date(`${isoDate}T00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); // Day, month name, year
+} // End of readableDate
+
+// Show the chosen photo: satellite = true for Sentinel-2, false for the sharp Esri photo.
+// Keeps the map, both buttons, the explanation and the credit in step, so they can never disagree.
+function choosePhoto(satellite) {
+  setPhotoVisible(satellite); // Show or hide the Sentinel-2 layer over the Esri photo
+  sharpButton.setAttribute('aria-pressed', String(!satellite)); // "Pressed" when the sharp photo is chosen (screen readers announce this)
+  satelliteButton.setAttribute('aria-pressed', String(satellite)); // "Pressed" when the satellite image is chosen
+  photoHint.textContent = satellite // The explanation for the chosen photo:
+    ? `Sentinel-2, ${readableDate(currentPhoto.date)}: the satellite image from the year analysed. Softer (10 m pixels), but the colours line up with it.` // Sentinel-2
+    : 'A recent sharp photo (Esri). It may be from a different year than the land-cover maps, so the colours won’t line up perfectly.'; // Esri
+  document.getElementById('credit-text').textContent = satellite ? currentPhoto.credit : ESRI_CREDIT; // The credit for what's on screen
+} // End of choosePhoto
+
+// Prepare the switch for a new place: shown only if there is a Sentinel-2 photo, and always starting on the sharp photo
+function setUpPhotoSwitch(photo) {
+  currentPhoto = photo; // Remember this place's photo
+  photoSwitch.hidden = !photo; // No photo: no switch
+  if (photo) satelliteButton.textContent = `${photo.year} satellite`; // e.g. "2023 satellite"
+  if (photo) choosePhoto(false); // Start on the sharp photo
+  else document.getElementById('credit-text').textContent = ESRI_CREDIT; // Without a photo, the Esri credit stays
+} // End of setUpPhotoSwitch
+
+sharpButton.addEventListener('click', () => choosePhoto(false)); // "Sharp photo" pressed
+satelliteButton.addEventListener('click', () => choosePhoto(true)); // "2023 satellite" pressed
 
 // ---------- Imagery credit (phones: opened and closed with the ⓘ button) ----------
 
