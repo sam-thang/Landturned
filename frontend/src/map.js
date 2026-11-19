@@ -127,8 +127,9 @@ async function createMap(container, bounds) {
 // Put the backend's Sentinel-2 photo on the map, hidden: one picture pinned to its four corners, above the Esri photo
 // and under the change colours. It's the image from the year analysed, so the colours line up with it exactly, but at
 // 10 m it is far softer than Esri's photo, so it is only shown when the visitor switches to it (setPhotoVisible).
-// "photo" is the /api/imagery answer (6 x 6 km around the place), or null if there is none.
+// "photo" is the /api/imagery answer (exactly the 2 x 2 km square), or null if there is none.
 export function showPhoto(photo) {
+  if (!map) return; // No map yet (the very first place): there's nothing to remove, and showPlace will create the map
   if (map.getLayer('photo-layer')) map.removeLayer('photo-layer'); // Remove the previous place's photo layer, if there is one...
   if (map.getSource('photo')) map.removeSource('photo'); // ...and its source (layers must go first, sources second)
   if (!photo) return; // No photo: nothing to add
@@ -148,7 +149,7 @@ export function showPhoto(photo) {
 
 // Show (true) or hide (false) the Sentinel-2 photo. Does nothing if this place has no photo.
 export function setPhotoVisible(visible) {
-  if (map.getLayer('photo-layer')) map.setLayoutProperty('photo-layer', 'visibility', visible ? 'visible' : 'none'); // Switch its visibility
+  if (map && map.getLayer('photo-layer')) map.setLayoutProperty('photo-layer', 'visibility', visible ? 'visible' : 'none'); // Switch its visibility (if there's a map and a photo on it)
 } // End of setPhotoVisible
 
 // ---------- The change layer ----------

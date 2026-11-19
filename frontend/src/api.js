@@ -13,7 +13,7 @@ export async function fetchChange(lat, lon) {
   return response.json(); // Read the reply as JSON and hand it back
 } // End of fetchChange
 
-// Ask the backend for the Sentinel-2 photo of the area (6 × 6 km around the point) in the latest land-cover year.
+// Ask the backend for the Sentinel-2 photo of the 2 × 2 km square around the point, in the latest land-cover year.
 // Returns a Promise with the answer: the picture, its corners, the date it was taken, and its credit line.
 export async function fetchPhoto(lat, lon) {
   const params = new URLSearchParams({ lat, lon }); // Build the "?lat=...&lon=..." part; no year, so the backend uses the latest one

@@ -177,7 +177,8 @@ async function selectPlace(place) {
 
   // The Sentinel-2 photo is optional (the map shows the sharp Esri photo by default), so the result doesn't wait for it:
   // the switch stays hidden until the photo has arrived, then appears. That can be before or after the result is shown.
-  setUpPhotoSwitch(null); // Hide the switch (and show the Esri credit) until this place's photo is here
+  showPhoto(null); // Remove the previous place's photo from the map straight away (it would otherwise stay until the new one arrives)
+  setUpPhotoSwitch(null); // Hide the switch and reset it to the sharp photo (and the Esri credit) until this place's photo is here
   Promise.all([mapReady, photoReady]).then(([loaded, photo]) => { // When both the map and the photo are ready (or failed):
     if (!loaded || cancelled()) return; // No map, or the visitor went back meanwhile: don't touch the map
     showPhoto(photo); // Add the photo to the map, hidden, under the change colours (nothing happens without a photo)
@@ -267,18 +268,17 @@ function choosePhoto(satellite) {
   sharpButton.setAttribute('aria-pressed', String(!satellite)); // "Pressed" when the sharp photo is chosen (screen readers announce this)
   satelliteButton.setAttribute('aria-pressed', String(satellite)); // "Pressed" when the satellite image is chosen
   photoHint.textContent = satellite // The explanation for the chosen photo:
-    ? `Sentinel-2, ${readableDate(currentPhoto.date)}: the satellite image from the year analysed. Softer (10 m pixels), but the colours line up with it.` // Sentinel-2
+    ? `Inside the square: Sentinel-2, ${readableDate(currentPhoto.date)}, the satellite image from the year analysed. Softer (10 m pixels), but the colours line up with it.` // Sentinel-2 (only inside the square; the sharp photo stays around it)
     : 'A recent sharp photo (Esri). It may be from a different year than the land-cover maps, so the colours won’t line up perfectly.'; // Esri
-  document.getElementById('credit-text').textContent = satellite ? currentPhoto.credit : ESRI_CREDIT; // The credit for what's on screen
+  document.getElementById('credit-text').textContent = satellite ? `${currentPhoto.credit} · ${ESRI_CREDIT}` : ESRI_CREDIT; // The credit for what's on screen: with the satellite on, both photos are visible (Sentinel-2 inside the square, Esri around it)
 } // End of choosePhoto
 
 // Prepare the switch for a new place: shown only if there is a Sentinel-2 photo, and always starting on the sharp photo
 function setUpPhotoSwitch(photo) {
-  currentPhoto = photo; // Remember this place's photo
-  photoSwitch.hidden = !photo; // No photo: no switch
+  currentPhoto = photo; // Remember this place's photo (or null)
+  choosePhoto(false); // Always back to the sharp photo: buttons, explanation and credit reset, and any photo on the map hidden
+  photoSwitch.hidden = !photo; // No photo (yet): no switch
   if (photo) satelliteButton.textContent = `${photo.year} satellite`; // e.g. "2023 satellite"
-  if (photo) choosePhoto(false); // Start on the sharp photo
-  else document.getElementById('credit-text').textContent = ESRI_CREDIT; // Without a photo, the Esri credit stays
 } // End of setUpPhotoSwitch
 
 sharpButton.addEventListener('click', () => choosePhoto(false)); // "Sharp photo" pressed

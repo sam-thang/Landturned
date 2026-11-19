@@ -10,7 +10,6 @@ from pathlib import Path  # Built into Python; a handy way to build file paths
 
 import numpy as np  # numpy: fast math on big grids of numbers
 import rasterio  # Reads raster files, including just a small window of a big file
-from affine import Affine  # The "transform" type (installed with rasterio); Affine.translation shifts a grid by whole pixels
 from PIL import Image  # Pillow's Image: makes and saves pictures
 from rasterio.enums import Resampling  # The ways of filling pixels when a raster is moved onto another grid
 from rasterio.vrt import WarpedVRT  # A "virtual" raster: another raster seen through our grid, without saving a copy
@@ -28,9 +27,8 @@ CANDIDATES = 6  # How many images to check over our square (summer and least clo
 CACHE_DIR = Path(__file__).resolve().parents[1] / "cache" / "imagery"  # backend/cache/imagery
 WORKERS = 6  # How many images to open at the same time. Most of the time is spent waiting for the internet, so the waits overlap
 CLEAR_ENOUGH = 0.01  # An image is "clear" when clouds hide at most 1% of our square; among clear ones, summer wins
-# The photo covers more than the analysed square, so the map has surroundings: the square's grid, extended by
-# MARGIN pixels on every side. 200 pixels (2 km) on each side gives a 6 x 6 km photo, 600 x 600 pixels.
-MARGIN = 200  # Extra pixels on each side
+# The photo covers exactly the analysed 2 x 2 km square (200 x 200 pixels): the map's surroundings use the sharp Esri
+# photo, and this image is only shown where the change colours are, which is where it lines up with them.
 JPEG_QUALITY = 85  # Photo quality (0-100): 85 looks the same as the original at about a sixth of a PNG's size
 # Sentinel-2's "scene classification" layer gives every pixel a class; these mean we can't see the ground there:
 HIDDEN = [0, 3, 8, 9, 10]  # 0 no data, 3 cloud shadow, 8 cloud (medium), 9 cloud (high), 10 thin cirrus
@@ -86,11 +84,9 @@ def read_on_grid(href, crs, grid, size, resampling):
 
 
 def hidden_share(item, crs, grid, size):
-    """The share of the analysed square (0 to 1) where clouds, their shadows, or missing data hide the ground.
-    "grid" and "size" describe the whole photo (square plus margin); only its middle, the square itself, is judged."""
+    """The share of the analysed square (0 to 1) where clouds, their shadows, or missing data hide the ground."""
     scl = read_on_grid(item.assets["SCL"].href, crs, grid, size, Resampling.nearest)  # The scene classification (20 m pixels, so each covers four of ours)
-    square = scl[MARGIN : size - MARGIN, MARGIN : size - MARGIN]  # Cut out the middle: the analysed square
-    return float(np.isin(square, HIDDEN).mean())  # True where hidden; the mean of True/False is the share of True
+    return float(np.isin(scl, HIDDEN).mean())  # True where hidden; the mean of True/False is the share of True
 
 
 def true_colour(item, crs, grid, size):
@@ -119,7 +115,7 @@ def square_photo(lat, lon, year):
     """The clearest summer Sentinel-2 photo of the square in one year, as a dictionary ready for the API.
     Looks in the disk cache first; makes (and saves) the photo only if it isn't there yet.
     Raises LookupError when there is no land-cover map or no usable image for the place and year."""
-    path = CACHE_DIR / f"{lat:.5f}_{lon:.5f}_{year}_6km.json"  # This place and year's file, e.g. "33.97850_-117.59620_2017_6km.json"
+    path = CACHE_DIR / f"{lat:.5f}_{lon:.5f}_{year}_2km.json"  # This place and year's file, e.g. "33.97850_-117.59620_2017_2km.json"
     if path.exists():  # Made before:
         return json.loads(path.read_text(encoding="utf-8"))  # Read it back: no need to ask Planetary Computer at all
     answer = make_photo(lat, lon, year)  # Make it (raises LookupError if there's nothing to make)
@@ -138,9 +134,7 @@ def make_photo(lat, lon, year):
         maps, items = maps_job.result(), items_job.result()  # Wait for both answers
     if not maps:  # No land-cover data here (e.g. far out at sea):
         raise LookupError("No land-cover data for this location.")  # Nothing to line the photo up with
-    crs, square_grid, square_size = landcover.square_grid(next(iter(maps.values())), lon, lat)  # The square's projection, grid and size, from the first map
-    grid = square_grid * Affine.translation(-MARGIN, -MARGIN)  # The same grid, with its corner moved MARGIN pixels up and left: same 10 m pixels, same alignment
-    size = square_size + 2 * MARGIN  # 200 + 2 x 200 = 600 pixels across
+    crs, grid, size = landcover.square_grid(next(iter(maps.values())), lon, lat)  # The square's projection, grid and size (200), from the first map
 
     if not items:  # No image at all for this year:
         raise LookupError(f"No Sentinel-2 image for this location in {year}.")  # Say so
@@ -159,6 +153,6 @@ def make_photo(lat, lon, year):
         "date": item.properties["datetime"][:10],  # The day the image was taken, e.g. "2023-06-05"
         "hidden_percent": round(share * 100, 1),  # How much of the analysed square clouds or shadows hide, in percent
         "url": change_image.to_data_url(buffer.getvalue(), "image/jpeg"),  # The JPEG, written as a data URL
-        "corners": corners_lonlat(crs, grid, size),  # Where the whole 6 x 6 km photo goes on the map
+        "corners": corners_lonlat(crs, grid, size),  # Where the photo goes on the map: exactly the analysed square
         "credit": f"Contains modified Copernicus Sentinel data ({year})",  # The credit line the Sentinel data terms ask for
     }  # End of the answer
