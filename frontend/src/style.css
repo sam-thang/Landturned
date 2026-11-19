@@ -763,6 +763,28 @@ h1:focus {
   color: var(--faint); /* Dark grey: least important text */
 } /* End of the note rule */
 
+/* Several small-print lines in a row: a little space between them, so each reads as its own point */
+.note + .note {
+  margin-top: 8px; /* Space above every line after the first */
+} /* End of the note spacing rule */
+
+/* "How this works →": a quiet link in the small print, underlined so it reads as a link without needing colour */
+.note-link {
+  color: var(--muted); /* Pencil Grey: a step brighter than the small print around it */
+  text-underline-offset: 3px; /* The underline sits a little below the letters */
+} /* End of the note link rule */
+
+/* The link when hovered */
+.note-link:hover {
+  color: var(--ink); /* Brighter */
+} /* End of the link hover rule */
+
+/* Blue outline for keyboard users, like the other controls */
+.note-link:focus-visible {
+  outline: 2px solid var(--water); /* New-Water Blue, the focus colour */
+  outline-offset: 2px; /* A small gap around the link */
+} /* End of the link focus rule */
+
 /* ---------- Search ---------- */
 
 /* The search form: text box and button side by side, with square corners like a drawing */

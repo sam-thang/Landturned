@@ -5,7 +5,7 @@ import { startGlobe, TURN_MS } from './globe.js';
 // Bring in the functions for the loading steps and progress bar, from loading.js
 import { resetSteps, startStep, finishStep, failStep } from './loading.js';
 // Bring in the function that asks our backend for the land-cover change, from api.js
-import { fetchChange } from './api.js';
+import { fetchChange, fetchPhotoDate } from './api.js';
 // Bring in the function that fills in the result panel, from results.js
 import { showResults } from './results.js';
 // Bring in the list of hotspot places, from places.js
@@ -170,6 +170,9 @@ async function selectPlace(place) {
 
   // Also ask the backend for the land-cover change right away; it takes a few seconds, so it runs alongside everything else.
   // A failure becomes null (no change data), so the map can still be shown without it.
+  // And ask Esri when the map's photo here was taken (a quick answer), for the small print. A failure becomes null: no date shown.
+  const photoDateReady = fetchPhotoDate(place.lat, place.lon).catch(() => null); // e.g. "2026-05-23", or null
+
   const changeReady = fetchChange(place.lat, place.lon).catch((error) => { // If the request fails...
     console.error(error); // ...print the details in the developer console (F12)
     return null; // ...and carry on with "no change data"
@@ -204,7 +207,7 @@ async function selectPlace(place) {
   document.getElementById('callout').classList.add('visible'); // Fade the callout in
 
   // Wait for three things at the same time: the map, the change steps, and the callout's minimum reading time
-  const [mapLoaded, change] = await Promise.all([mapReady, changeDone, wait(MIN_CALLOUT_MS)]); // Promise.all waits until all are done; we keep the first two results
+  const [mapLoaded, change, , photoDate] = await Promise.all([mapReady, changeDone, wait(MIN_CALLOUT_MS), photoDateReady]); // Promise.all waits until all are done; we keep the map, the change, and the photo date (the empty slot skips the wait's result)
   if (cancelled()) return; // The visitor went back while we waited: stop here
   if (!mapLoaded) { // The map couldn't load (e.g. no WebGL, or the connection dropped):
     failStep('map', "The detailed map couldn't load in this browser."); // Mark the step as failed (dash, grey, no pulsing "…") with the reason
@@ -218,7 +221,7 @@ async function selectPlace(place) {
   if (cancelled()) return; // Went back during that short pause: stop before the crossfade
 
   // Fill in the result panel
-  showResults(place, change, formatCoords(place.lon, place.lat)); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
+  showResults(place, change, formatCoords(place.lon, place.lat), photoDate); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
 
   // Stage 2: crossfade from the globe to the map, and switch the panel at the same time
   document.getElementById('callout').classList.remove('visible'); // Fade the callout out

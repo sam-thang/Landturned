@@ -12,3 +12,29 @@ export async function fetchChange(lat, lon) {
   } // End of the error check
   return response.json(); // Read the reply as JSON and hand it back
 } // End of fetchChange
+
+// Esri's metadata service: for any point it says which piece of photo World Imagery shows there, and when it was taken.
+const ESRI_IDENTIFY = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/identify';
+
+// Ask Esri when the map's photo at a point was taken. Returns a Promise with the date as "YYYY-MM-DD", or null if unknown.
+// World Imagery is a patchwork of photos from different dates, so the date differs from place to place.
+export async function fetchPhotoDate(lat, lon) {
+  const d = 0.005; // Half the size of the little box around the point that the service needs, in degrees (about 500 m)
+  const params = new URLSearchParams({ // The question, in the service's own terms:
+    geometry: `${lon},${lat}`, // The point (longitude first)
+    geometryType: 'esriGeometryPoint', // It's a single point
+    sr: '4326', // In longitude/latitude
+    layers: 'all:0', // Layer 0, "World Imagery": the photo actually drawn at street level
+    tolerance: '0', // Exactly at the point
+    mapExtent: `${lon - d},${lat - d},${lon + d},${lat + d}`, // A small map box around it (the service needs one)
+    imageDisplay: '400,400,96', // ...and a pretend screen size for that box
+    returnGeometry: 'false', // We don't need the photo's outline
+    f: 'json', // Answer in JSON
+  }); // End of the question
+  const response = await fetch(`${ESRI_IDENTIFY}?${params}`); // Send it straight to Esri (it allows browsers to ask)
+  if (!response.ok) return null; // A problem: no date
+  const answer = await response.json(); // Read the reply
+  const raw = answer.results?.[0]?.attributes?.['DATE (YYYYMMDD)']; // e.g. "20260523" ("?." stops quietly if a part is missing)
+  if (!/^\d{8}$/.test(raw ?? '')) return null; // Not eight digits: no usable date
+  return `${raw.slice(0, 4)}-${raw.slice(4, 6)}-${raw.slice(6, 8)}`; // "2026-05-23"
+} // End of fetchPhotoDate

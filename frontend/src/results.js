@@ -53,13 +53,28 @@ function revealPieces(name, change) {
   return [start, highlight(s.water, '--water'), ' around ', n, ' became water.']; // Blue story (the only one left)
 } // End of revealPieces
 
+// Turn "2026-05-23" into "23 May 2026". The "T00:00" makes the browser read it as a local date, so it can't slip a day.
+function readableDate(isoDate) {
+  return new Date(`${isoDate}T00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); // Day, month name, year
+} // End of readableDate
+
+// The photo line of the small print: whose photo it is, when it was taken, and why the colours won't match it exactly.
+// "photoDate" is "YYYY-MM-DD" from Esri's metadata, or null when unknown.
+function photoLine(photoDate) {
+  return photoDate // With a date:
+    ? `Satellite imagery: Esri, ${readableDate(photoDate)}, a different date than the land-cover maps, so the coloured areas may not line up exactly with the buildings and fields you see.` // e.g. "Satellite imagery: Esri, 23 May 2026, …"
+    : "Satellite imagery: Esri, usually taken on a different date than the land-cover maps, so the coloured areas may not line up exactly with the buildings and fields you see."; // Without a date
+} // End of photoLine
+
 // Fill in the result panel for a place. "change" is the backend's answer, or null if there is none.
-// "export" lets main.js use it.
-export function showResults(place, change, coordsText) {
+// "photoDate" is when the map's photo was taken ("YYYY-MM-DD"), or null. "export" lets main.js use it.
+// Every year shown comes from "change", so when a year slider changes the years, the text follows automatically.
+export function showResults(place, change, coordsText, photoDate) {
   const heading = document.getElementById('result-name'); // The big heading (the reveal sentence)
   const stats = document.getElementById('stats'); // The list of four stat rows
   const greenLost = document.getElementById('green-lost'); // The "green space lost in total" line
-  const note = document.getElementById('result-note'); // The small print at the bottom
+  const note = document.getElementById('result-note'); // Small print, line 1: the land cover and what Landturn does
+  document.getElementById('photo-note').textContent = photoLine(photoDate); // Small print, line 2: the photo (the same with or without change data)
 
   if (!change) { // No change data (the backend failed or has nothing here):
     document.getElementById('result-kicker').textContent = coordsText; // Just the coordinates, no years
@@ -84,7 +99,7 @@ export function showResults(place, change, coordsText) {
   greenLost.textContent = `Green space lost in total: ${formatHa(s.green_lost)} ha, including land now built on or under water.`; // The overall green-loss figure
   greenLost.hidden = false; // Show it
 
-  let noteText = `Estimates from 10 m land-cover maps (Impact Observatory, ${from} and ${to}), compared pixel by pixel. Changes narrower than 30 m are left out as likely mapping noise. Area: the 2 × 2 km square outlined on the map.`; // The standard small print; the 30 m sentence matches remove_thin_changes in backend/app/landcover.py. " " is a non-breaking space: a number never gets split from its unit at a line end (e.g. "2 × 2" and "km")
-  if (s.no_data > 0) noteText += ` No data (e.g. clouds) for ${formatHa(s.no_data)} ha of it.`; // Mention gaps, if there are any
-  note.textContent = noteText; // Put it in
+  let noteText = `Land cover: Impact Observatory’s 10 m maps of ${from} and ${to}. Landturn compares them pixel by pixel and counts the changes; changes narrower than 30 m are left out.`; // Who made the labels, and what Landturn does with them; the 30 m rule matches remove_thin_changes in backend/app/landcover.py (" " is a non-breaking space: a number never gets split from its unit)
+  if (s.no_data > 0) noteText += ` No data (clouds) for ${formatHa(s.no_data)} ha of the square.`; // Mention gaps, if there are any
+  note.textContent = `${noteText} Estimates, not a survey.`; // Always end by saying what kind of numbers these are
 } // End of showResults
