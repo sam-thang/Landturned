@@ -12,14 +12,3 @@ export async function fetchChange(lat, lon) {
   } // End of the error check
   return response.json(); // Read the reply as JSON and hand it back
 } // End of fetchChange
-
-// Ask the backend for the Sentinel-2 photo of the 2 × 2 km square around the point, in the latest land-cover year.
-// Returns a Promise with the answer: the picture, its corners, the date it was taken, and its credit line.
-export async function fetchPhoto(lat, lon) {
-  const params = new URLSearchParams({ lat, lon }); // Build the "?lat=...&lon=..." part; no year, so the backend uses the latest one
-  const response = await fetch(`/api/imagery?${params}`); // Send the request and wait for the reply
-  if (!response.ok) { // Not a success (e.g. 404 "no image", or the backend isn't running)?
-    throw new Error(`Photo request failed: ${response.status}`); // Stop with an error, including the status number for the console
-  } // End of the error check
-  return response.json(); // Read the reply as JSON and hand it back
-} // End of fetchPhoto

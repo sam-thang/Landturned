@@ -11,7 +11,7 @@ import { updateScaleBar } from './scalebar.js';
 // The web address pattern for Esri's satellite image tiles: the sharp photo the map shows by default.
 // {z} = zoom level, {y} = tile row, {x} = tile column. Note: Esri puts y before x.
 // Its photos are recent and often taken in a different year than the land-cover maps, so the change colours won't
-// line up perfectly with it. The optional Sentinel-2 photo (showPhoto below) is the one that matches.
+// line up perfectly with it (the result's small print says so).
 const SATELLITE_TILES = 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
 // How big MapLibre should treat each satellite tile, in CSS pixels. Sharp screens (phones, "Retina" laptops) have 2 or more
 // physical pixels per CSS pixel ("device pixel ratio"). Telling MapLibre the tiles are 128 instead of 256 makes it load tiles
@@ -99,7 +99,7 @@ async function createMap(container, bounds) {
     attributionControl: false, // Hide MapLibre's own white credit box; we show the imagery credit ourselves, in our style (see .map-credit in index.html)
     style: { // What the map shows: its data sources and how to draw them
       version: 8, // The version of MapLibre's style format
-      sources: { // Where the map gets its data from (the Sentinel-2 photo and the change colours are added per place)
+      sources: { // Where the map gets its data from (the change colours are added per place, in showChange)
         satellite: { // The sharp Esri photo, named "satellite"
           type: 'raster', // Ready-made images (pixels)
           tiles: [SATELLITE_TILES], // Where to download the image tiles from
@@ -121,36 +121,6 @@ async function createMap(container, bounds) {
   updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
   map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
 } // End of createMap
-
-// ---------- The satellite photo ----------
-
-// Put the backend's Sentinel-2 photo on the map, hidden: one picture pinned to its four corners, above the Esri photo
-// and under the change colours. It's the image from the year analysed, so the colours line up with it exactly, but at
-// 10 m it is far softer than Esri's photo, so it is only shown when the visitor switches to it (setPhotoVisible).
-// "photo" is the /api/imagery answer (exactly the 2 x 2 km square), or null if there is none.
-export function showPhoto(photo) {
-  if (!map) return; // No map yet (the very first place): there's nothing to remove, and showPlace will create the map
-  if (map.getLayer('photo-layer')) map.removeLayer('photo-layer'); // Remove the previous place's photo layer, if there is one...
-  if (map.getSource('photo')) map.removeSource('photo'); // ...and its source (layers must go first, sources second)
-  if (!photo) return; // No photo: nothing to add
-
-  map.addSource('photo', { type: 'image', url: photo.url, coordinates: photo.corners }); // The JPEG (as a data URL) and its four corners
-  map.addLayer( // Draw it:
-    {
-      id: 'photo-layer', // The layer's name
-      type: 'raster', // A picture made of pixels
-      source: 'photo', // Using the source above
-      layout: { visibility: 'none' }, // Hidden until the visitor switches to it
-      paint: { 'raster-fade-duration': 0 }, // Appear at once when switched on
-    }, // End of the layer
-    map.getLayer('site-mask-layer') ? 'site-mask-layer' : undefined, // Put it under the darkening and the change colours if they're already there
-  ); // End of adding the layer
-} // End of showPhoto
-
-// Show (true) or hide (false) the Sentinel-2 photo. Does nothing if this place has no photo.
-export function setPhotoVisible(visible) {
-  if (map && map.getLayer('photo-layer')) map.setLayoutProperty('photo-layer', 'visibility', visible ? 'visible' : 'none'); // Switch its visibility (if there's a map and a photo on it)
-} // End of setPhotoVisible
 
 // ---------- The change layer ----------
 
