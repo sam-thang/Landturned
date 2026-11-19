@@ -53,54 +53,66 @@ function waitForIdle() {
   }); // End of the Promise
 } // End of waitForIdle
 
+// The map's creation while it is under way (a Promise), or null when no creation is running.
+// Creating the map starts with downloading MapLibre (about 1 MB), and "map" stays null until that is done.
+// Without this, a second showPlace during the download (cancel, then quickly pick another place) would also
+// see "no map yet" and build a second map in the same box. With it, the second call waits for the same creation.
+let mapCreation = null;
+
 // Show the 2 × 2 km square around a place in the given container element.
 // Creates the map the first time; after that, moves the existing map without animation.
 // Returns a Promise that finishes when the imagery has loaded. "export" lets main.js use it.
 export async function showPlace(container, lon, lat) {
   const bounds = siteBounds(lon, lat); // The square to show
 
-  if (map === null) { // First time: download MapLibre and create the map
-    maplibre = await import('maplibre-gl'); // "Dynamic import": download MapLibre now, only when it's needed (kept for later use)
-    await import('maplibre-gl/dist/maplibre-gl.css'); // ...and its styles (buttons, attribution text)
-    maplibre.setWorkerUrl(workerUrl); // Tell MapLibre where its worker script is (must happen before creating the map)
-    map = new maplibre.MapLibreMap({ // Create the map (this fails with an error if the browser has no WebGL)
-      container, // Draw inside this element
-      bounds, // Start already framed on the square: no flying in from world view
-      fitBoundsOptions: { padding: FIT_PADDING }, // Leave a little space around the square
-      minZoom: MIN_ZOOM, // Don't allow zooming out further than city level
-      dragRotate: false, // North-up: no rotating with right-click drag (or Ctrl + drag)
-      pitchWithRotate: false, // No tilting the map while dragging
-      touchPitch: false, // No tilting with two fingers on touch screens
-      maxPitch: 0, // Never allow any tilt: always look straight down, like a plan
-      bearingSnap: 0, // Turn off MapLibre's "snap to north": by default, after any drag it snaps a map turned less than 7° back to exactly north, which undid our small grid-up turn
-      attributionControl: false, // Hide MapLibre's own white credit box; we show the imagery credit ourselves, in our style (see .map-credit in index.html)
-      style: { // What the map shows: its data sources and how to draw them
-        version: 8, // The version of MapLibre's style format
-        sources: { // Where the map gets its data from
-          satellite: { // Our one source, named "satellite"
-            type: 'raster', // Ready-made images (pixels)
-            tiles: [SATELLITE_TILES], // Where to download the image tiles from
-            tileSize: TILE_SIZE, // Each tile is really 256 × 256 pixels, but on sharp screens we show it at 128 CSS pixels (see TILE_SIZE above)
-            maxzoom: 19, // Esri has no sharper tiles past zoom 19
-            attribution: 'Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community', // Credit the imagery licence requires (displayed by our own .map-credit line in index.html)
-          }, // End of the satellite source
-        }, // End of the sources
-        layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite' }], // Draw the satellite images as one layer
-      }, // End of the style
-    }); // End of creating the map
-    map.touchZoomRotate.disableRotation(); // Two-finger pinch still zooms, but no longer twists the map
-    map.keyboard.disableRotation(); // Keyboard arrows still pan, but Shift + arrows no longer rotate
-    map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'top-right'); // Zoom buttons only (no compass: the map is always north-up)
-    map.on('move', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // Whenever the map moves or zooms, redraw the scale bar
-    map.on('resize', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // ...and when the map changes size (e.g. a phone turned sideways), since the maximum bar length depends on the width
-    updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
-    map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
-  } else { // The map already exists: move it straight to the new square
-    map.fitBounds(bounds, { padding: FIT_PADDING, animate: false, bearing: 0 }); // Jump, don't fly, and start north-up again (showChange turns it to grid-up later); this also fires "move", which updates the scale bar
-  } // End of the create-or-move check
-
+  if (map === null) { // No map yet:
+    if (mapCreation === null) { // ...and nobody is creating one right now:
+      mapCreation = createMap(container, bounds).finally(() => { mapCreation = null; }); // start creating it; when it's over (worked or failed), forget the job, so a failed attempt can be tried again later
+    } // End of the start-creating check
+    await mapCreation; // Wait for the creation (ours, or the one already running). If it fails, the error goes to main.js as before
+  } // End of the no-map check
+  map.fitBounds(bounds, { padding: FIT_PADDING, animate: false, bearing: 0 }); // Jump, don't fly, to this square, north-up again (showChange turns it to grid-up later). A brand-new map is already framed, so this changes nothing then; it matters when two calls shared one creation: the later place wins. It also fires "move", which updates the scale bar
   await waitForIdle(); // Wait for the imagery to finish loading
 } // End of showPlace
+
+// Download MapLibre and create the map, framed on "bounds". Only showPlace calls this, and only once at a time.
+async function createMap(container, bounds) {
+  maplibre = await import('maplibre-gl'); // "Dynamic import": download MapLibre now, only when it's needed (kept for later use)
+  await import('maplibre-gl/dist/maplibre-gl.css'); // ...and its styles (buttons, attribution text)
+  maplibre.setWorkerUrl(workerUrl); // Tell MapLibre where its worker script is (must happen before creating the map)
+  map = new maplibre.MapLibreMap({ // Create the map (this fails with an error if the browser has no WebGL)
+    container, // Draw inside this element
+    bounds, // Start already framed on the square: no flying in from world view
+    fitBoundsOptions: { padding: FIT_PADDING }, // Leave a little space around the square
+    minZoom: MIN_ZOOM, // Don't allow zooming out further than city level
+    dragRotate: false, // North-up: no rotating with right-click drag (or Ctrl + drag)
+    pitchWithRotate: false, // No tilting the map while dragging
+    touchPitch: false, // No tilting with two fingers on touch screens
+    maxPitch: 0, // Never allow any tilt: always look straight down, like a plan
+    bearingSnap: 0, // Turn off MapLibre's "snap to north": by default, after any drag it snaps a map turned less than 7° back to exactly north, which undid our small grid-up turn
+    attributionControl: false, // Hide MapLibre's own white credit box; we show the imagery credit ourselves, in our style (see .map-credit in index.html)
+    style: { // What the map shows: its data sources and how to draw them
+      version: 8, // The version of MapLibre's style format
+      sources: { // Where the map gets its data from
+        satellite: { // Our one source, named "satellite"
+          type: 'raster', // Ready-made images (pixels)
+          tiles: [SATELLITE_TILES], // Where to download the image tiles from
+          tileSize: TILE_SIZE, // Each tile is really 256 × 256 pixels, but on sharp screens we show it at 128 CSS pixels (see TILE_SIZE above)
+          maxzoom: 19, // Esri has no sharper tiles past zoom 19
+          attribution: 'Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community', // Credit the imagery licence requires (displayed by our own .map-credit line in index.html)
+        }, // End of the satellite source
+      }, // End of the sources
+      layers: [{ id: 'satellite-layer', type: 'raster', source: 'satellite' }], // Draw the satellite images as one layer
+    }, // End of the style
+  }); // End of creating the map
+  map.touchZoomRotate.disableRotation(); // Two-finger pinch still zooms, but no longer twists the map
+  map.keyboard.disableRotation(); // Keyboard arrows still pan, but Shift + arrows no longer rotate
+  map.addControl(new maplibre.NavigationControl({ showCompass: false }), 'top-right'); // Zoom buttons only (no compass: the map is always north-up)
+  map.on('move', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // Whenever the map moves or zooms, redraw the scale bar
+  map.on('resize', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // ...and when the map changes size (e.g. a phone turned sideways), since the maximum bar length depends on the width
+  updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
+  map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
+} // End of createMap
 
 // ---------- The change layer ----------
 
