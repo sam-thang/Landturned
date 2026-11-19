@@ -74,8 +74,9 @@ UNKNOWN = 5  # No data in one or both years, so we can't tell
 GREEN = [TREES, GRASS]  # The categories that count as green space
 
 
-def compare(before, after):
-    """Compare two category grids pixel by pixel. Returns a grid of change codes (one per pixel)."""
+def compare(before, after, clean=True):
+    """Compare two category grids pixel by pixel. Returns a grid of change codes (one per pixel).
+    clean=False skips the edge cleaning (only the "How this works" page's patch script uses that, to show the difference)."""
     if before.shape != after.shape:  # The grids must cover the same pixels, or the comparison makes no sense
         raise ValueError(f"Grids differ in size: {before.shape} vs {after.shape}")  # Stop with a clear error message
 
@@ -91,7 +92,7 @@ def compare(before, after):
     change[changed & (after == BUILT)] = NEW_BUILT  # Anything -> built: orange
     change[changed & (after == WATER)] = NEW_WATER  # Anything -> water: blue
     change[~known] = UNKNOWN  # No data in either year: unknown
-    return remove_thin_changes(change)  # Drop edge noise (see below), then hand back the finished change grid
+    return remove_thin_changes(change) if clean else change  # Drop edge noise (see below) unless asked not to, then hand back the finished change grid
 
 
 # ---------- Cleaning edge noise ----------
