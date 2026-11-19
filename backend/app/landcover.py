@@ -91,7 +91,45 @@ def compare(before, after):
     change[changed & (after == BUILT)] = NEW_BUILT  # Anything -> built: orange
     change[changed & (after == WATER)] = NEW_WATER  # Anything -> water: blue
     change[~known] = UNKNOWN  # No data in either year: unknown
-    return change  # Hand back the finished change grid
+    return remove_thin_changes(change)  # Drop edge noise (see below), then hand back the finished change grid
+
+
+# ---------- Cleaning edge noise ----------
+# A 10 m pixel on a shoreline or a road edge is partly one thing and partly another ("mixed pixel"), so its label can
+# flip between years even though nothing changed. Those flips show up as thin rings, 1-2 pixels wide, along every edge.
+# A "morphological opening" removes them: first shrink every colored patch by one pixel on all sides ("erode"), which
+# wipes out anything narrower than 3 pixels, then grow what's left back by one pixel ("dilate"), which restores the
+# shape of the bigger patches. Result: changes narrower than 30 m are dropped; wider ones (a new warehouse, a reservoir) stay.
+
+CHANGE_COLORS = [CLEARED, GAINED, NEW_BUILT, NEW_WATER]  # The four colored change codes, cleaned one at a time
+
+
+def neighbours(mask, pad_mode):
+    """The 9 shifted copies of a True/False grid: each pixel paired with itself and its 8 neighbours.
+    pad_mode says what lies beyond the edge of the square: "edge" repeats the border, "constant" means False."""
+    padded = np.pad(mask, 1, mode=pad_mode)  # Add a 1-pixel frame around the grid, so every pixel has 8 neighbours
+    rows, cols = mask.shape  # The grid's size
+    return [padded[dy : dy + rows, dx : dx + cols] for dy in range(3) for dx in range(3)]  # Slide a window over the frame: 3 x 3 = 9 shifted grids
+
+
+def erode(mask):
+    """Shrink: a pixel stays True only if it and all 8 neighbours are True."""
+    return np.logical_and.reduce(neighbours(mask, "edge"))  # "and" across the 9 shifted grids, pixel by pixel. "edge": the border of the square doesn't shrink a patch that just touches it
+
+
+def dilate(mask):
+    """Grow: a pixel becomes True if it or any of its 8 neighbours is True."""
+    return np.logical_or.reduce(neighbours(mask, "constant"))  # "or" across the 9 shifted grids, pixel by pixel. "constant": nothing grows in from outside the square
+
+
+def remove_thin_changes(change):
+    """Remove colored changes narrower than 3 pixels (30 m), one color at a time. Removed pixels become NO_CHANGE."""
+    cleaned = change.copy()  # Work on a copy, so the original grid stays as it was
+    for code in CHANGE_COLORS:  # Red, green, orange, and blue, each on its own
+        mask = change == code  # True where the pixel has this color
+        kept = dilate(erode(mask))  # The opening: shrink, then grow back. Thin lines vanish in the shrink and can't grow back
+        cleaned[mask & ~kept] = NO_CHANGE  # Pixels of this color that didn't survive become "no change" ("~" = not)
+    return cleaned  # Hand back the cleaned grid
 
 
 def from_to_counts(before, after):
@@ -105,17 +143,16 @@ def from_to_counts(before, after):
 def summarize(before, after, change):
     """Work out the stats in hectares: area per change color, green space lost and gained, and the total area.
     Uses short keys (like "built") so the dictionary can go straight into the API's JSON answer."""
-    known = (before != NO_DATA) & (after != NO_DATA)  # Pixels we know in both years
     green_before = np.isin(before, GREEN)  # Green in the first year
-    green_after = np.isin(after, GREEN)  # Green in the latest year
+    colored_loss = np.isin(change, [CLEARED, NEW_BUILT, NEW_WATER])  # Red, orange, or blue on the (cleaned) map
     return {  # Hand back a dictionary of stats, all in hectares:
         "cleared": to_hectares(int((change == CLEARED).sum())),  # Red pixels ("== CLEARED" marks them True, ".sum()" counts the Trues)
         "gained": to_hectares(int((change == GAINED).sum())),  # Green pixels
         "built": to_hectares(int((change == NEW_BUILT).sum())),  # Orange pixels
         "water": to_hectares(int((change == NEW_WATER).sum())),  # Blue pixels
         "no_data": to_hectares(int((change == UNKNOWN).sum())),  # Pixels with no data in one or both years
-        "green_lost": to_hectares(int((known & green_before & ~green_after).sum())),  # Every green -> non-green pixel: red, plus orange and blue that used to be green
-        "green_gained": to_hectares(int((known & ~green_before & green_after).sum())),  # Every non-green -> green pixel
+        "green_lost": to_hectares(int((colored_loss & green_before).sum())),  # Every green -> non-green pixel still on the map after cleaning: red, plus orange and blue that used to be green
+        "green_gained": to_hectares(int((change == GAINED).sum())),  # Every non-green -> green pixel still on the map after cleaning (the green pixels)
         "total": to_hectares(change.size),  # All pixels in the square (should be 400 ha)
     }  # End of the stats
 
