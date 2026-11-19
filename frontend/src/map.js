@@ -34,17 +34,14 @@ let map = null; // The MapLibre map, once it has been created (null until then)
 let maplibre = null; // The MapLibre library itself, once downloaded (we need it again for the label marker)
 let areaLabel = null; // The "ANALYSIS AREA" label on the map, once shown (null until then)
 
-// How far from the place people can pan and zoom out, in meters: 2.9 km each way, a 5.8 km box. The Sentinel-2 photo
-// covers 3 km each way (the square plus 2 km), so the box stays just inside it, even where the photo's UTM grid is
-// slightly turned. Both photos get the same limit, so switching photos never changes what you can see.
-const VIEW_RADIUS_METERS = 2900;
-
-// Work out the square that reaches "radius" meters (RADIUS_METERS, 1 km, unless given) north, south, east, and west of a point.
+// Work out the square that reaches RADIUS_METERS north, south, east, and west of a point.
 // Returns [[west, south], [east, north]] in degrees, the "bounds" format MapLibre expects.
-function siteBounds(lon, lat, radius = RADIUS_METERS) {
-  const latStep = radius / METERS_PER_DEGREE; // The radius as degrees of latitude (1 km ≈ 0.009°)
+// (People can pan and zoom freely beyond it, down to city level: they'll want to see what else changed nearby,
+// and a later "Analyse this area" button will analyse wherever they've moved to.)
+function siteBounds(lon, lat) {
+  const latStep = RADIUS_METERS / METERS_PER_DEGREE; // 1 km as degrees of latitude (≈ 0.009°)
   const latRadians = (lat * Math.PI) / 180; // The latitude converted from degrees to radians, which Math.cos needs
-  const lonStep = radius / (METERS_PER_DEGREE * Math.cos(latRadians)); // The radius as degrees of longitude; degrees get shorter toward the poles, so divide by cos(latitude)
+  const lonStep = RADIUS_METERS / (METERS_PER_DEGREE * Math.cos(latRadians)); // 1 km as degrees of longitude; degrees get shorter toward the poles, so divide by cos(latitude)
   return [ // The square's corners:
     [lon - lonStep, lat - latStep], // south-west corner
     [lon + lonStep, lat + latStep], // north-east corner
@@ -80,9 +77,7 @@ export async function showPlace(container, lon, lat) {
     } // End of the start-creating check
     await mapCreation; // Wait for the creation (ours, or the one already running). If it fails, the error goes to main.js as before
   } // End of the no-map check
-  map.setMaxBounds(null); // Lift the previous place's limit first, or it would stop the map from reaching the new place
   map.fitBounds(bounds, { padding: FIT_PADDING, animate: false, bearing: 0 }); // Jump, don't fly, to this square, north-up again (showChange turns it to grid-up later). A brand-new map is already framed, so this changes nothing then; it matters when two calls shared one creation: the later place wins. It also fires "move", which updates the scale bar
-  map.setMaxBounds(siteBounds(lon, lat, VIEW_RADIUS_METERS)); // Keep panning and zooming out within about 3 km of the place (see VIEW_RADIUS_METERS)
   await waitForIdle(); // Wait for the imagery to finish loading
 } // End of showPlace
 
