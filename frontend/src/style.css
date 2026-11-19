@@ -714,6 +714,132 @@ h1:focus {
   font-weight: 500; /* Same weight as the sentence: the color does the highlighting */
 } /* End of the reveal number rule */
 
+/* ---------- Year slider: compare the first year with any later year ---------- */
+
+/* The whole slider block, between the reveal sentence and the stats table */
+.timeline {
+  --thumb: 20px; /* The handle's size; the ticks are inset by half of it, so they line up with where the handle stops */
+  margin: 0 0 24px; /* Space below, before the stats */
+} /* End of the slider block rule */
+
+/* The head: "SINCE 2017" on the left, the chosen year on the right, on one baseline */
+.timeline-head {
+  display: flex; /* Side by side */
+  align-items: baseline; /* The small label and the big year sit on the same text line */
+  justify-content: space-between; /* Pushed to the two ends */
+  margin-bottom: 6px; /* Space before the track */
+} /* End of the head rule */
+
+/* "SINCE 2017": a small drawing-voice label */
+.timeline-label {
+  color: var(--muted); /* Pencil Grey */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 11px; /* Small, like the kickers */
+  text-transform: uppercase; /* Capitals */
+  letter-spacing: 0.12em; /* Spread out */
+} /* End of the label rule */
+
+/* The chosen year, large */
+.timeline-year {
+  font-size: 22px; /* Large enough to read at a glance */
+  font-weight: 500; /* Medium, the system's heaviest */
+  font-variant-numeric: tabular-nums; /* All digits equally wide, so the year doesn't jiggle as it changes */
+} /* End of the year rule */
+
+/* The slider itself: we draw our own track and handle, so the browser's default look is switched off */
+.timeline-range {
+  -webkit-appearance: none; /* No default look (Safari and Chrome) */
+  appearance: none; /* No default look (other browsers) */
+  display: block; /* Its own line */
+  width: 100%; /* Full width of the panel */
+  height: var(--thumb); /* As tall as the handle: the whole height can be grabbed */
+  margin: 0; /* No browser margins */
+  background: none; /* The track is drawn below */
+  cursor: pointer; /* Pointing hand */
+} /* End of the slider rule */
+
+/* The track (Safari and Chrome): a 2 px line, ink up to the handle (--filled), faint after it */
+.timeline-range::-webkit-slider-runnable-track {
+  height: 2px; /* A thin line */
+  background: linear-gradient(to right, var(--ink) var(--filled), var(--line) var(--filled)); /* Two colours meeting at the handle's position */
+} /* End of the track rule */
+
+/* The same track (Firefox) */
+.timeline-range::-moz-range-track {
+  height: 2px; /* A thin line */
+  background: linear-gradient(to right, var(--ink) var(--filled), var(--line) var(--filled)); /* Ink up to the handle, faint after */
+} /* End of the Firefox track rule */
+
+/* The handle (Safari and Chrome): a small square, like the marks on a drawing */
+.timeline-range::-webkit-slider-thumb {
+  -webkit-appearance: none; /* No default round knob */
+  width: var(--thumb); /* 20 px wide... */
+  height: var(--thumb); /* ...and tall: easy to catch with a thumb */
+  margin-top: calc((2px - var(--thumb)) / 2); /* Centre it on the 2 px track (Chrome puts the handle's top on the track otherwise) */
+  background: var(--panel); /* Hollow: the panel colour inside... */
+  border: 2px solid var(--ink); /* ...with an ink outline */
+  border-radius: 0; /* Square corners */
+} /* End of the handle rule */
+
+/* The same handle (Firefox) */
+.timeline-range::-moz-range-thumb {
+  width: var(--thumb); /* 20 px... */
+  height: var(--thumb); /* ...square */
+  box-sizing: border-box; /* Include the outline in the size, as in the other browsers */
+  background: var(--panel); /* Hollow */
+  border: 2px solid var(--ink); /* Ink outline */
+  border-radius: 0; /* Square corners */
+} /* End of the Firefox handle rule */
+
+/* Keyboard focus: the blue outline around the handle (Safari and Chrome) */
+.timeline-range:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--water); /* New-Water Blue, the focus colour */
+  outline-offset: 2px; /* A small gap around the handle */
+} /* End of the focus rule */
+
+/* The same focus outline (Firefox) */
+.timeline-range:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--water); /* Blue outline */
+  outline-offset: 2px; /* Small gap */
+} /* End of the Firefox focus rule */
+
+/* No outline around the whole slider: the handle carries the focus outline instead */
+.timeline-range:focus {
+  outline: none; /* Removed only because the handle shows it (see above) */
+} /* End of the slider focus rule */
+
+/* The ticks and year labels under the track, spread so each sits exactly under one handle position */
+.timeline-ticks {
+  display: flex; /* In a row... */
+  justify-content: space-between; /* ...first at the start, last at the end, the rest evenly between */
+  margin: 2px 0 0; /* A little space below the track */
+  padding: 0 calc(var(--thumb) / 2); /* Inset by half a handle: the handle's centre never reaches the very ends */
+} /* End of the ticks rule */
+
+/* One year: a short tick line with the year under it */
+.timeline-ticks span {
+  position: relative; /* So the tick can be drawn above it */
+  width: 0; /* No width of its own: its centre is the tick position */
+  display: flex; /* So the label can be centred on that position */
+  justify-content: center; /* Centred */
+  padding-top: 8px; /* Room for the tick above the label */
+  color: var(--muted); /* Pencil Grey */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 11px; /* Small but readable */
+  white-space: nowrap; /* "2018" never breaks */
+} /* End of the year rule */
+
+/* The tick mark itself: a 1 px line above each year label */
+.timeline-ticks span::before {
+  content: ''; /* An empty box, drawn by CSS */
+  position: absolute; /* Placed freely... */
+  top: 0; /* ...at the top */
+  left: 0; /* ...exactly at the year's position */
+  width: 1px; /* A hairline */
+  height: 5px; /* Short */
+  background: var(--faint); /* Faint Pencil */
+} /* End of the tick rule */
+
 /* The list of four stat rows */
 .stats {
   margin: 0; /* No default list spacing */

@@ -94,6 +94,16 @@
           <button id="back" class="back" type="button">← New place</button> <!-- Goes back to the globe to choose another place -->
           <p id="result-kicker" class="kicker"></p> <!-- Coordinates and period, e.g. "33.9747° N, 117.5665° W · 2017 → 2023" -->
           <h2 id="result-name" class="reveal"></h2> <!-- The reveal sentence (results.js fills it in) -->
+          <div id="timeline" class="timeline"> <!-- The year slider: compare the first year with any later year -->
+            <div class="timeline-head"> <!-- The label on the left, the chosen year on the right -->
+              <span id="timeline-label" class="timeline-label">Since 2017</span> <!-- The fixed start year (main.js will set it from the data) -->
+              <output id="timeline-year" class="timeline-year" for="timeline-range">2023</output> <!-- The chosen end year, large; <output> is the HTML element for a value a control produces -->
+            </div> <!-- End of the head -->
+            <input id="timeline-range" class="timeline-range" type="range" min="2018" max="2023" step="1" value="2023" aria-labelledby="timeline-label" aria-valuetext="2017 to 2023" style="--filled: 100%" /> <!-- The slider: one step per year; aria-valuetext is what screen readers say; --filled is how much of the track is drawn in ink (main.js will update it) -->
+            <div class="timeline-ticks" aria-hidden="true"> <!-- One tick and label per year under the track; hidden from screen readers, which hear the slider's value instead -->
+              <span>2018</span><span>2019</span><span>2020</span><span>2021</span><span>2022</span><span>2023</span> <!-- The years (main.js will build these from the data) -->
+            </div> <!-- End of the ticks -->
+          </div> <!-- End of the year slider -->
           <ul id="stats" class="stats"> <!-- The four change types, one row each, in the same colors as the map -->
             <li style="--swatch: var(--built)"><i class="swatch"></i>Newly built<b id="stat-built"></b></li> <!-- Orange: swatch, name, hectares -->
             <li style="--swatch: var(--loss)"><i class="swatch"></i>Green space cleared<b id="stat-cleared"></b></li> <!-- Red -->
