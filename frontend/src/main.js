@@ -125,7 +125,7 @@ const CROSSFADE_MS = 900;
 const HOLD_MS = 500;
 
 // Which state the app is in: 'landing' (choosing a place), 'locating' (zooming in and loading),
-// 'result' (map shown), or 'returning' (going back to the globe)
+// 'result' (map shown), 'failed' (the map couldn't load; only "← Back to globe" works), or 'returning' (going back to the globe)
 let mode = 'landing';
 
 const stage = document.querySelector('.stage'); // The picture area holding the globe and the map
@@ -195,9 +195,13 @@ async function selectPlace(place) {
 
   // Wait for three things at the same time: the map, the change steps, and the callout's minimum reading time
   const [mapLoaded, change] = await Promise.all([mapReady, changeDone, wait(MIN_CALLOUT_MS)]); // Promise.all waits until all are done; we keep the first two results
-  if (!mapLoaded) { // The map couldn't load:
-    document.getElementById('step-map').textContent = "The detailed map couldn't load in this browser."; // Say so in the panel
-    return; // And stop here, staying on the globe
+  if (!mapLoaded) { // The map couldn't load (e.g. no WebGL, or the connection dropped):
+    failStep('map', "The detailed map couldn't load in this browser."); // Mark the step as failed (dash, grey, no pulsing "…") with the reason
+    mode = 'failed'; // We're stuck on this place, but not busy any more: "← Back to globe" may now work
+    const locatingBack = document.getElementById('locating-back'); // The way out
+    locatingBack.hidden = false; // Show it
+    locatingBack.focus(); // Move keyboard focus to it, so keyboard and screen-reader users find it at once
+    return; // Stop here; the button takes it from there
   } // End of the failure check
   await showChange(change); // Draw the change layer, turn the (still hidden) map grid-up, and wait for any new imagery; with no data, just clear the old drawing
   await wait(HOLD_MS); // Everything is done: pause briefly so people see all steps completed
@@ -229,10 +233,13 @@ creditToggle.addEventListener('click', () => {
 
 // ---------- Going back to the globe ----------
 
-// When "← New place" is clicked
-document.getElementById('back').addEventListener('click', async () => {
-  if (mode !== 'result') return; // Only works once the result is fully shown
+// Go back from a place to the landing globe. Used by "← New place" (after a result) and by "← Back to globe"
+// (when the map failed to load), so both take the same path.
+async function returnToGlobe() {
+  if (mode !== 'result' && mode !== 'failed') return; // Only from a finished result or a failed load ("&&" = and)
   mode = 'returning'; // We're busy going back: ignore place clicks until we're done
+  document.getElementById('locating-back').hidden = true; // Hide "← Back to globe" again, ready for next time
+  document.getElementById('callout').classList.remove('visible'); // Fade out the callout (still up after a failed load; already gone after a result)
   clearUrlPlace(); // Back to the plain address, so a reload now opens the landing page
   showPanel('panel-landing'); // Show the landing panel again (headline, search, place buttons)
   document.querySelector('.panel').scrollTop = 0; // Scroll the panel back to the top, so the landing page starts at the headline
@@ -243,7 +250,10 @@ document.getElementById('back').addEventListener('click', async () => {
   // the globe pulls back while it fades in, which is quicker and looks like one continuous move
   await Promise.all([wait(CROSSFADE_MS), globe.reset()]); // The crossfade, and zooming out to the whole globe (which also unlocks it)
   mode = 'landing'; // Ready for a new place
-}); // End of the back button handler
+} // End of returnToGlobe
+
+document.getElementById('back').addEventListener('click', returnToGlobe); // "← New place" on the result panel
+document.getElementById('locating-back').addEventListener('click', returnToGlobe); // "← Back to globe" on the locating panel, after a failed map load
 
 // ---------- Place buttons ----------
 

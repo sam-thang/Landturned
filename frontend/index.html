@@ -87,6 +87,8 @@
             <li id="step-compare">Comparing land cover</li> <!-- Step 3: the backend compares the two years -->
           </ol> <!-- End of the steps -->
           <div id="progress" class="progress" aria-hidden="true"><i></i></div> <!-- One progress bar; the <i> is the fill (screen readers get the step list instead) -->
+          <button id="locating-back" class="back locating-back" type="button" hidden>← Back to globe</button> <!-- Only shown if the map fails to load, so people are never stuck; main.js shows it -->
+
         </div> <!-- End of the locating section -->
         <div id="panel-result" hidden> <!-- Panel contents once the map is shown; hidden until then -->
           <button id="back" class="back" type="button">← New place</button> <!-- Goes back to the globe to choose another place -->
