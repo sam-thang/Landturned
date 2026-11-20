@@ -185,7 +185,7 @@ async function getImagery(change, archiveReady, cancelled, progress = {}) {
   const deadline = wait(IMAGERY_LIMIT_MS).then(() => null); // Finishes with null when the time is up
   const archive = await Promise.race([archiveReady, deadline]); // The archive answer, or null if it fails or the time runs out ("race" = whichever finishes first)
   if (cancelled()) return null; // The visitor left meanwhile: stop
-  progress.found?.(); // Tell the caller ("?.()" = call it only if it was given)
+  progress.found?.(archive); // Tell the caller, with the answer (null = none found in time) ("?.()" = call it only if it was given)
   setBaseImagery(archive?.after?.tiles ?? null); // The "after" photo's archive version, or Esri's current imagery (no archive, or the current imagery is closer)
   const swipeReady = prepareSwipe(change, archive).catch(() => null); // The 2017 photo, cut to the square (or null, also if its tiles fail to load)
   const swipe = archive ? await Promise.race([swipeReady, deadline]) : null; // ...unless the time runs out first
@@ -233,6 +233,8 @@ async function selectPlace(place) {
   resetSteps(); // Empty the progress bar and un-tick the steps (in case of an earlier visit)
   document.getElementById('step-map').textContent = 'Loading detailed map'; // Reset the text too, in case it showed an error before
   document.getElementById('step-compare').textContent = 'Comparing land cover'; // Same for the compare step
+  document.getElementById('step-find').textContent = 'Finding the imagery'; // ...the find step (it gets the real years once the comparison is in)
+  document.getElementById('step-imagery').textContent = 'Loading imagery'; // ...and the imagery step
   showPanel('panel-locating'); // Swap the landing panel for the locating panel
 
   setBaseImagery(null); // Back to Esri's current imagery first: a previous place's archive imagery must never show here, under the wrong date
@@ -271,8 +273,15 @@ async function selectPlace(place) {
     startStep('compare'); // Show step 3 as running
     const change = await changeReady; // Wait for the backend's answer (or null if it failed)
     if (cancelled()) return null; // Cancelled while waiting: don't touch the steps (they may belong to a newer place by now)
-    if (change) finishStep('compare'); // Got it: tick off step 3
-    else failStep('compare', "Change data isn't available for this place right now"); // No answer: say so honestly, but carry on with the map
+    if (change) { // Got it:
+      finishStep('compare'); // Tick off step 3
+      document.getElementById('step-find').textContent = `Finding ${change.years.from} and ${change.years.to} imagery`; // The real years, e.g. "Finding 2017 and 2023 imagery"
+      startStep('find'); // Step 4 is running (the archive request has been working all along; getImagery ticks it off)
+    } else { // No answer: say so honestly, but carry on with the map
+      failStep('compare', "Change data isn't available for this place right now"); // Step 3 failed
+      failStep('find', 'No before and after imagery without it'); // Steps 4 and 5 can't happen without a comparison
+      failStep('imagery', 'Showing the current imagery'); // ...so they end too, saying what people will see instead
+    } // End of the answer check
     return change; // Hand the answer on (or null)
   }); // End of the map-ready handler
 
@@ -291,7 +300,15 @@ async function selectPlace(place) {
     document.getElementById('locating-back').focus(); // Move keyboard focus to "← Back to globe", the way out, so keyboard and screen-reader users find it at once
     return; // Stop here; the button takes it from there
   } // End of the failure check
-  const early = await showFinishedResult(place, change, archiveReady, photoDateReady, cancelled, HOLD_MS); // Wait for the imagery, then draw the change, add the swipe, fill in the panel
+  const imagerySteps = { // What getImagery reports, shown as steps 4 and 5:
+    found: (archive) => { // The archive answer is here (or the time ran out):
+      if (archive?.before) finishStep('find'); // A 2017 photo was found: tick off step 4
+      else failStep('find', 'No earlier imagery found in time'); // None: say so (the result shows without the swipe)
+      startStep('imagery'); // Step 5 is running
+    }, // End of found
+    loaded: () => finishStep('imagery'), // The imagery is drawn: tick off step 5
+  }; // End of the imagery steps
+  const early = await showFinishedResult(place, change, archiveReady, photoDateReady, cancelled, HOLD_MS, imagerySteps); // Wait for the imagery, then draw the change, add the swipe, fill in the panel
   if (cancelled()) return; // Went back meanwhile: stop before the crossfade
 
   // Stage 2: crossfade from the globe to the map, and switch the panel at the same time
