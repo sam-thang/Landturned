@@ -85,6 +85,7 @@ export function showResults(place, change, coordsText) {
     document.getElementById('result-kicker').textContent = coordsText; // Just the coordinates, no years
     heading.textContent = place.name ?? coordsText; // The heading is simply the place name, or its coordinates if it has none
     stats.hidden = true; // Hide the stat rows
+    document.getElementById('stats-label').hidden = true; // ...and their "Show on map" label
     greenLost.hidden = true; // Hide the total line
     note.textContent = "Change data isn't available for this place right now. The map still shows the satellite image."; // Explain
     return; // Nothing more to fill in
@@ -100,6 +101,7 @@ export function showResults(place, change, coordsText) {
   document.getElementById('stat-gained').textContent = `${formatHa(s.gained)} ha`; // Green row
   document.getElementById('stat-water').textContent = `${formatHa(s.water)} ha`; // Blue row
   stats.hidden = false; // Show the rows
+  document.getElementById('stats-label').hidden = false; // ...and their "Show on map" label
 
   greenLost.textContent = `Green space lost in total: ${formatHa(s.green_lost)} ha, including land now built on or under water.`; // The overall green-loss figure
   greenLost.hidden = false; // Show it
@@ -108,3 +110,28 @@ export function showResults(place, change, coordsText) {
   if (s.no_data > 0) noteText += ` No data (clouds) for ${formatHa(s.no_data)} ha of the square.`; // Mention gaps, if there are any
   note.textContent = `${noteText} Estimates, not a survey.`; // Always end by saying what kind of numbers these are
 } // End of showResults
+
+// ---------- The colour switches (the stats rows) ----------
+
+// Make the four stats rows work as on/off switches for the map's colours. "onChange" is called after every press with the
+// change types that are switched on, e.g. ['built', 'gained'] ("export" lets main.js use it).
+export function setUpColourSwitches(onChange) {
+  const switches = [...document.querySelectorAll('.stat-switch')]; // The four row buttons ("[...]" turns the found list into a normal array)
+  for (const button of switches) { // For each row:
+    button.addEventListener('click', () => { // When it's pressed (click, tap, or Enter/Space on the keyboard):
+      const on = button.getAttribute('aria-pressed') === 'true'; // Is it on right now?
+      button.setAttribute('aria-pressed', on ? 'false' : 'true'); // Flip it: the look (style.css) and what screen readers say follow this
+      onChange(shownChanges()); // Report which colours are on now
+    }); // End of the click listener
+  } // End of the rows loop
+} // End of setUpColourSwitches
+
+// The change types whose switch is on, e.g. ['built', 'cleared', 'gained', 'water'] when all are on ("export" lets main.js use it)
+export function shownChanges() {
+  return [...document.querySelectorAll('.stat-switch[aria-pressed="true"]')].map((button) => button.dataset.change); // "dataset.change" reads data-change
+} // End of shownChanges
+
+// Switch all four back on (for a new place)
+export function resetColourSwitches() {
+  for (const button of document.querySelectorAll('.stat-switch')) button.setAttribute('aria-pressed', 'true'); // Every row on
+} // End of resetColourSwitches

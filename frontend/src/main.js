@@ -7,7 +7,7 @@ import { resetSteps, startStep, finishStep, failStep } from './loading.js';
 // Bring in the function that asks our backend for the land-cover change, from api.js
 import { fetchChange, fetchPhotoDate, fetchTimeline, fetchWayback } from './api.js';
 // Bring in the function that fills in the result panel, from results.js
-import { showResults, showImageryDate } from './results.js';
+import { showResults, showImageryDate, setUpColourSwitches } from './results.js';
 // Bring in the list of hotspot places, from places.js
 import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
@@ -514,3 +514,7 @@ document.getElementById('pin-go').addEventListener('click', () => {
 
 const startPlace = placeFromUrl(); // Is there a place in the address (after a reload, or from a shared link)?
 if (startPlace) selectPlace(startPlace); // Then go straight to it: the globe turns there and the result loads, as if it had been chosen
+
+// ---------- Colour switches (the stats rows) ----------
+
+setUpColourSwitches(() => {}); // The rows switch on and off; for now nothing else happens (the next step connects them to the map's colours)

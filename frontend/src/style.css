@@ -917,15 +917,57 @@ h1:focus {
   border-top: 1px solid var(--line); /* A thin line above the first row */
 } /* End of the stats rule */
 
-/* One stat row: swatch, name, and hectares in a line */
+/* "SHOW ON MAP": the label above the rows, in the same drawing voice as "SINCE 2017" */
+.stats-label {
+  margin: 0 0 10px; /* No space above; the usual label-to-control gap below */
+  color: var(--muted); /* Pencil Grey */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 11px; /* Small, like the kickers */
+  text-transform: uppercase; /* Capitals */
+  letter-spacing: 0.12em; /* Spread out */
+} /* End of the stats label rule */
+
+/* One stat row: only the thin line under it; the button inside does the layout */
 .stats li {
-  display: flex; /* Lay the three parts out in a row */
-  align-items: center; /* Vertically centered */
-  gap: 10px; /* Space between the parts */
-  padding: 11px 0; /* Space above and below each row */
   border-bottom: 1px solid var(--line); /* A thin line under each row, like a table */
   font-size: 14px; /* Normal reading size */
 } /* End of the stat row rule */
+
+/* The row's switch: swatch, name, and hectares in a line. It looks like a plain table row, not a boxed button. */
+.stat-switch {
+  display: flex; /* Lay the three parts out in a row */
+  align-items: center; /* Vertically centered */
+  gap: 10px; /* Space between the parts */
+  width: calc(100% + 16px); /* The whole row is the switch (a big, easy target), plus 8 px each side... */
+  margin: 0 -8px; /* ...pulled back out by 8 px, so the text stays in line with the panel while the focus outline gets room */
+  padding: 11px 8px; /* Space above and below each row, and the 8 px each side */
+  border: 0; /* No button border */
+  -webkit-tap-highlight-color: transparent; /* No grey or teal flash box when tapped on phones (the switch shows its own state) */
+  background: none; /* No button fill */
+  color: var(--ink); /* Drafting Ink */
+  font: inherit; /* Buttons don't take the page's font by themselves: use the row's (mono capitals) */
+  letter-spacing: inherit; /* ...and its letter spacing */
+  text-transform: inherit; /* ...and its capitals */
+  text-align: left; /* Text starts at the left, like the other rows */
+  cursor: pointer; /* The pointing-hand cursor: this can be clicked */
+} /* End of the switch rule */
+
+/* Switched off: the swatch becomes an empty square in its colour, and the row dims to Pencil Grey (the hectares stay: they're still true) */
+.stat-switch[aria-pressed='false'] { color: var(--muted); } /* Pencil Grey text */
+.stat-switch[aria-pressed='false'] .swatch {
+  background: transparent; /* Empty... */
+  box-shadow: inset 0 0 0 1.5px var(--swatch); /* ...with an outline in its colour ("inset" draws it inside the square, so the size stays the same) */
+} /* End of the off swatch rule */
+@media (hover: hover) { /* Only on devices with a real mouse or trackpad (on touch screens a 'hover' sticks after a tap) */
+  .stat-switch:hover { color: var(--ink); } /* Pointing at an off row brightens it, hinting it can be switched back on */
+} /* End of the hover rule */
+
+/* Keyboard focus: the blue outline used everywhere, just inside the row so the panel's edge doesn't cut it off */
+.stat-switch:focus { outline: none; } /* No outline for mouse and touch... */
+.stat-switch:focus-visible {
+  outline: 2px solid var(--water); /* ...only for keyboard users: New-Water Blue */
+  outline-offset: -2px; /* Inside the row */
+} /* End of the focus rule */
 
 /* The small colored square at the start of a row */
 .stats .swatch {

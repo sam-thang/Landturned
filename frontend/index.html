@@ -102,11 +102,14 @@
             <input id="timeline-range" class="timeline-range" type="range" step="1" disabled aria-labelledby="timeline-label" /> <!-- The slider: one step per year; main.js sets its years, its value, what screen readers say (aria-valuetext), and --filled (how much of the track is ink) -->
             <div id="timeline-ticks" class="timeline-ticks" aria-hidden="true"></div> <!-- One tick and label per year under the track (main.js builds them from the data); hidden from screen readers, which hear the slider's value instead -->
           </div> <!-- End of the year slider -->
-          <ul id="stats" class="stats"> <!-- The four change types, one row each, in the same colors as the map -->
-            <li style="--swatch: var(--built)"><i class="swatch"></i>Newly built<b id="stat-built"></b></li> <!-- Orange: swatch, name, hectares -->
-            <li style="--swatch: var(--loss)"><i class="swatch"></i>Green space cleared<b id="stat-cleared"></b></li> <!-- Red -->
-            <li style="--swatch: var(--gain)"><i class="swatch"></i>Green space gained<b id="stat-gained"></b></li> <!-- Green -->
-            <li style="--swatch: var(--water)"><i class="swatch"></i>New water<b id="stat-water"></b></li> <!-- Blue -->
+          <p id="stats-label" class="stats-label">Show on map</p> <!-- Says the rows below are switches for the map's colours -->
+          <ul id="stats" class="stats" aria-labelledby="stats-label"> <!-- The four change types, one row each, in the same colors as the map; screen readers hear "Show on map" as the list's name -->
+            <!-- Each row is a button that switches its colour on the map on or off. aria-pressed="true" tells screen readers it's an
+                 on/off switch that is on; data-change names the change type (results.js and map.js use it). -->
+            <li style="--swatch: var(--built)"><button class="stat-switch" type="button" aria-pressed="true" data-change="built"><i class="swatch"></i>Newly built<b id="stat-built"></b></button></li> <!-- Orange: swatch, name, hectares -->
+            <li style="--swatch: var(--loss)"><button class="stat-switch" type="button" aria-pressed="true" data-change="cleared"><i class="swatch"></i>Green space cleared<b id="stat-cleared"></b></button></li> <!-- Red -->
+            <li style="--swatch: var(--gain)"><button class="stat-switch" type="button" aria-pressed="true" data-change="gained"><i class="swatch"></i>Green space gained<b id="stat-gained"></b></button></li> <!-- Green -->
+            <li style="--swatch: var(--water)"><button class="stat-switch" type="button" aria-pressed="true" data-change="water"><i class="swatch"></i>New water<b id="stat-water"></b></button></li> <!-- Blue -->
           </ul> <!-- End of the stats -->
           <p id="green-lost" class="stat-total"></p> <!-- "Green space lost in total: …" -->
           <p id="result-note" class="note"></p> <!-- Small print, line 1: where the land cover comes from, what Landturn does with it, that it's an estimate -->
