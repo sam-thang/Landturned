@@ -73,6 +73,26 @@ export function showImageryDate(isoDate) {
   document.getElementById('photo-note').textContent = photoLine(isoDate); // The imagery line, with or without a date
 } // End of showImageryDate
 
+// A change's share of the whole square as text: "47%", "<1%" for a sliver (so a real change never reads as "0%"), or "0%"
+function shareText(hectares, totalHectares) {
+  const percent = (hectares / totalHectares) * 100; // The share, in percent
+  if (hectares > 0 && percent < 0.5) return '<1%'; // Something, but it would round down to 0
+  return `${Math.round(percent)}%`; // Whole percent
+} // End of shareText
+
+// Fill in one stats row's number: the hectares, then (muted) the share of the square, e.g. "187.9 ha  47%".
+// Screen readers also hear "of the square" after the percent (that part is invisible on screen).
+function setStat(id, hectares, totalHectares) {
+  const number = document.getElementById(id); // The row's <b>
+  const share = document.createElement('span'); // The muted share
+  share.className = 'stat-share'; // Its styles (style.css)
+  share.textContent = shareText(hectares, totalHectares); // e.g. "47%"
+  const spoken = document.createElement('span'); // Words only screen readers get
+  spoken.className = 'sr-only'; // Hidden on screen (style.css)
+  spoken.textContent = ' of the square'; // So they hear "47% of the square"
+  number.replaceChildren(`${formatHa(hectares)} ha`, share, spoken); // Replace the old contents: the hectares, the share, the spoken words
+} // End of setStat
+
 // Fill in the result panel for a place. "change" is the backend's answer, or null if there is none. "export" lets main.js use it.
 // Every year shown comes from "change", so when a year slider changes the years, the text follows automatically.
 export function showResults(place, change, coordsText) {
@@ -96,14 +116,14 @@ export function showResults(place, change, coordsText) {
   document.getElementById('result-kicker').textContent = `${coordsText} · ${from} → ${to}`; // e.g. "33.9747° N, 117.5665° W · 2017 → 2023"
   heading.replaceChildren(...revealPieces(place.name, change)); // Replace the heading's contents with the sentence pieces ("..." spreads the list out)
 
-  document.getElementById('stat-built').textContent = `${formatHa(s.built)} ha`; // Orange row
-  document.getElementById('stat-cleared').textContent = `${formatHa(s.cleared)} ha`; // Red row
-  document.getElementById('stat-gained').textContent = `${formatHa(s.gained)} ha`; // Green row
-  document.getElementById('stat-water').textContent = `${formatHa(s.water)} ha`; // Blue row
+  setStat('stat-built', s.built, s.total); // Orange row
+  setStat('stat-cleared', s.cleared, s.total); // Red row
+  setStat('stat-gained', s.gained, s.total); // Green row
+  setStat('stat-water', s.water, s.total); // Blue row
   stats.hidden = false; // Show the rows
   document.getElementById('stats-label').hidden = false; // ...and their "Show on map" label
 
-  greenLost.textContent = `Green space lost in total: ${formatHa(s.green_lost)} ha, including land now built on or under water.`; // The overall green-loss figure
+  greenLost.textContent = `In total, ${formatHa(s.green_lost)} ha of green space was lost: cleared, built on, or flooded.`; // The overall green-loss figure, and what it's made of (so it doesn't read as contradicting the red row)
   greenLost.hidden = false; // Show it
 
   let noteText = `Land cover: Impact Observatory’s 10 m maps of ${from} and ${to}. Landturn compares them pixel by pixel and counts the changes; changes narrower than 30 m are left out.`; // Who made the labels, and what Landturn does with them; the 30 m rule matches remove_thin_changes in backend/app/landcover.py (" " is a non-breaking space: a number never gets split from its unit)

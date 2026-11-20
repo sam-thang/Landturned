@@ -1106,7 +1106,16 @@ h1:focus {
   font-variant-numeric: tabular-nums; /* All digits equally wide, so the numbers line up in a column */
 } /* End of the hectares rule */
 
-/* "Green space lost in total: …", under the rows */
+/* The share of the square after the hectares, e.g. "47%": muted, in a fixed-width column so the percents line up */
+.stats .stat-share {
+  display: inline-block; /* So it can have a width */
+  min-width: 4ch; /* Room for "100%" ("ch" = the width of one digit) */
+  margin-left: 10px; /* Space after the hectares */
+  color: var(--muted); /* Pencil Grey: the hectares lead, the share supports */
+  text-align: right; /* Right-aligned, so "4%" and "47%" line up at the % sign */
+} /* End of the share rule */
+
+/* "In total, … ha of green space was lost: …", under the rows */
 .stat-total {
   margin: 14px 0 18px; /* Space above and below */
   font-size: 13px; /* A little smaller than the rows */

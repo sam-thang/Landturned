@@ -124,11 +124,11 @@
             <!-- Each row is a button that switches its colour on the map on or off. aria-pressed="true" tells screen readers it's an
                  on/off switch that is on; data-change names the change type (results.js and map.js use it). -->
             <li style="--swatch: var(--built)"><button class="stat-switch" type="button" aria-pressed="true" data-change="built"><i class="swatch"></i>Newly built<b id="stat-built"></b></button></li> <!-- Orange: swatch, name, hectares -->
-            <li style="--swatch: var(--loss)"><button class="stat-switch" type="button" aria-pressed="true" data-change="cleared"><i class="swatch"></i>Green space cleared<b id="stat-cleared"></b></button></li> <!-- Red -->
+            <li style="--swatch: var(--loss)"><button class="stat-switch" type="button" aria-pressed="true" data-change="cleared"><i class="swatch"></i>Cleared to bare ground<b id="stat-cleared"></b></button></li> <!-- Red: green land stripped bare, nothing built yet (green land built on or flooded counts in the total line below) -->
             <li style="--swatch: var(--gain)"><button class="stat-switch" type="button" aria-pressed="true" data-change="gained"><i class="swatch"></i>Green space gained<b id="stat-gained"></b></button></li> <!-- Green -->
             <li style="--swatch: var(--water)"><button class="stat-switch" type="button" aria-pressed="true" data-change="water"><i class="swatch"></i>New water<b id="stat-water"></b></button></li> <!-- Blue -->
           </ul> <!-- End of the stats -->
-          <p id="green-lost" class="stat-total"></p> <!-- "Green space lost in total: …" -->
+          <p id="green-lost" class="stat-total"></p> <!-- "In total, … ha of green space was lost: cleared, built on, or flooded." -->
           <p id="result-note" class="note"></p> <!-- Small print, line 1: where the land cover comes from, what Landturn does with it, that it's an estimate -->
           <p id="photo-note" class="note"></p> <!-- Small print, line 2: the satellite imagery's source and date, and why the coloured areas may not line up with it -->
           <p class="note"><a class="note-link" href="/how/">How this works →</a></p> <!-- Small print, line 3: the method page -->
