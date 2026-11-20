@@ -214,8 +214,7 @@ body {
 
 /* While a new area is analysed, the old result stays but dims (only "← New place" stays bright, to cancel), and its controls rest */
 #panel-result.is-busy > :not(.back) {
-  opacity: 0.4; /* Faded: this result is about to be replaced */
-  pointer-events: none; /* The year slider and colour switches can't be used meanwhile */
+  opacity: 0.4; /* Faded: this result is about to be replaced (main.js also makes these parts "inert": no clicks, taps or keys) */
   transition: opacity 0.3s ease; /* Fade rather than jump */
 } /* End of the busy rule */
 .analyse-area:focus-visible {

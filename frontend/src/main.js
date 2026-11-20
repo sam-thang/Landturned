@@ -342,9 +342,14 @@ function announce(text) {
 } // End of announce
 
 // Dim the old result while a new area is analysed (busy = true), or bring it back (false)
+// While busy, every part of the panel except "← New place" (so people can still cancel) is "inert": it can't be clicked,
+// tapped, reached with Tab, or changed with the keyboard, and screen readers skip it. (Dimming alone only looks asleep.)
 function setResultBusy(busy) {
   resultPanel.classList.toggle('is-busy', busy); // The dimmed look (style.css)
   resultPanel.setAttribute('aria-busy', String(busy)); // Tells screen readers this part is being updated
+  for (const part of resultPanel.children) { // Each part of the panel (the year slider, the stats rows, the notes...)
+    if (!part.classList.contains('back')) part.inert = busy; // ...except "← New place": asleep while busy, awake again after
+  } // End of the parts loop
 } // End of setResultBusy
 
 // Run the analysis for the 2 x 2 km square at the map's centre. The old result stays, dimmed, until the new one is ready;
