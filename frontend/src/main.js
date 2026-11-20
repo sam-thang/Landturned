@@ -13,7 +13,7 @@ import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange, swapChange, setBaseImagery, showSwipe } from './map.js';
+import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe } from './map.js';
 // Bring in the function that builds the 2017 picture for the before/after swipe, from swipe.js
 import { buildBeforeImage, tagText } from './swipe.js';
 
@@ -125,6 +125,8 @@ const MIN_CALLOUT_MS = 1200;
 const CROSSFADE_MS = 900;
 // A short pause after the last step finishes, so people see everything completed before the crossfade
 const HOLD_MS = 500;
+// The longest the reveal waits for the before/after swipe's 2017 tiles (only when the archive answer is already here)
+const SWIPE_WAIT_MS = 3000;
 
 // Which state the app is in: 'landing' (choosing a place), 'locating' (zooming in and loading),
 // 'result' (map shown), 'failed' (the map couldn't load; only "← Back to globe" works), or 'returning' (going back to the globe)
@@ -185,6 +187,8 @@ async function selectPlace(place) {
     if (!cancelled() && !archiveShown) showImageryDate(date); // Show it, unless the archive imagery is already up (its date is the right one then)
   }); // End of the current date handler
   const archiveReady = fetchWayback(place.lat, place.lon).catch(() => null); // The archive answer ({ before, after, ... }), or null if it fails
+  let archiveArrived = false; // Becomes true when the archive answer is here (the reveal only waits for the swipe then)
+  archiveReady.then(() => { archiveArrived = true; }); // Note its arrival
   Promise.all([mapReady, archiveReady]).then(([loaded, archive]) => { // When the map and the archive answer are ready:
     if (!loaded || cancelled() || !archive?.after) return; // No map, the visitor went back, or no archive imagery: keep the current imagery
     setBaseImagery(archive.after.tiles); // Switch the map to the archive version with the "after" photo
@@ -234,15 +238,28 @@ async function selectPlace(place) {
     document.getElementById('locating-back').focus(); // Move keyboard focus to "← Back to globe", the way out, so keyboard and screen-reader users find it at once
     return; // Stop here; the button takes it from there
   } // End of the failure check
+  const swipeReady = prepareSwipe(change, archiveReady); // Start preparing the before/after swipe now, alongside the steps below
   await showChange(change); // Draw the change layer, turn the (still hidden) map grid-up, and wait for any new imagery; with no data, just clear the old drawing
   if (cancelled()) return; // Went back while the change layer was drawn: stop before showing anything
   await wait(HOLD_MS); // Everything is done: pause briefly so people see all steps completed
   if (cancelled()) return; // Went back during that short pause: stop before the crossfade
 
+  // The opening sequence needs the swipe before the map appears. If the archive answer is already here (places seen before),
+  // its 2017 tiles take about a second: wait for them, at most SWIPE_WAIT_MS. Otherwise don't wait: the swipe comes later.
+  const early = archiveArrived // The archive answer is here:
+    ? await Promise.race([swipeReady, wait(SWIPE_WAIT_MS).then(() => null)]) // the swipe, or null if it isn't ready in time ("race" = whichever finishes first)
+    : null; // Not here yet: no waiting
+  if (cancelled()) return; // Went back while we waited
+  if (early) showSwipe(early.before, change.image.corners, early.tags, 1); // Ready: put it on the map with the handle at the right edge (all 2017), for the opening
+  else swipeReady.then((late) => { // Not ready: when it is...
+    if (!late || cancelled()) return; // No swipe possible, or the visitor left
+    showSwipe(late.before, change.image.corners, late.tags); // ...add it with the handle at the left edge (the colours stay)...
+    glideToMiddle(); // ...and glide gently to the middle, for the comparison
+  }); // End of the late swipe
+
   // Fill in the result panel
   showResults(place, change, formatCoords(place.lon, place.lat)); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
   setUpTimeline(place, change, formatCoords(place.lon, place.lat), myTicket); // The year slider: its years at once, greyed out until the timeline has loaded in the background
-  setUpSwipe(change, archiveReady, cancelled); // The before/after swipe: in the background, once the archive's 2017 photo is here
 
   // Stage 2: crossfade from the globe to the map, and switch the panel at the same time
   document.getElementById('callout').classList.remove('visible'); // Fade the callout out
@@ -252,6 +269,7 @@ async function selectPlace(place) {
   document.getElementById('back').focus(); // Move keyboard focus to "← New place", so keyboard users land somewhere useful
   await wait(CROSSFADE_MS); // Wait until the crossfade has finished
   if (mode === 'result') globe.setVisible(false); // Still showing the map? Then stop drawing the hidden globe, to save battery (skip if the user already went back)
+  if (early && !cancelled()) playOpening(); // The opening: sweep from 2017 to 2023, show the colours, then glide to the middle
 } // End of selectPlace
 
 // ---------- Year slider: compare the first year with any later year ----------
@@ -261,16 +279,15 @@ const timelineLabel = document.getElementById('timeline-label'); // "Loading yea
 const timelineYear = document.getElementById('timeline-year'); // The chosen end year, large
 const timelineRange = document.getElementById('timeline-range'); // The slider itself
 const timelineTicks = document.getElementById('timeline-ticks'); // The tick marks and year labels under it
-// The before/after swipe. It needs the change answer (for the square's corners) and the archive's "before" photo, which
-// can arrive much later than the result. "cancelled" tells whether the visitor has left this place meanwhile.
-async function setUpSwipe(change, archiveReady, cancelled) {
-  const archive = await archiveReady; // Wait for the archive answer (instant for places seen before)
-  if (!change || !archive?.before || !archive?.after || cancelled()) return; // No square, a photo missing (each side's tag needs a real date), or the visitor left: no swipe
+// Prepare the before/after swipe: wait for the archive answer, then load the 2017 photo's tiles and cut them to the square.
+// Gives { before, tags } when it's ready, or null when there can be no swipe (no square, or a photo without a date).
+async function prepareSwipe(change, archiveReady) {
+  const archive = await archiveReady; // Wait for the archive answer (instant for places seen before, up to a minute for new ones)
+  if (!change || !archive?.before || !archive?.after) return null; // No square, or a photo missing (each side's tag needs a real date): no swipe
   const before = await buildBeforeImage(archive.before.tiles, change.image.corners); // Load its tiles and cut them to the square
-  if (cancelled()) return; // Left while the tiles loaded: don't add it to another place's map
   const tags = { before: tagText(archive.before.date), after: tagText(archive.after.date) }; // The two year tags, e.g. "2017 · 21 OCT" and "2023 · 1 FEB"
-  showSwipe(before, change.image.corners, tags); // Put it on the map, with the handle at the left edge
-} // End of setUpSwipe
+  return { before, tags }; // Ready
+} // End of prepareSwipe
 
 let shown = null; // What the result panel shows: { place, coordsText, changes: { year: answer } }, or null
 
@@ -327,7 +344,7 @@ function showYear(year) {
   showResults(shown.place, shown.changes[year], shown.coordsText); // The sentence, the stats, and the small print
 } // End of showYear
 
-timelineRange.addEventListener('input', () => showYear(Number(timelineRange.value))); // "input" fires on every step while dragging (and on arrow keys), so the result follows the handle live
+timelineRange.addEventListener('input', () => { resetSwipe(); showYear(Number(timelineRange.value)); }); // Handle back to the left edge first, so the changing colours can be seen; then the year // "input" fires on every step while dragging (and on arrow keys), so the result follows the handle live
 
 // ---------- Imagery credit (phones: opened and closed with the ⓘ button) ----------
 

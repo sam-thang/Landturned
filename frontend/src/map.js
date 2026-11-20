@@ -155,6 +155,11 @@ function clearSwipe() {
   if (swipe) { // A swipe was shown:
     swipe.handle.remove(); // Take the handle off the page
     map.off('move', placeHandle); // Stop moving it with the map
+    stopSwipeMotion(); // Stop any motion
+    const container = map.getContainer(); // The map's box
+    container.removeEventListener('pointerdown', stopSwipeMotion, true); // Remove the "stop the motion" listeners (removing needs the same function and "true")
+    container.removeEventListener('wheel', stopSwipeMotion, true); // (the next swipe adds them again)
+    container.removeEventListener('keydown', stopSwipeMotion, true); // ...all three
   } // End of the swipe check
   swipe = null; // Forget it
 } // End of clearSwipe
@@ -174,8 +179,10 @@ function placeHandle() {
   swipe.handle.style.height = `${box.bottom - box.top}px`; // As tall as the square
   const room = 12; // Space a tag needs between itself and the square's edge, in pixels
   const [beforeTag, afterTag] = swipe.handle.querySelectorAll('.swipe-tag'); // The two year tags
-  beforeTag.hidden = x - box.left < beforeTag.offsetWidth + room; // Hide the 2017 tag when it wouldn't fit left of the line (e.g. the handle near the left edge)
-  afterTag.hidden = box.right - x < afterTag.offsetWidth + room; // Hide the 2023 tag when it wouldn't fit right of the line
+  // "visibility: hidden" makes a tag invisible but keeps its size, so offsetWidth stays its real width. (With "display: none" the
+  // width would read 0 while hidden: it would always "fit", show again, not fit, hide again... and flicker near the edges.)
+  beforeTag.style.visibility = x - box.left < beforeTag.offsetWidth + room ? 'hidden' : 'visible'; // Hide the 2017 tag when it wouldn't fit left of the line (e.g. the handle near the left edge)
+  afterTag.style.visibility = box.right - x < afterTag.offsetWidth + room ? 'hidden' : 'visible'; // Hide the 2023 tag when it wouldn't fit right of the line
 } // End of placeHandle
 
 // Whether people asked their device for less motion ("reduce motion" in the accessibility settings)
@@ -209,10 +216,71 @@ function setSwipe(fraction) {
   placeHandle(); // Move the handle line
 } // End of setSwipe
 
+// ---------- The swipe's motion: the opening sequence and the glide ----------
+
+const SWEEP_MS = 2500; // The opening sweep from all 2017 (right edge) to all 2023 (left edge): slow enough to watch the land change
+const COLOUR_HOLD_MS = 2000; // How long the colours stay before the handle moves on, so people take in the result
+const GLIDE_MS = 1000; // The glide to the middle
+let motion = 0; // A number that changes whenever motion must stop: each animation remembers the number it started with
+
+// Stop any motion at once: the handle stays where it is. Runs when people touch, click, zoom or press a key on the map.
+export function stopSwipeMotion() {
+  motion += 1; // A new number: running animations notice they're out of date and stop
+} // End of stopSwipeMotion
+
+// Wait some time, unless the motion is stopped meanwhile. Gives true if the wait finished, false if it was stopped.
+function waitUnlessStopped(ms, myMotion) {
+  return new Promise((resolve) => setTimeout(() => resolve(myMotion === motion), ms)); // After the wait, check whether we're still the current motion
+} // End of waitUnlessStopped
+
+// Move the handle smoothly to "target" (a fraction) over "ms" milliseconds. Gives true when it got there, false if it was stopped.
+function moveHandle(target, ms, myMotion) {
+  const start = swipe.fraction; // Where the handle starts
+  const begin = performance.now(); // When it starts (a precise clock, in milliseconds)
+  return new Promise((resolve) => { // A Promise we finish ourselves
+    function step(now) { // One animation frame ("now" = the time of this frame)
+      if (myMotion !== motion || !swipe) return resolve(false); // Stopped, or the swipe was removed: stop here
+      const t = Math.min(1, (now - begin) / ms); // How far through the move we are: 0 at the start, 1 at the end
+      const eased = t < 0.5 ? 4 * t ** 3 : 1 - (-2 * t + 2) ** 3 / 2; // "Ease in and out": start slowly, speed up, slow down at the end (like a hand moving)
+      setSwipe(start + (target - start) * eased); // Move the handle (this also fades the colours in or out)
+      if (t < 1) requestAnimationFrame(step); // Not there yet: do the next frame when the screen is ready to draw again
+      else resolve(true); // Arrived
+    } // End of step
+    requestAnimationFrame(step); // The first frame
+  }); // End of the Promise
+} // End of moveHandle
+
+// The opening sequence, for a swipe shown with the handle at the right edge (all 2017): sweep to the left edge (all 2023),
+// let the colours fade in and stay a moment, then glide to the middle for the side-by-side comparison.
+export async function playOpening() {
+  if (!swipe) return; // No swipe: nothing to play
+  const myMotion = motion; // The motion number this sequence belongs to
+  if (REDUCE_MOTION) return setSwipe(0.5); // Less motion wanted: go straight to the end position, without moving
+  if (!(await waitUnlessStopped(400, myMotion))) return; // A short moment on 2017 first (stop if interrupted)
+  if (!(await moveHandle(0, SWEEP_MS, myMotion))) return; // Sweep right to left: 2023 replaces 2017 (the colours fade in at the edge)
+  if (!(await waitUnlessStopped(COLOUR_HOLD_MS, myMotion))) return; // Let the colours stay
+  await moveHandle(0.5, GLIDE_MS, myMotion); // Glide to the middle (the colours fade out as it leaves the edge)
+} // End of playOpening
+
+// Just the glide to the middle: for a swipe that arrives late, while people are already looking at the result
+export function glideToMiddle() {
+  if (!swipe) return; // No swipe: nothing to do
+  if (REDUCE_MOTION) return setSwipe(0.5); // Less motion wanted: jump there
+  moveHandle(0.5, GLIDE_MS, motion); // Glide
+} // End of glideToMiddle
+
+// Back to the result view (the year slider uses this, so its changing colours can be seen): stop any motion, handle to the left edge
+export function resetSwipe() {
+  if (!swipe) return; // No swipe: nothing to do
+  stopSwipeMotion(); // Stop any motion
+  setSwipe(0); // Left edge: all latest imagery, colours on
+} // End of resetSwipe
+
 // Show the before/after swipe: the 2017 picture inside the square, left of a handle that starts at the left edge.
 // "before" is what buildBeforeImage made, "corners" the square's corners (for the handle), "tags" the two year tags'
-// text ({ before: "2017 · 21 OCT", after: "2023 · 1 FEB" }). Call after showChange.
-export function showSwipe(before, corners, tags) {
+// text ({ before: "2017 · 21 OCT", after: "2023 · 1 FEB" }), "start" where the handle begins (0 = left edge, 1 = right edge).
+// Call after showChange.
+export function showSwipe(before, corners, tags, start = 0) {
   clearSwipe(); // Remove any earlier one first
   const canvas = document.createElement('canvas'); // The drawing the map shows: the visible part of 2017
   canvas.width = before.canvas.width; // The same size as the full 2017 picture...
@@ -263,7 +331,12 @@ export function showSwipe(before, corners, tags) {
   handle.addEventListener('pointerup', release); // Released
   handle.addEventListener('pointercancel', release); // Or interrupted (e.g. the browser took over the touch)
   map.on('move', placeHandle); // Keep the handle on the square while the map pans or zooms
-  setSwipe(0); // Draw the starting state and place the handle
+  stopSwipeMotion(); // A new swipe: any earlier motion is over
+  const container = map.getContainer(); // The map's box (the handle is inside it too)
+  container.addEventListener('pointerdown', stopSwipeMotion, true); // Any touch or click on the map or handle stops the motion ("true" = catch it on its way in, before MapLibre)
+  container.addEventListener('wheel', stopSwipeMotion, true); // ...and so does scroll-zooming
+  container.addEventListener('keydown', stopSwipeMotion, true); // ...and any key on the map or handle
+  setSwipe(start); // Draw the starting state and place the handle
 } // End of showSwipe
 
 // Switch the map's satellite imagery: "tiles" is an archive version's tile address (from /api/wayback), or null for

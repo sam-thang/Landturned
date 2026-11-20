@@ -199,7 +199,6 @@ body {
   white-space: nowrap; /* Always on one line */
   pointer-events: none; /* Never block grabbing the handle or dragging the map */
 } /* End of the tag rule */
-.swipe-tag[hidden] { display: none; } /* Hidden when there's no room beside the line (map.js decides) */
 .swipe-tag-before { right: calc(50% + 8px); } /* The 2017 tag: left of the line, 8 px away */
 .swipe-tag-after { left: calc(50% + 8px); } /* The 2023 tag: right of the line, 8 px away */
 
