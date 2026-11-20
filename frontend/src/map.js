@@ -27,7 +27,8 @@ const RADIUS_METERS = 1000;
 const METERS_PER_DEGREE = 111320;
 // The longest we wait for imagery before showing the map anyway (8 seconds)
 const MAX_WAIT_MS = 8000;
-// Space in pixels to leave around the 2 × 2 km square when fitting it on screen (enough room for the "ANALYSIS AREA" label above it)
+// Space in pixels to leave around the 2 × 2 km square when fitting it on screen (enough room for the "ANALYSIS AREA" label
+// above it). Kept small so the square shows as big as possible; the scale bar sits low enough to stay clear of it (style.css .map-marks).
 const FIT_PADDING = 36;
 // The furthest people can zoom out: zoom 10 shows roughly a whole city, where the 2 × 2 km square is still visible as a small box
 const MIN_ZOOM = 10;

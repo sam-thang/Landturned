@@ -119,11 +119,11 @@ body {
 .map-marks {
   position: absolute; /* Placed freely over the map */
   left: 14px; /* 14 px from the left edge */
-  bottom: 14px; /* 14 px from the bottom edge */
+  bottom: 4px; /* Low, 4 px from the bottom edge: the map frames the square 36 px from the edges, so the marks must stay below that line */
   display: flex; /* Arrow and scale bar in a row... */
   align-items: center; /* ...vertically centered with each other */
   gap: 12px; /* 12 px between the arrow and the scale bar */
-  padding: 6px 8px; /* A little space between the marks and the edge of the backing (top/bottom, left/right) */
+  padding: 4px 8px; /* A little space between the marks and the edge of the backing (top/bottom, left/right) */
   background: rgba(10, 12, 15, 0.7); /* The page's near-black at 70%: readable over bright imagery, but the map still shows through */
   pointer-events: none; /* Never block dragging the map */
 } /* End of the marks group rule */
@@ -475,7 +475,7 @@ body {
   /* Smaller marks on phones: tighter backing... */
   .map-marks {
     gap: 8px; /* Less space between arrow and scale bar */
-    padding: 4px 6px; /* Less padding around them */
+    padding: 2px 6px; /* Less padding around them (thin top and bottom, so the marks stay below the square) */
   } /* End of the smaller marks rule */
 
   /* ...a smaller north arrow (only its drawn size changes; the drawing scales with it)... */
