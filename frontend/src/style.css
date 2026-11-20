@@ -134,9 +134,7 @@ body {
    analysis square already on the map is solid ("existing"). map.js sets its size; it never blocks dragging the map. */
 .proposed-square {
   position: absolute; /* Placed freely over the map */
-  top: 50%; /* Its centre... */
-  left: 50%; /* ...at the map's centre */
-  transform: translate(-50%, -50%); /* (move it back by half its own size, so its middle sits there) */
+  transform: translate(-50%, -50%); /* map.js sets "left" and "top" to where its centre goes; this moves it back by half its own size, so its middle sits there */
   pointer-events: none; /* Never block dragging the map */
 } /* End of the proposed square rule */
 .proposed-square[hidden] { display: none; } /* Hidden until offered */
@@ -182,6 +180,14 @@ body {
   -webkit-tap-highlight-color: transparent; /* No flash box on phones */
 } /* End of the analyse button rule */
 .analyse-area[hidden] { display: none; } /* Hidden until offered */
+.analyse-area[aria-disabled='true'] { cursor: progress; } /* While analysing: the "busy" mouse pointer (the marching dashes show it's working too) */
+
+/* While a new area is analysed, the old result stays but dims (only "← New place" stays bright, to cancel), and its controls rest */
+#panel-result.is-busy > :not(.back) {
+  opacity: 0.4; /* Faded: this result is about to be replaced */
+  pointer-events: none; /* The year slider and colour switches can't be used meanwhile */
+  transition: opacity 0.3s ease; /* Fade rather than jump */
+} /* End of the busy rule */
 .analyse-area:focus-visible {
   outline: 2px solid var(--water); /* The blue keyboard focus outline */
   outline-offset: 2px; /* A small gap around the button */

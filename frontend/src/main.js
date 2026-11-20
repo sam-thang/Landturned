@@ -13,7 +13,7 @@ import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges } from './map.js';
+import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges, getMapCenter, setAnalysing } from './map.js';
 // Bring in the function that builds the 2017 picture for the before/after swipe, from swipe.js
 import { buildBeforeImage, tagText } from './swipe.js';
 
@@ -292,6 +292,58 @@ async function selectPlace(place) {
   if (early && !cancelled()) playOpening(); // The opening: sweep from 2017 to 2023, show the colours, then glide to the middle
 } // End of selectPlace
 
+// ---------- "Analyse this area": analyse the map's centre, without going back to the globe ----------
+
+const resultPanel = document.getElementById('panel-result'); // The result panel (dimmed while busy)
+
+// Dim the old result while a new area is analysed (busy = true), or bring it back (false)
+function setResultBusy(busy) {
+  resultPanel.classList.toggle('is-busy', busy); // The dimmed look (style.css)
+  resultPanel.setAttribute('aria-busy', String(busy)); // Tells screen readers this part is being updated
+} // End of setResultBusy
+
+// Run the analysis for the 2 x 2 km square at the map's centre. The old result stays, dimmed, until the new one is ready;
+// then everything switches at once. Uses the same two steps as choosing a place (startRequests, showFinishedResult).
+async function analyseArea() {
+  if (mode !== 'result') return; // Only from a finished result (this also ignores presses while an analysis runs)
+  mode = 'analysing'; // Now we're busy
+  placeTicket += 1; // A new ticket: "← New place" can still cancel this, like a place loading from the globe
+  const myTicket = placeTicket; // ...which this run remembers
+  const cancelled = () => myTicket !== placeTicket; // True once a newer ticket exists (the visitor left)
+
+  const center = getMapCenter(); // The spot to analyse: the map's centre
+  const place = { name: null, lon: Number(center.lon.toFixed(5)), lat: Number(center.lat.toFixed(5)), source: 'area' }; // Rounded to about 1 m, like places in the address
+  setAnalysing([place.lon, place.lat]); // The dashed square stays on this spot, and the button says "Analysing…"
+  setResultBusy(true); // Dim the old result
+
+  const nameReady = reverseGeocode(place.lat, place.lon).catch(() => null); // Ask which town this is (e.g. "Fontana"); null if unknown or it fails
+  const { changeReady, archiveReady, archiveArrived } = startRequests(place, Promise.resolve(true), cancelled); // The same requests as for a chosen place ("Promise.resolve(true)": the map is already ready)
+  const [change, name] = await Promise.all([changeReady, nameReady]); // Wait for the change and the name
+  if (cancelled()) return; // The visitor left meanwhile ("← New place" cleans up)
+
+  if (!change) { // The analysis failed:
+    setResultBusy(false); // Bring the old result back...
+    setAnalysing(null, "Couldn't analyse · Try again"); // ...and let the button say so (pressing it tries again)
+    mode = 'result'; // Ready again
+    return; // Stop here
+  } // End of the failure case
+
+  place.name = name; // The town's name, or null (then the result shows the coordinates)
+  if (!archiveArrived()) setBaseImagery(null); // No archive imagery for the new spot yet: back to Esri's current imagery (it switches when the archive arrives)
+  resetColourSwitches(); // A new area starts with all four colours on...
+  setShownChanges(shownChanges()); // ...and the map follows
+  setUrlPlace(place); // The new spot in the address bar, so a reload or a shared link opens it
+  const early = await showFinishedResult(place, change, archiveReady, archiveArrived, cancelled, 0); // Draw the change, prepare the swipe, fill in the panel (no pause needed here)
+  if (cancelled()) return; // The visitor left meanwhile
+  setAnalysing(null); // The analysis is over: the new square is solid, so the dashed one and the button go
+  setResultBusy(false); // The new result, at full strength
+  mode = 'result'; // Ready for the next pan
+  document.getElementById('back').focus({ preventScroll: true }); // Keyboard focus to the panel's start (the button it was on has gone), without scrolling
+  if (early) playOpening(); // The opening: sweep from 2017 to 2023, show the colours, then glide to the middle
+} // End of analyseArea
+
+document.getElementById('analyse-area').addEventListener('click', analyseArea); // The button on the map
+
 // ---------- Year slider: compare the first year with any later year ----------
 
 const timeline = document.getElementById('timeline'); // The whole slider block
@@ -383,9 +435,11 @@ creditToggle.addEventListener('click', () => {
 // Go back from a place to the landing globe. Used by "← New place" (after a result) and by "← Back to globe"
 // (while loading, to cancel, or after the map failed to load), so all of them take the same path.
 async function returnToGlobe() {
-  if (mode !== 'result' && mode !== 'failed' && mode !== 'locating') return; // Only from a result, a failed load, or while loading ("&&" = and)
+  if (!['result', 'failed', 'locating', 'analysing'].includes(mode)) return; // Only from a result, a failed load, while loading, or while analysing an area
   mode = 'returning'; // We're busy going back: ignore place clicks until we're done
-  placeTicket += 1; // A new ticket: if a place is still loading, its chain sees this and stops (that's the cancel)
+  placeTicket += 1; // A new ticket: if a place is still loading (or an area being analysed), its chain sees this and stops (that's the cancel)
+  setAnalysing(null); // End any "Analysing…" state on the map
+  setResultBusy(false); // ...and undim the result panel, ready for next time
   document.getElementById('callout').classList.remove('visible'); // Fade out the callout (still up while loading or after a failed load; already gone after a result)
   clearUrlPlace(); // Back to the plain address, so a reload now opens the landing page
   showPanel('panel-landing'); // Show the landing panel again (headline, search, place buttons)

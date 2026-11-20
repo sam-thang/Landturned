@@ -181,11 +181,31 @@ function squareOnScreen() {
 // ---------- "Analyse this area": offered when the map's centre leaves the analysis square ----------
 
 let analysedCorners = null; // The analysis square now on the map (its four corners), or null when there's none
+let analysingCenter = null; // While "Analyse this area" runs: the spot being analysed as [lon, lat]; otherwise null
 const EARTH_CIRCUMFERENCE_M = 40075016.686; // The Earth's circumference at the equator, in metres
+const ANALYSE_LABEL = 'Analyse this area'; // The button's normal text (CSS shows it in capitals)
+
+// The map's centre right now, as { lon, lat }: the spot "Analyse this area" analyses
+export function getMapCenter() {
+  const { lng, lat } = map.getCenter(); // MapLibre calls longitude "lng"
+  return { lon: lng, lat }; // Our name for it is "lon"
+} // End of getMapCenter
+
+// Start or end the "analysing" state. "center" is the spot being analysed as [lon, lat], or null when it's over.
+// While it runs, the dashed square stays pinned to that spot (it moves with the ground if people pan), and the button
+// says "Analysing…" and ignores presses. "label" is the button's text afterwards (normally "Analyse this area").
+export function setAnalysing(center, label = ANALYSE_LABEL) {
+  analysingCenter = center; // Remember the spot (or forget it)
+  const button = document.getElementById('analyse-area'); // The button
+  button.textContent = center ? 'Analysing…' : label; // Its text
+  button.setAttribute('aria-disabled', center ? 'true' : 'false'); // Tell screen readers it can't be pressed now. ("disabled" would also take keyboard focus away from it)
+  updateAnalyseOffer(); // Redraw the dashed square and the button
+} // End of setAnalysing
 
 // Show or hide the "Analyse this area" button and the dashed square, after every map move.
 // Rule: they appear when the map's centre is outside the analysis square. Zooming or looking around inside it never triggers them.
 function updateAnalyseOffer() {
+  if (!map) return; // No map yet (e.g. the first place was cancelled before it loaded): nothing to update
   const button = document.getElementById('analyse-area'); // The button
   const proposed = document.getElementById('proposed-square'); // The dashed square
   const box = analysedCorners && screenBox(analysedCorners); // The analysis square on screen (if there is one)
@@ -193,9 +213,13 @@ function updateAnalyseOffer() {
   const x = container.clientWidth / 2; // The centre of the map's box: across...
   const y = container.clientHeight / 2; // ...and down
   const outside = box !== null && (x < box.left || x > box.right || y < box.top || y > box.bottom); // Is the centre outside the square?
-  button.hidden = !outside; // Offer the button only then
-  proposed.hidden = !outside; // ...and the dashed square
-  if (!outside) return; // Nothing more to do
+  const shown = outside || analysingCenter !== null; // Offer it then, and always while an analysis runs
+  button.hidden = !shown; // The button
+  proposed.hidden = !shown; // ...and the dashed square
+  if (!shown) return; // Nothing more to do
+  const spot = analysingCenter ? map.project(analysingCenter) : { x, y }; // Where the dashed square's centre goes: the spot being analysed, or else the map's centre
+  proposed.style.left = `${spot.x}px`; // Its centre across...
+  proposed.style.top = `${spot.y}px`; // ...and down (CSS moves it back by half its size)
   // How many metres one screen pixel covers here. MapLibre's world is 512 pixels wide at zoom 0 and doubles with each zoom
   // level; a degree of longitude shrinks towards the poles by cos(latitude), and the Mercator map stretches by the same amount.
   const latitude = (map.getCenter().lat * Math.PI) / 180; // The centre's latitude, in radians
@@ -207,8 +231,8 @@ function updateAnalyseOffer() {
   // The button sits just above the dashed square's top-left corner, like the "ANALYSIS AREA" label on the solid square.
   // When that corner is off-screen (zoomed in, or a square almost as tall as the map), it stops EDGE_GAP px inside the map.
   const EDGE_GAP = 8; // The closest the button gets to the map's edge, in pixels
-  const squareLeft = x - side / 2; // The dashed square's left edge on screen
-  const squareTop = y - side / 2; // ...and its top edge
+  const squareLeft = spot.x - side / 2; // The dashed square's left edge on screen
+  const squareTop = spot.y - side / 2; // ...and its top edge
   button.style.left = `${Math.max(EDGE_GAP, squareLeft)}px`; // Level with the square's left edge, but never off-screen
   button.style.top = `${Math.max(EDGE_GAP, squareTop - button.offsetHeight - 5)}px`; // Its bottom 5 px above the square's top edge, but never off-screen
 } // End of updateAnalyseOffer
