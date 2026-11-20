@@ -95,14 +95,17 @@ def timeline(
 def wayback_imagery(
     lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90
     lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
+    first: Annotated[int | None, Query(alias="from", ge=2015, le=2100, description="The first land-cover year, if known")] = None,  # Optional: the app already knows the years ("alias" lets the address say "from", which is a reserved word in Python)
+    last: Annotated[int | None, Query(alias="to", ge=2015, le=2100, description="The last land-cover year, if known")] = None,  # Optional, likewise
 ) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
-    items_by_year = landcover.find_items_by_year(lon, lat)  # The land-cover years for this point
-    if not items_by_year:  # None here:
-        raise HTTPException(status_code=404, detail="No land-cover data for this location.")  # Nothing to match
-    years = list(items_by_year)  # Oldest first
-    lat, lon = round(lat, 5), round(lon, 5)  # Rounded to about 1 m, so the saved answer is found again for the same place
-    photos = wayback.before_after(lat, lon, years[0], years[-1])  # The two photos (or None for each)
-    return {"years": {"from": years[0], "to": years[-1]}, **photos}  # e.g. {"years": {...}, "before": {...}, "after": {...}}
+    if first is None or last is None:  # The years weren't given:
+        items_by_year = landcover.find_items_by_year(lon, lat)  # Look them up (about 2 seconds)
+        if not items_by_year:  # None here:
+            raise HTTPException(status_code=404, detail="No land-cover data for this location.")  # Nothing to match
+        years = list(items_by_year)  # Oldest first
+        first, last = years[0], years[-1]  # The first and the last year
+    photos = wayback.before_after(lat, lon, first, last)  # The two photos (or None for each); saved per map tile, so neighbours share
+    return {"years": {"from": first, "to": last}, **photos}  # e.g. {"years": {...}, "before": {...}, "after": {...}}
 
 
 # The Sentinel-2 photo of the 2 x 2 km square for one year, on the same pixel grid as the land-cover data.

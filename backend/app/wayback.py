@@ -137,7 +137,8 @@ def versions_near(changed, year):
 def before_after(lat, lon, first_year, last_year):
     """The sharp photo closest to the first year ("before") and to the last year ("after"), each as
     {date, resolution_m, source, version, tiles}, or None when no dated photo was found. Saved on disk per place."""
-    path = CACHE_DIR / f"{lat:.5f}_{lon:.5f}_{first_year}_{last_year}.json"  # This place's file
+    row, column = tile_at(lat, lon, TILE_ZOOM)  # The archive answers per map tile (about 600 m across), so save per tile:
+    path = CACHE_DIR / f"z{TILE_ZOOM}_{row}_{column}_{first_year}_{last_year}.json"  # every address in the same tile reuses this file (rarely, a photo boundary crosses a tile; then a neighbour's real, dated photo is used)
     if path.exists():  # Found before:
         return json.loads(path.read_text(encoding="utf-8"))  # Read it back: no need to ask Esri at all
 
