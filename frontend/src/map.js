@@ -37,6 +37,8 @@ let maplibre = null; // The MapLibre library itself, once downloaded (we need it
 let areaLabel = null; // The "ANALYSIS AREA" label on the map, once shown (null until then)
 let coloursMarker = null; // The "HIDE / SHOW LAND COVER" button pinned to the square's top-right corner, once shown (null until then)
 let coloursOn = true; // Whether that button is ON (people can turn the colours off to see the plain imagery)
+let coloursCorners = null; // The corners of the square the button belongs to, as [lon, lat]: top-left, top-right, bottom-right, bottom-left
+let coloursButtonBelow = null; // Where the button is pinned: false = above the top-right corner, true = below the bottom-right corner, null = not yet
 
 // Work out the square that reaches RADIUS_METERS north, south, east, and west of a point.
 // Returns [[west, south], [east, north]] in degrees, the "bounds" format MapLibre expects.
@@ -125,6 +127,7 @@ async function createMap(container, bounds) {
   updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
   map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
   map.on('move', updateAnalyseOffer); // Whenever the map moves or zooms, check whether to offer "Analyse this area"
+  map.on('move', placeColoursButton); // ...and whether the "Hide land cover" button still fits beside the label
   map.on('movestart', () => clearTimeout(settleTimer)); // Moving again: cancel a waiting head start (clearTimeout stops a setTimeout before it runs)
   map.on('moveend', waitForSettledOffer); // Stopped moving: start counting towards the head start
 } // End of createMap
@@ -301,7 +304,33 @@ function updateColoursButton() {
   const button = coloursMarker.getElement(); // The button itself (a Marker's element)
   button.hidden = Boolean(swipe && swipe.fraction > 0); // Hidden while the handle is away from the left edge
   button.textContent = coloursOn ? 'Hide land cover' : 'Show land cover'; // Says what pressing will do (CSS turns it into capitals)
+  placeColoursButton(); // Its words (and so its width) may have changed: check where it fits
 } // End of updateColoursButton
+
+// Pin the button above the square's top-right corner, opposite the "ANALYSIS AREA" label, when both fit side by side;
+// otherwise (a phone, or the map zoomed out so the square is small) just below the square's bottom-right corner.
+// Runs when the button changes and whenever the map moves, because zooming changes how wide the square is on screen.
+function placeColoursButton() {
+  if (!coloursMarker || !areaLabel) return; // No button or label on the map: nothing to place
+  const button = coloursMarker.getElement(); // The button itself
+  if (button.hidden) return; // Hidden: its place doesn't matter now (it's checked again when it shows)
+  if (coloursButtonBelow === null) pinColoursButton(false); // Never placed: put it on the map first (above), so it has a measurable width
+  const box = screenBox(coloursCorners); // The square's edges on screen right now
+  const needed = areaLabel.getElement().offsetWidth + button.offsetWidth + 12; // Label + button + a 12 px gap, in pixels
+  const below = needed > box.right - box.left; // Don't both fit along the top edge?
+  if (below !== coloursButtonBelow) pinColoursButton(below); // Move it only when the answer changes
+} // End of placeColoursButton
+
+// Pin the button to a corner: below = true puts its top-right corner 5 px under the square's bottom-right corner,
+// false puts its bottom-right corner 5 px above the top-right corner. A Marker's anchor is fixed when it's made, so make a new one.
+function pinColoursButton(below) {
+  const button = coloursMarker.getElement(); // The button (it moves to the new Marker)
+  coloursMarker.remove(); // Take the old Marker off the map
+  coloursMarker = new maplibre.Marker({ element: button, anchor: below ? 'top-right' : 'bottom-right', offset: below ? [1, 5] : [1, -5] }) // The corner of the button to pin, nudged 5 px away from the line
+    .setLngLat(coloursCorners[below ? 2 : 1]) // The square's bottom-right corner (corners go top-left, top-right, bottom-right, bottom-left) or top-right one
+    .addTo(map); // ...and put it on the map
+  coloursButtonBelow = below; // Remember where it is
+} // End of pinColoursButton
 
 // Turn the colours on or off with the "HIDE / SHOW LAND COVER" button (or turn them back on from elsewhere)
 function setColoursOn(on) {
@@ -633,7 +662,8 @@ export async function showChange(change) {
   // so it uses our own fonts and styles (see .area-label in style.css).
   const label = document.createElement('div'); // A new, empty element
   label.className = 'area-label'; // Give it the label styles
-  label.textContent = 'ANALYSIS AREA · 2 × 2 KM'; // What it says
+  const hectares = (2 * RADIUS_METERS) ** 2 / 10000; // The square's area: 2000 m × 2000 m = 4,000,000 m², and 1 ha = 10,000 m², so 400 ha ("**" = to the power of)
+  label.textContent = `ANALYSIS AREA · 2 × 2 KM · ${hectares} HA`; // What it says, e.g. "ANALYSIS AREA · 2 × 2 KM · 400 HA" (the stats' percentages are shares of this)
   areaLabel = new maplibre.Marker({ element: label, anchor: 'bottom-left', offset: [-1, -5] }) // Pin the label's bottom-left corner, nudged 5 px up so it sits just above the line
     .setLngLat(corners[0]) // ...to the square's top-left corner
     .addTo(map); // ...and put it on the map
@@ -645,10 +675,10 @@ export async function showChange(change) {
   button.type = 'button'; // A plain button (not one that sends a form)
   button.className = 'colours-toggle'; // Its styles (style.css); its words are filled in by updateColoursButton below
   button.addEventListener('click', () => setColoursOn(!coloursOn)); // Each press flips it ("!" = the opposite)
-  coloursMarker = new maplibre.Marker({ element: button, anchor: 'bottom-right', offset: [1, -5] }) // Pin its bottom-right corner, 5 px up, like the label
-    .setLngLat(corners[1]) // ...to the square's top-right corner
-    .addTo(map); // ...and put it on the map
-  updateColoursButton(); // Fill in its word and state
+  coloursCorners = corners; // The square it belongs to
+  coloursButtonBelow = null; // Not placed yet (placeColoursButton decides: above or below the square)
+  coloursMarker = new maplibre.Marker({ element: button }); // A Marker holding the button; placeColoursButton pins it to a corner
+  updateColoursButton(); // Fill in its words and state, and place it
 
   analysedCorners = corners; // Remember the square, for the "Analyse this area" check
   updateAnalyseOffer(); // Check it once now (the centre is inside the new square, so nothing is offered)

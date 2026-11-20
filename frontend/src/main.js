@@ -316,7 +316,7 @@ async function selectPlace(place) {
   stage.classList.add('show-map'); // Fade the globe out and the map in (the fading is done by style.css)
   showPanel('panel-result'); // Swap the locating panel for the result panel
   mode = 'result'; // From now on "← New place" works, even while the crossfade is still running
-  document.getElementById('back').focus(); // Move keyboard focus to "← New place", so keyboard users land somewhere useful
+  document.getElementById('result-name').focus({ preventScroll: true }); // Move keyboard focus to the result sentence: screen readers read it out, and the next Tab goes on to the year slider (without scrolling the panel)
   await wait(CROSSFADE_MS); // Wait until the crossfade has finished
   if (mode === 'result') globe.setVisible(false); // Still showing the map? Then stop drawing the hidden globe, to save battery (skip if the user already went back)
   if (early && !cancelled()) playOpening(); // The opening: sweep from 2017 to 2023, show the colours, then glide to the middle
@@ -409,11 +409,11 @@ async function analyseArea() {
   const early = await showFinishedResult(place, change, archiveReady, photoDateReady, cancelled, 0, imagerySteps); // Wait for the imagery, then draw the change, add the swipe, fill in the panel (no pause needed here)
   if (cancelled()) return; // The visitor left meanwhile
   areaSteps.hidden = true; // The steps are done
-  announce(`Result ready. ${document.getElementById('result-name').textContent}`); // Read out the new result's sentence
+  announce('Result ready.'); // Say it's done (the sentence itself is read out when focus moves to it, below)
   setAnalysing(null); // The analysis is over: the new square is solid, so the dashed one and the button go
   setResultBusy(false); // The new result, at full strength
   mode = 'result'; // Ready for the next pan
-  document.getElementById('back').focus({ preventScroll: true }); // Keyboard focus to the panel's start (the button it was on has gone), without scrolling
+  document.getElementById('result-name').focus({ preventScroll: true }); // Keyboard focus to the new result sentence (the button it was on has gone): screen readers read it out; no scrolling
   if (early) playOpening(); // The opening: sweep from 2017 to 2023, show the colours, then glide to the middle
 } // End of analyseArea
 

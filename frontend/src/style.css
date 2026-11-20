@@ -887,6 +887,9 @@ h1:focus {
   line-height: 1.15; /* Fairly tight line spacing */
   letter-spacing: -0.01em; /* Letters very slightly closer together */
 } /* End of the reveal rule */
+/* The result sentence receives focus when the result appears (so screen readers read it), but it isn't something to press,
+   so it gets no focus outline (Tab never stops on it: tabindex="-1") */
+#result-name:focus { outline: none; }
 
 /* The place name inside the reveal sentence: no italics, a thin grey underline instead (like the mockup) */
 .reveal em {
