@@ -178,9 +178,30 @@ function placeHandle() {
   afterTag.hidden = box.right - x < afterTag.offsetWidth + room; // Hide the 2023 tag when it wouldn't fit right of the line
 } // End of placeHandle
 
+// Whether people asked their device for less motion ("reduce motion" in the accessibility settings)
+const REDUCE_MOTION = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+// How long the change colours take to fade out or in, in milliseconds (instant with reduced motion)
+const COLOUR_FADE_MS = REDUCE_MOTION ? 0 : 400;
+// Let go this close to the left edge (as a share of the square's width) and the handle snaps onto it, bringing the colours back
+const SNAP = 0.03;
+
+// Show or hide the change colours. The handle at the left edge is the result view (all 2023, with colours);
+// anywhere else is the comparison view (two clean photos), so the colours don't cover the 2017 imagery.
+function setColoursShown(shown) {
+  if (!map.getLayer('change-layer')) return; // No colours on the map (no change data): nothing to do
+  map.setPaintProperty('change-layer', 'raster-opacity-transition', { duration: COLOUR_FADE_MS, delay: 0 }); // Fade, rather than switch, when the see-through value changes
+  map.setPaintProperty('change-layer', 'raster-opacity', shown ? CHANGE_OPACITY : 0); // Fully see-through when hidden
+} // End of setColoursShown
+
 // Move the handle to a new fraction (0 = left edge, all 2023; 1 = right edge, all 2017) and redraw the 2017 part
 function setSwipe(fraction) {
   swipe.fraction = Math.min(1, Math.max(0, fraction)); // Keep it between 0 and 1 (min and max cap it at both ends)
+  setColoursShown(swipe.fraction === 0); // Colours only in the result view (handle at the left edge)
+  const percent = Math.round(swipe.fraction * 100); // How much of the square shows 2017, in percent
+  swipe.handle.setAttribute('aria-valuenow', percent); // Tell screen readers the slider's value...
+  swipe.handle.setAttribute('aria-valuetext', percent === 0 // ...and what it means, in words
+    ? 'All latest imagery, with the change colours' // At the left edge
+    : `${percent}% earliest imagery, colours hidden`); // Anywhere else
   drawBeforePart(swipe.before, swipe.canvas, swipe.fraction); // Redraw the visible part of 2017
   const source = map.getSource('before'); // The 2017 source
   source.play(); // A canvas source only sends a new drawing to the map while "playing": switch that on...
@@ -221,7 +242,24 @@ export function showSwipe(before, corners, tags) {
     const x = event.clientX - map.getContainer().getBoundingClientRect().left; // The pointer's position across the map's box
     setSwipe((x - box.left) / (box.right - box.left)); // How far across the square that is, as a fraction
   }); // End of pointermove
-  const release = () => handle.classList.remove('is-dragging'); // Let go: back to the normal look
+  const release = () => { // Let go:
+    handle.classList.remove('is-dragging'); // Back to the normal look
+    if (swipe.fraction > 0 && swipe.fraction < SNAP) setSwipe(0); // Very close to the left edge: snap onto it, so the colours come back
+  }; // End of release
+
+  // Keyboard and screen readers: the handle is a slider ("role" tells screen readers what it is) that the keyboard can reach
+  handle.tabIndex = 0; // Reachable with the Tab key
+  handle.setAttribute('role', 'slider'); // Announced as a slider
+  handle.setAttribute('aria-label', 'Compare satellite imagery: earliest on the left, latest on the right'); // What it controls
+  handle.setAttribute('aria-valuemin', '0'); // Its lowest value (left edge)
+  handle.setAttribute('aria-valuemax', '100'); // Its highest value (right edge)
+  handle.addEventListener('keydown', (event) => { // A key is pressed while the handle has focus:
+    const moves = { ArrowLeft: swipe.fraction - 0.05, ArrowRight: swipe.fraction + 0.05, Home: 0, End: 1 }; // Where each key takes the handle (5 % steps)
+    if (!(event.key in moves)) return; // Another key: leave it alone
+    event.preventDefault(); // Stop the page or map from also reacting (e.g. arrows panning the map)
+    const next = moves[event.key]; // The new position
+    setSwipe(next < 0.01 ? 0 : next); // Move there (landing just above 0 after several steps counts as the left edge)
+  }); // End of the keyboard listener
   handle.addEventListener('pointerup', release); // Released
   handle.addEventListener('pointercancel', release); // Or interrupted (e.g. the browser took over the touch)
   map.on('move', placeHandle); // Keep the handle on the square while the map pans or zooms

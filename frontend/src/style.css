@@ -181,6 +181,11 @@ body {
 } /* End of the grip rule */
 .swipe-grip::after { content: '‹ ›'; } /* The two arrows */
 .swipe-handle.is-dragging { cursor: grabbing; } /* While held, the mouse pointer shows a closed hand */
+.swipe-handle:focus { outline: none; } /* No outline around the whole tall handle... */
+.swipe-handle:focus-visible .swipe-grip { /* ...instead, keyboard users see the blue focus outline around the grip */
+  outline: 2px solid var(--water); /* New-Water Blue, the focus colour */
+  outline-offset: 2px; /* A small gap around the grip */
+} /* End of the focus rule */
 
 /* The year tags at the top of the line: when each side's photo was taken. Same look as the "ANALYSIS AREA" label. */
 .swipe-tag {
