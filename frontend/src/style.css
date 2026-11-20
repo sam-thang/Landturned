@@ -502,6 +502,49 @@ body {
   } /* End of the hidden middle rule */
 } /* End of the narrow-map rules */
 
+/* ---------- The zoom buttons (MapLibre's control, redrawn in the drawing style) ---------- */
+/* MapLibre's own stylesheet loads after ours (with the map), so on a tie its rules would win. Every rule here starts with
+   "#map" (an id), which makes it more specific than MapLibre's class-only rules, so ours win wherever they sit. */
+#map .maplibregl-ctrl-top-right .maplibregl-ctrl {
+  margin: 14px 14px 0 0; /* 14 px from the top and right edges, like the scale bar's 14 px at the bottom left */
+} /* End of the position rule */
+#map .maplibregl-ctrl-group {
+  border: 1px solid rgba(230, 233, 238, 0.35); /* A thin, soft off-white outline */
+  border-radius: 0; /* Square corners, like everything else on the drawing */
+  background: rgba(10, 12, 15, 0.7); /* The map marks' dark backing */
+  box-shadow: none; /* No floating shadow */
+} /* End of the group rule */
+#map .maplibregl-ctrl-group button {
+  width: 32px; /* A little bigger than MapLibre's 29 px... */
+  height: 32px; /* ...easier to hit */
+  border-radius: 0; /* Square corners (MapLibre rounds the first and last button, which showed in the focus ring) */
+  color: var(--ink); /* Off-white symbols */
+} /* End of the button rule */
+#map .maplibregl-ctrl-group button + button {
+  border-top: 1px solid rgba(230, 233, 238, 0.2); /* A hairline between "+" and "−" ("+" here = the button right after another button) */
+} /* End of the divider rule */
+#map .maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  display: grid; /* Lets the symbol below sit in the middle */
+  place-items: center; /* Centred */
+  background-image: none; /* Remove MapLibre's dark-grey icon pictures */
+  font: 400 18px / 1 var(--mono); /* The symbol in the drawing font */
+} /* End of the icon rule */
+#map .maplibregl-ctrl-zoom-in .maplibregl-ctrl-icon::before { content: '+'; } /* Zoom in: a plus... */
+#map .maplibregl-ctrl-zoom-out .maplibregl-ctrl-icon::before { content: '−'; } /* ...zoom out: a real minus sign (wider than a hyphen) */
+@media (hover: hover) { /* Only with a real mouse: */
+  #map .maplibregl-ctrl-group button:not(:disabled):hover {
+    background: rgba(230, 233, 238, 0.1); /* a faint off-white wash under the pointer */
+  } /* End of the hover rule */
+} /* End of the hover media rule */
+#map .maplibregl-ctrl-group button:focus-visible {
+  outline: 2px solid var(--water); /* The blue keyboard focus outline used everywhere */
+  outline-offset: 2px; /* A small gap around the button */
+  box-shadow: none; /* No MapLibre glow on top */
+} /* End of the focus rule */
+#map .maplibregl-ctrl-group button:disabled .maplibregl-ctrl-icon {
+  opacity: 0.3; /* At the zoom limit: the symbol fades */
+} /* End of the disabled rule */
+
 /* ---------- Touch screens ---------- */
 
 /* Hide the zoom buttons when the main pointer is a finger: people pinch to zoom instead */
