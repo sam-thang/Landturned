@@ -139,6 +139,52 @@ body {
   pointer-events: none; /* Never block dragging the map */
 } /* End of the area label rule */
 
+/* THE SWIPE HANDLE: the line between 2017 (left) and 2023 (right). map.js moves it with "transform" and sets its height. */
+.swipe-handle {
+  position: absolute; /* Placed by coordinates over the map */
+  top: 0; /* Measured from the map's top-left corner... */
+  left: -22px; /* ...minus half its width, so the line in its middle sits exactly at the handle's position */
+  width: 44px; /* A wide, invisible grab area (easy to hit with a finger), with the thin line in its middle */
+  cursor: ew-resize; /* The "drag left/right" mouse pointer */
+  touch-action: none; /* On touch screens, dragging moves the handle instead of scrolling or zooming the page */
+  z-index: 2; /* Above the map picture */
+} /* End of the swipe handle rule */
+
+/* The visible line, centred in the grab area */
+.swipe-handle::before {
+  content: ''; /* An empty shape, drawn only with styles */
+  position: absolute; /* Placed inside the handle */
+  top: 0; /* From the square's top... */
+  bottom: 0; /* ...to its bottom */
+  left: 21px; /* Centred: (44 - 2) / 2 */
+  width: 2px; /* A thin line */
+  background: var(--ink); /* Off-white, like the square's outline */
+  box-shadow: 0 0 0 1px rgba(10, 12, 15, 0.6); /* A dark edge, so it shows over bright ground too (like the outline's casing) */
+} /* End of the line rule */
+
+/* The grip: a small square in the middle of the line, with arrows saying "drag sideways" */
+.swipe-grip {
+  position: absolute; /* Placed inside the handle */
+  top: 50%; /* Halfway down... */
+  left: 50%; /* ...and across */
+  width: 28px; /* A small square */
+  height: 28px; /* (the grab area around it is bigger) */
+  transform: translate(-50%, -50%); /* Centred on that point */
+  display: grid; /* So the arrows can be centred inside */
+  place-items: center; /* Centred */
+  background: var(--bg); /* The page's near-black */
+  border: 1px solid var(--ink); /* An off-white edge, like a drawn box */
+  color: var(--ink); /* Off-white arrows */
+  font: 12px / 1 var(--mono); /* Small mono text */
+} /* End of the grip rule */
+.swipe-grip::after { content: '‹ ›'; } /* The two arrows */
+
+/* While dragged: the grip fills in, to show it's held */
+.swipe-handle.is-dragging .swipe-grip {
+  background: var(--ink); /* Off-white fill */
+  color: var(--bg); /* Dark arrows */
+} /* End of the dragging rule */
+
 /* ARROWHEAD: one solid shape */
 .north-arrow .north-head {
   fill: var(--ink); /* Solid off-white, same color as the scale bar */

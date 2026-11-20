@@ -13,7 +13,9 @@ import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange, swapChange, setBaseImagery } from './map.js';
+import { showPlace, showChange, swapChange, setBaseImagery, showSwipe } from './map.js';
+// Bring in the function that builds the 2017 picture for the before/after swipe, from swipe.js
+import { buildBeforeImage } from './swipe.js';
 
 // ---------- Globe ----------
 
@@ -182,7 +184,8 @@ async function selectPlace(place) {
   photoDateReady.then((date) => { // When the current imagery's date arrives (quickly):
     if (!cancelled() && !archiveShown) showImageryDate(date); // Show it, unless the archive imagery is already up (its date is the right one then)
   }); // End of the current date handler
-  Promise.all([mapReady, fetchWayback(place.lat, place.lon).catch(() => null)]).then(([loaded, archive]) => { // When the map and the archive answer are ready:
+  const archiveReady = fetchWayback(place.lat, place.lon).catch(() => null); // The archive answer ({ before, after, ... }), or null if it fails
+  Promise.all([mapReady, archiveReady]).then(([loaded, archive]) => { // When the map and the archive answer are ready:
     if (!loaded || cancelled() || !archive?.after) return; // No map, the visitor went back, or no archive imagery: keep the current imagery
     setBaseImagery(archive.after.tiles); // Switch the map to the archive version with the "after" photo
     showImageryDate(archive.after.date); // ...and show that photo's date, e.g. "1 February 2023"
@@ -239,6 +242,7 @@ async function selectPlace(place) {
   // Fill in the result panel
   showResults(place, change, formatCoords(place.lon, place.lat)); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
   setUpTimeline(place, change, formatCoords(place.lon, place.lat), myTicket); // The year slider: its years at once, greyed out until the timeline has loaded in the background
+  setUpSwipe(change, archiveReady, cancelled); // The before/after swipe: in the background, once the archive's 2017 photo is here
 
   // Stage 2: crossfade from the globe to the map, and switch the panel at the same time
   document.getElementById('callout').classList.remove('visible'); // Fade the callout out
@@ -257,6 +261,16 @@ const timelineLabel = document.getElementById('timeline-label'); // "Loading yea
 const timelineYear = document.getElementById('timeline-year'); // The chosen end year, large
 const timelineRange = document.getElementById('timeline-range'); // The slider itself
 const timelineTicks = document.getElementById('timeline-ticks'); // The tick marks and year labels under it
+// The before/after swipe. It needs the change answer (for the square's corners) and the archive's "before" photo, which
+// can arrive much later than the result. "cancelled" tells whether the visitor has left this place meanwhile.
+async function setUpSwipe(change, archiveReady, cancelled) {
+  const archive = await archiveReady; // Wait for the archive answer (instant for places seen before)
+  if (!change || !archive?.before || cancelled()) return; // No square, no 2017 photo, or the visitor left: no swipe
+  const before = await buildBeforeImage(archive.before.tiles, change.image.corners); // Load its tiles and cut them to the square
+  if (cancelled()) return; // Left while the tiles loaded: don't add it to another place's map
+  showSwipe(before, change.image.corners); // Put it on the map, with the handle at the left edge
+} // End of setUpSwipe
+
 let shown = null; // What the result panel shows: { place, coordsText, changes: { year: answer } }, or null
 
 // Put the handle at a year and update everything that belongs to the slider itself: the big year, the ink part of the

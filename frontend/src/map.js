@@ -7,6 +7,8 @@
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?url';
 // Bring in the function that redraws the scale bar, from scalebar.js
 import { updateScaleBar } from './scalebar.js';
+// Bring in the function that draws the visible part of the 2017 picture, from swipe.js
+import { drawBeforePart } from './swipe.js';
 
 // The web address pattern for Esri's satellite image tiles: the sharp photo the map shows by default.
 // {z} = zoom level, {y} = tile row, {x} = tile column. Note: Esri puts y before x.
@@ -139,7 +141,81 @@ function clearChange() {
   } // End of the sources loop
   if (areaLabel) areaLabel.remove(); // Take the old label off the map
   areaLabel = null; // And forget it
+  clearSwipe(); // And the previous place's before/after swipe, if there is one
 } // End of clearChange
+
+// ---------- The before/after swipe ----------
+
+let swipe = null; // The swipe while it's on the map: { before, canvas, handle, corners, fraction }, or null
+
+// Remove the swipe: its layer, its source, its handle, and the listener that keeps the handle in place
+function clearSwipe() {
+  if (map.getLayer('before-layer')) map.removeLayer('before-layer'); // The 2017 layer (layers go first...)
+  if (map.getSource('before')) map.removeSource('before'); // ...then its source)
+  if (swipe) { // A swipe was shown:
+    swipe.handle.remove(); // Take the handle off the page
+    map.off('move', placeHandle); // Stop moving it with the map
+  } // End of the swipe check
+  swipe = null; // Forget it
+} // End of clearSwipe
+
+// Where the square's left and right edges are on screen right now, as pixel positions in the map's box
+function squareOnScreen() {
+  const [topLeft, topRight, , bottomLeft] = swipe.corners.map((c) => map.project(c)); // "project" turns [lon, lat] into screen pixels
+  return { left: topLeft.x, right: topRight.x, top: topLeft.y, bottom: bottomLeft.y }; // Grid-up, so the edges are straight: one x per side, one y per top/bottom
+} // End of squareOnScreen
+
+// Put the handle where it belongs: "fraction" of the way across the square, as tall as the square.
+// Runs on every map move too, because panning and zooming move the square on screen.
+function placeHandle() {
+  const box = squareOnScreen(); // The square's edges on screen
+  const x = box.left + (box.right - box.left) * swipe.fraction; // The handle's position across
+  swipe.handle.style.transform = `translate(${x}px, ${box.top}px)`; // Move it there ("translate" shifts an element without re-laying-out the page)
+  swipe.handle.style.height = `${box.bottom - box.top}px`; // As tall as the square
+} // End of placeHandle
+
+// Move the handle to a new fraction (0 = left edge, all 2023; 1 = right edge, all 2017) and redraw the 2017 part
+function setSwipe(fraction) {
+  swipe.fraction = Math.min(1, Math.max(0, fraction)); // Keep it between 0 and 1 (min and max cap it at both ends)
+  drawBeforePart(swipe.before, swipe.canvas, swipe.fraction); // Redraw the visible part of 2017
+  const source = map.getSource('before'); // The 2017 source
+  source.play(); // A canvas source only sends a new drawing to the map while "playing": switch that on...
+  source.pause(); // ...and straight off again: pausing sends the latest drawing once, so nothing keeps running in between
+  placeHandle(); // Move the handle line
+} // End of setSwipe
+
+// Show the before/after swipe: the 2017 picture inside the square, left of a handle that starts at the left edge.
+// "before" is what buildBeforeImage made, "corners" the square's corners (for the handle). Call after showChange.
+export function showSwipe(before, corners) {
+  clearSwipe(); // Remove any earlier one first
+  const canvas = document.createElement('canvas'); // The drawing the map shows: the visible part of 2017
+  canvas.width = before.canvas.width; // The same size as the full 2017 picture...
+  canvas.height = before.canvas.height; // ...so the same four corners fit it
+  map.addSource('before', { type: 'canvas', canvas, coordinates: before.coordinates, animate: false }); // A canvas pinned to the map; "animate: false" = only update when we say so
+  map.addLayer({ id: 'before-layer', type: 'raster', source: 'before', paint: { 'raster-fade-duration': 0 } }, 'change-layer'); // Draw it above the 2023 imagery and below the change colours ("change-layer" = insert before that layer)
+
+  const handle = document.createElement('div'); // The handle: a line with a grip in the middle
+  handle.className = 'swipe-handle'; // Its styles (style.css)
+  handle.innerHTML = '<span class="swipe-grip" aria-hidden="true"></span>'; // The grip you grab (decorative, so screen readers skip it)
+  map.getContainer().appendChild(handle); // Put it over the map, outside the part MapLibre listens to, so dragging it doesn't pan the map
+
+  swipe = { before, canvas, handle, corners, fraction: 0 }; // Remember everything; start at the left edge (all 2023)
+  handle.addEventListener('pointerdown', (event) => { // A finger, pen or mouse presses on the handle:
+    handle.setPointerCapture(event.pointerId); // Keep receiving its moves even if it slides off the thin handle
+    handle.classList.add('is-dragging'); // Style it as grabbed
+  }); // End of pointerdown
+  handle.addEventListener('pointermove', (event) => { // It moves:
+    if (!handle.hasPointerCapture(event.pointerId)) return; // Only while pressed (a mouse just hovering doesn't count)
+    const box = squareOnScreen(); // The square's edges on screen
+    const x = event.clientX - map.getContainer().getBoundingClientRect().left; // The pointer's position across the map's box
+    setSwipe((x - box.left) / (box.right - box.left)); // How far across the square that is, as a fraction
+  }); // End of pointermove
+  const release = () => handle.classList.remove('is-dragging'); // Let go: back to the normal look
+  handle.addEventListener('pointerup', release); // Released
+  handle.addEventListener('pointercancel', release); // Or interrupted (e.g. the browser took over the touch)
+  map.on('move', placeHandle); // Keep the handle on the square while the map pans or zooms
+  setSwipe(0); // Draw the starting state and place the handle
+} // End of showSwipe
 
 // Switch the map's satellite imagery: "tiles" is an archive version's tile address (from /api/wayback), or null for
 // Esri's current imagery. Only where the tiles come from changes, so the map, its layers and the view stay as they are.
