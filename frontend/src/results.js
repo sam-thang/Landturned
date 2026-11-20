@@ -58,23 +58,28 @@ function readableDate(isoDate) {
   return new Date(`${isoDate}T00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); // Day, month name, year
 } // End of readableDate
 
-// The photo line of the small print: whose photo it is, when it was taken, and why the colours won't match it exactly.
-// "photoDate" is "YYYY-MM-DD" from Esri's metadata, or null when unknown.
+// The imagery line of the small print: whose satellite imagery it is, when it was taken, and why the coloured areas may not
+// line up with it. "photoDate" is "YYYY-MM-DD" from Esri's metadata (current or archive imagery), or null when unknown.
 function photoLine(photoDate) {
   return photoDate // With a date:
     ? `Satellite imagery: Esri, ${readableDate(photoDate)}, a different date than the land-cover maps, so the coloured areas may not line up exactly with the buildings and fields you see.` // e.g. "Satellite imagery: Esri, 23 May 2026, …"
     : "Satellite imagery: Esri, usually taken on a different date than the land-cover maps, so the coloured areas may not line up exactly with the buildings and fields you see."; // Without a date
 } // End of photoLine
 
-// Fill in the result panel for a place. "change" is the backend's answer, or null if there is none.
-// "photoDate" is when the map's photo was taken ("YYYY-MM-DD"), or null. "export" lets main.js use it.
+// Show when the map's satellite imagery was taken ("YYYY-MM-DD", or null when unknown) in the small print's second line.
+// Separate from showResults, because the date can change after the result is shown (when the archive imagery arrives),
+// and the year slider re-fills the result often without touching the imagery. "export" lets main.js use it.
+export function showImageryDate(isoDate) {
+  document.getElementById('photo-note').textContent = photoLine(isoDate); // The imagery line, with or without a date
+} // End of showImageryDate
+
+// Fill in the result panel for a place. "change" is the backend's answer, or null if there is none. "export" lets main.js use it.
 // Every year shown comes from "change", so when a year slider changes the years, the text follows automatically.
-export function showResults(place, change, coordsText, photoDate) {
+export function showResults(place, change, coordsText) {
   const heading = document.getElementById('result-name'); // The big heading (the reveal sentence)
   const stats = document.getElementById('stats'); // The list of four stat rows
   const greenLost = document.getElementById('green-lost'); // The "green space lost in total" line
   const note = document.getElementById('result-note'); // Small print, line 1: the land cover and what Landturn does
-  document.getElementById('photo-note').textContent = photoLine(photoDate); // Small print, line 2: the photo (the same with or without change data)
 
   if (!change) { // No change data (the backend failed or has nothing here):
     document.getElementById('result-kicker').textContent = coordsText; // Just the coordinates, no years

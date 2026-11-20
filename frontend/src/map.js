@@ -141,6 +141,13 @@ function clearChange() {
   areaLabel = null; // And forget it
 } // End of clearChange
 
+// Switch the map's satellite imagery: "tiles" is an archive version's tile address (from /api/wayback), or null for
+// Esri's current imagery. Only where the tiles come from changes, so the map, its layers and the view stay as they are.
+export function setBaseImagery(tiles) {
+  const source = map && map.getSource('satellite'); // The imagery source, if the map exists yet
+  if (source) source.setTiles([tiles ?? SATELLITE_TILES]); // Load tiles from the new address ("??" = the current imagery if none is given)
+} // End of setBaseImagery
+
 // Swap the change picture for another comparison of the same place (the year slider), without rebuilding anything:
 // the image source just gets a new picture at the same corners, so there's no flicker and the map doesn't move.
 // "change" is one /api/timeline (or /api/change) answer for the place already shown by showChange.

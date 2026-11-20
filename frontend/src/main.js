@@ -5,15 +5,15 @@ import { startGlobe, TURN_MS } from './globe.js';
 // Bring in the functions for the loading steps and progress bar, from loading.js
 import { resetSteps, startStep, finishStep, failStep } from './loading.js';
 // Bring in the function that asks our backend for the land-cover change, from api.js
-import { fetchChange, fetchPhotoDate, fetchTimeline } from './api.js';
+import { fetchChange, fetchPhotoDate, fetchTimeline, fetchWayback } from './api.js';
 // Bring in the function that fills in the result panel, from results.js
-import { showResults } from './results.js';
+import { showResults, showImageryDate } from './results.js';
 // Bring in the list of hotspot places, from places.js
 import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange, swapChange } from './map.js';
+import { showPlace, showChange, swapChange, setBaseImagery } from './map.js';
 
 // ---------- Globe ----------
 
@@ -156,6 +156,8 @@ async function selectPlace(place) {
   document.getElementById('step-compare').textContent = 'Comparing land cover'; // Same for the compare step
   showPanel('panel-locating'); // Swap the landing panel for the locating panel
 
+  setBaseImagery(null); // Back to Esri's current imagery first: a previous place's archive imagery must never show here, under the wrong date
+
   // Start loading the satellite map right away, hidden, so it loads while the globe turns.
   // We don't "await" it yet. ".then" turns the result into true (it worked) or false (it failed),
   // so a failure can't go unnoticed while we're busy with the globe.
@@ -172,6 +174,20 @@ async function selectPlace(place) {
   // A failure becomes null (no change data), so the map can still be shown without it.
   // And ask Esri when the map's photo here was taken (a quick answer), for the small print. A failure becomes null: no date shown.
   const photoDateReady = fetchPhotoDate(place.lat, place.lon).catch(() => null); // e.g. "2026-05-23", or null
+
+  // The sharp archive imagery ("after" = closest to the latest year) loads in the background: instant for neighbourhoods
+  // looked at before, up to a minute the first time. The result never waits for it; when it arrives, the map switches to it.
+  let archiveShown = false; // Becomes true once the archive imagery is on the map, so the current imagery's date can't overwrite its date
+  showImageryDate(null); // Until a date is known, the imagery line has no date
+  photoDateReady.then((date) => { // When the current imagery's date arrives (quickly):
+    if (!cancelled() && !archiveShown) showImageryDate(date); // Show it, unless the archive imagery is already up (its date is the right one then)
+  }); // End of the current date handler
+  Promise.all([mapReady, fetchWayback(place.lat, place.lon).catch(() => null)]).then(([loaded, archive]) => { // When the map and the archive answer are ready:
+    if (!loaded || cancelled() || !archive?.after) return; // No map, the visitor went back, or no archive imagery: keep the current imagery
+    setBaseImagery(archive.after.tiles); // Switch the map to the archive version with the "after" photo
+    showImageryDate(archive.after.date); // ...and show that photo's date, e.g. "1 February 2023"
+    archiveShown = true; // From now on, the archive imagery's date stays
+  }); // End of the archive handler
 
   const changeReady = fetchChange(place.lat, place.lon).catch((error) => { // If the request fails...
     console.error(error); // ...print the details in the developer console (F12)
@@ -207,7 +223,7 @@ async function selectPlace(place) {
   document.getElementById('callout').classList.add('visible'); // Fade the callout in
 
   // Wait for three things at the same time: the map, the change steps, and the callout's minimum reading time
-  const [mapLoaded, change, , photoDate] = await Promise.all([mapReady, changeDone, wait(MIN_CALLOUT_MS), photoDateReady]); // Promise.all waits until all are done; we keep the map, the change, and the photo date (the empty slot skips the wait's result)
+  const [mapLoaded, change] = await Promise.all([mapReady, changeDone, wait(MIN_CALLOUT_MS)]); // Promise.all waits until all are done; we keep the first two results
   if (cancelled()) return; // The visitor went back while we waited: stop here
   if (!mapLoaded) { // The map couldn't load (e.g. no WebGL, or the connection dropped):
     failStep('map', "The detailed map couldn't load in this browser."); // Mark the step as failed (dash, grey, no pulsing "…") with the reason
@@ -221,8 +237,8 @@ async function selectPlace(place) {
   if (cancelled()) return; // Went back during that short pause: stop before the crossfade
 
   // Fill in the result panel
-  showResults(place, change, formatCoords(place.lon, place.lat), photoDate); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
-  setUpTimeline(place, change, formatCoords(place.lon, place.lat), photoDate, myTicket); // The year slider: its years at once, greyed out until the timeline has loaded in the background
+  showResults(place, change, formatCoords(place.lon, place.lat)); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
+  setUpTimeline(place, change, formatCoords(place.lon, place.lat), myTicket); // The year slider: its years at once, greyed out until the timeline has loaded in the background
 
   // Stage 2: crossfade from the globe to the map, and switch the panel at the same time
   document.getElementById('callout').classList.remove('visible'); // Fade the callout out
@@ -241,7 +257,7 @@ const timelineLabel = document.getElementById('timeline-label'); // "Loading yea
 const timelineYear = document.getElementById('timeline-year'); // The chosen end year, large
 const timelineRange = document.getElementById('timeline-range'); // The slider itself
 const timelineTicks = document.getElementById('timeline-ticks'); // The tick marks and year labels under it
-let shown = null; // What the result panel shows: { place, coordsText, photoDate, changes: { year: answer } }, or null
+let shown = null; // What the result panel shows: { place, coordsText, changes: { year: answer } }, or null
 
 // Put the handle at a year and update everything that belongs to the slider itself: the big year, the ink part of the
 // track, and what screen readers say. (The map and the text are updated separately, in showYear.)
@@ -256,7 +272,7 @@ function setSliderYear(year) {
 
 // Prepare the slider for a new result. "change" is the first answer (first -> latest year), or null (then no slider).
 // The ticks are built at once from the years the answer lists; the slider stays greyed out until the timeline has loaded.
-function setUpTimeline(place, change, coordsText, photoDate, ticket) {
+function setUpTimeline(place, change, coordsText, ticket) {
   shown = null; // Forget the previous place's timeline
   timeline.hidden = !change; // No change data: no slider
   if (!change) return; // Nothing more to do
@@ -279,7 +295,7 @@ function setUpTimeline(place, change, coordsText, photoDate, ticket) {
     if (ticket !== placeTicket) return; // The visitor went back or chose another place meanwhile: ignore this late answer
     const changes = {}; // year -> that comparison's answer, e.g. changes[2020] = 2017 -> 2020
     for (const step of answer.changes) changes[step.years.to] = step; // Fill it in
-    shown = { place, coordsText, photoDate, changes }; // Everything needed to show any year
+    shown = { place, coordsText, changes }; // Everything needed to show any year
     timelineLabel.textContent = `Since ${from}`; // e.g. "Since 2017"
     timelineRange.disabled = false; // Ready to use
   }).catch((error) => { // The timeline couldn't load:
@@ -293,7 +309,7 @@ function showYear(year) {
   if (!shown || !shown.changes[year]) return; // Not loaded (or no such year): nothing to show
   setSliderYear(year); // The big year, the ink, and the screen-reader text
   swapChange(shown.changes[year]); // The map's change colours
-  showResults(shown.place, shown.changes[year], shown.coordsText, shown.photoDate); // The sentence, the stats, and the small print
+  showResults(shown.place, shown.changes[year], shown.coordsText); // The sentence, the stats, and the small print
 } // End of showYear
 
 timelineRange.addEventListener('input', () => showYear(Number(timelineRange.value))); // "input" fires on every step while dragging (and on arrow keys), so the result follows the handle live

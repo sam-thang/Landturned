@@ -24,6 +24,18 @@ export async function fetchTimeline(lat, lon) {
   return response.json(); // Read the reply as JSON and hand it back
 } // End of fetchTimeline
 
+// Ask the backend for sharp "before" and "after" imagery from Esri's archive (Wayback): the archive photos taken closest to
+// the first and the last land-cover year. Returns a Promise with { years, before, after }; each photo is
+// { date, source, resolution_m, tiles } or null. The first answer for a neighbourhood can take up to a minute, then it's instant.
+export async function fetchWayback(lat, lon) {
+  const params = new URLSearchParams({ lat, lon }); // No years: the backend looks them up (the app doesn't know them yet when it asks)
+  const response = await fetch(`/api/wayback?${params}`); // Send the request and wait for the reply
+  if (!response.ok) { // Not a success?
+    throw new Error(`Archive imagery request failed: ${response.status}`); // Stop with an error, including the status number for the console
+  } // End of the error check
+  return response.json(); // Read the reply as JSON and hand it back
+} // End of fetchWayback
+
 // Esri's metadata service: for any point it says which piece of photo World Imagery shows there, and when it was taken.
 const ESRI_IDENTIFY = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/identify';
 
