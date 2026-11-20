@@ -16,10 +16,11 @@ from pathlib import Path  # Built into Python; a handy way to build file paths
 # Esri's list of every archive version: its date, its map-tile address, and the address of its photo metadata
 CONFIG_URL = "https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json"
 CONFIG_MAX_AGE_S = 24 * 60 * 60  # Download the list again after a day (Esri adds a version every few weeks)
-FIRST_VERSION = "2016-06-01"  # Stop looking back at this date: older photos can't be closer to the slider's years (2017 on)
 # Asking every version's metadata took 2.5-3 minutes per place, and sampling a few versions missed photos. Instead we use
 # Esri's "tilemap" lookup, which tells for one map tile in which version it last changed: stepping back through those
-# answers lists only the versions where this place got new imagery (about 5 seconds), and only those are asked for details.
+# answers lists only the versions where this place got new imagery, and only those are asked for details.
+# Each step waits for the one before (~0.6 s each), so we only step through the years we need: one short walk around the
+# first year and one around the last year, side by side (one long walk from today back to 2016 took ~19 s; this ~6 s).
 TILEMAP_URL = "https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap"  # The lookup's address
 TILE_ZOOM = 16  # The map-tile zoom level we check (about what the result map shows)
 WORKERS = 32  # How many versions to ask for details at the same time (the list is short, so usually all at once)
@@ -59,13 +60,17 @@ def tile_at(lat, lon, zoom):
     return row, column  # Hand back both
 
 
-def changed_versions(lat, lon):
-    """The archive versions in which the map tile at the point changed (new imagery), newest first, back to FIRST_VERSION."""
+def changed_versions(lat, lon, year):
+    """The archive versions in which the map tile at the point changed (new imagery) that could hold a photo close to
+    the year: the changes published from the start of the year to two years after it, plus the last one before that
+    window (its photo was still showing when the window began). Newest first."""
     all_versions = versions()  # Oldest first
     by_id = {v["id"]: i for i, v in enumerate(all_versions)}  # Version number -> its position in the list
     row, column = tile_at(lat, lon, TILE_ZOOM)  # The tile to follow
+    window_start, window_end = f"{year}-01-01", f"{year + 2}-12-31"  # The window, as text dates (they compare correctly in this format)
     found = []  # The versions where it changed
-    i = len(all_versions) - 1  # Start at the newest version
+    published = [i for i, v in enumerate(all_versions) if v["date"] <= window_end]  # Positions of the versions out by the window's end
+    i = published[-1] if published else -1  # Start at the last of them (-1 = none, so the loop below doesn't run)
     while i >= 0:  # Step back through time
         url = f"{TILEMAP_URL}/{all_versions[i]['id']}/{TILE_ZOOM}/{row}/{column}"  # "In this version, where does this tile's imagery come from?"
         try:  # Ask
@@ -77,8 +82,8 @@ def changed_versions(lat, lon):
         if source is None:  # A version we don't know:
             break  # Stop
         found.append(all_versions[source])  # The tile changed in this version
-        if all_versions[source]["date"] < FIRST_VERSION:  # Far enough back:
-            break  # Stop
+        if all_versions[source]["date"] < window_start:  # This change is the last one before the window:
+            break  # That's all we need, stop
         i = source - 1  # Continue from the version just before that change
     return found  # Newest first
 
@@ -142,8 +147,10 @@ def before_after(lat, lon, first_year, last_year):
     if path.exists():  # Found before:
         return json.loads(path.read_text(encoding="utf-8"))  # Read it back: no need to ask Esri at all
 
-    changed = sorted(changed_versions(lat, lon), key=lambda v: v["date"])  # Where this place's imagery changed, oldest first
-    wanted = {"before": versions_near(changed, first_year), "after": versions_near(changed, last_year)}  # The few versions worth asking, per moment
+    with ThreadPoolExecutor(max_workers=2) as pool:  # Two helpers, so the two walks run at the same time
+        walks = pool.map(lambda year: changed_versions(lat, lon, year), [first_year, last_year])  # One walk per year
+        changed_first, changed_last = [sorted(walk, key=lambda v: v["date"]) for walk in walks]  # Each walk's changes, oldest first
+    wanted = {"before": versions_near(changed_first, first_year), "after": versions_near(changed_last, last_year)}  # The few versions worth asking, per moment
     to_ask = list({v["id"]: v for group in wanted.values() for v in group}.values())  # Each version once (a dict keyed by id removes repeats)
     with ThreadPoolExecutor(max_workers=WORKERS) as pool:  # Many helpers, so the questions overlap
         answers = dict(zip([v["id"] for v in to_ask], pool.map(lambda v: photo_in(v, lat, lon), to_ask)))  # version id -> its photo (or None)
