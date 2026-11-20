@@ -7,13 +7,13 @@ import { resetSteps, startStep, finishStep, failStep } from './loading.js';
 // Bring in the function that asks our backend for the land-cover change, from api.js
 import { fetchChange, fetchPhotoDate, fetchTimeline, fetchWayback } from './api.js';
 // Bring in the function that fills in the result panel, from results.js
-import { showResults, showImageryDate, setUpColourSwitches } from './results.js';
+import { showResults, showImageryDate, setUpColourSwitches, shownChanges, resetColourSwitches } from './results.js';
 // Bring in the list of hotspot places, from places.js
 import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe } from './map.js';
+import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges } from './map.js';
 // Bring in the function that builds the 2017 picture for the before/after swipe, from swipe.js
 import { buildBeforeImage, tagText } from './swipe.js';
 
@@ -161,6 +161,8 @@ async function selectPlace(place) {
   showPanel('panel-locating'); // Swap the landing panel for the locating panel
 
   setBaseImagery(null); // Back to Esri's current imagery first: a previous place's archive imagery must never show here, under the wrong date
+  resetColourSwitches(); // A new place starts with all four colours on...
+  setShownChanges(shownChanges()); // ...and the map follows (all four)
 
   // Start loading the satellite map right away, hidden, so it loads while the globe turns.
   // We don't "await" it yet. ".then" turns the result into true (it worked) or false (it failed),
@@ -517,4 +519,4 @@ if (startPlace) selectPlace(startPlace); // Then go straight to it: the globe tu
 
 // ---------- Colour switches (the stats rows) ----------
 
-setUpColourSwitches(() => {}); // The rows switch on and off; for now nothing else happens (the next step connects them to the map's colours)
+setUpColourSwitches(setShownChanges); // Each press tells the map which colours to show (setShownChanges gets e.g. ['built', 'gained'])

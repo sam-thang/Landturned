@@ -350,9 +350,71 @@ export function setBaseImagery(tiles) {
 // the image source just gets a new picture at the same corners, so there's no flicker and the map doesn't move.
 // "change" is one /api/timeline (or /api/change) answer for the place already shown by showChange.
 export function swapChange(change) {
-  const source = map && map.getSource('change'); // The change picture's source, if the map and the picture exist
-  if (source) source.updateImage({ url: change.image.url, coordinates: change.image.corners }); // Replace the picture in place
+  shownPicture = { url: change.image.url, corners: change.image.corners }; // Remember the backend's picture (unfiltered)
+  drawChange(); // Put it on the map, without the switched-off colours
 } // End of swapChange
+
+// ---------- The colour switches: hiding some change colours ----------
+
+// The exact colour of each change type in the backend's PNG, as [red, green, blue] (the same as COLORS in backend/app/change_image.py).
+// PNG is "lossless": it stores every pixel exactly, so a "newly built" pixel is always exactly this orange, never a near-orange.
+const CHANGE_RGB = {
+  built: [0xff, 0xa0, 0x1f], // Orange #ffa01f
+  cleared: [0xff, 0x5a, 0x4f], // Red #ff5a4f
+  gained: [0x4f, 0xd9, 0x8a], // Green #4fd98a
+  water: [0x3d, 0xb8, 0xf5], // Blue #3db8f5
+}; // End of the colours
+let shownTypes = Object.keys(CHANGE_RGB); // The change types switched on (at first all four: ['built', 'cleared', 'gained', 'water'])
+let shownPicture = null; // The backend's change picture now on the map: { url, corners }, or null
+let drawNumber = 0; // Counts the drawings, so an older one that finishes late can't replace a newer one
+
+// Load a picture from an address (here a data URL), and hand it back when it's ready
+function loadImage(url) {
+  return new Promise((resolve, reject) => { // A Promise we finish ourselves
+    const image = new Image(); // A new, empty picture
+    image.onload = () => resolve(image); // Loaded: hand it back
+    image.onerror = reject; // Failed: report the error
+    image.src = url; // Start loading
+  }); // End of the Promise
+} // End of loadImage
+
+// Put the change picture on the map with only the switched-on colours. With all four on, the backend's PNG is used as it is;
+// otherwise the browser copies it onto a canvas and makes every pixel of a switched-off colour see-through.
+async function drawChange() {
+  const source = map && map.getSource('change'); // The change picture's source, if the map and the picture exist
+  if (!source || !shownPicture) return; // Nothing on the map yet: nothing to draw
+  const myNumber = ++drawNumber; // This drawing's number ("++" adds 1 first, then uses the new value)
+  const { url, corners } = shownPicture; // The picture and its corners
+  if (shownTypes.length === Object.keys(CHANGE_RGB).length) { // All four colours on:
+    source.updateImage({ url, coordinates: corners }); // The original picture, no filtering needed
+    return; // Done
+  } // End of the all-on case
+
+  const image = await loadImage(url); // Turn the PNG's data URL into a picture we can draw (takes a moment)
+  if (myNumber !== drawNumber) return; // A newer drawing started meanwhile (e.g. the year slider moved on): let that one win
+  const canvas = document.createElement('canvas'); // A drawing surface, not on the page
+  canvas.width = image.width; // As big as the picture (200 x 200: one pixel per 10 m)
+  canvas.height = image.height; // ...
+  const context = canvas.getContext('2d', { willReadFrequently: true }); // Its drawing tools ("willReadFrequently" tells the browser we'll read the pixels back)
+  context.drawImage(image, 0, 0); // Copy the picture onto it
+  const pixels = context.getImageData(0, 0, canvas.width, canvas.height); // Read all its pixels: a long list of numbers, 4 per pixel (red, green, blue, alpha)
+  const hidden = Object.keys(CHANGE_RGB).filter((type) => !shownTypes.includes(type)).map((type) => CHANGE_RGB[type]); // The colours to hide, e.g. [[255, 90, 79]]
+  const data = pixels.data; // The numbers themselves
+  for (let i = 0; i < data.length; i += 4) { // Each pixel (4 numbers at a time)
+    if (hidden.some(([r, g, b]) => data[i] === r && data[i + 1] === g && data[i + 2] === b)) data[i + 3] = 0; // A hidden colour: alpha 0 = fully see-through
+  } // End of the pixels loop
+  context.putImageData(pixels, 0, 0); // Put the changed pixels back on the canvas
+  source.updateImage({ url: canvas.toDataURL(), coordinates: corners }); // Hand the filtered picture to the map (as a PNG data URL)
+} // End of drawChange
+
+// Choose which change colours the map shows, e.g. ['built', 'gained'] (from the stats rows' switches).
+// The colours only show with the swipe's handle at the left edge, so a change sends the handle back there: otherwise
+// pressing a switch would seem to do nothing. Works before the map exists too (then it's only remembered).
+export function setShownChanges(types) {
+  shownTypes = types; // Remember the choice (it stays for every year of this place)
+  if (swipe && swipe.fraction > 0) resetSwipe(); // Handle away from the edge (colours hidden): back to the edge, so the change can be seen
+  drawChange(); // Redraw the picture with the chosen colours
+} // End of setShownChanges
 
 // ---------- Grid-up: turn the map so the analysis square sits straight ----------
 
@@ -410,6 +472,8 @@ export async function showChange(change) {
   // The change picture: an "image" source is a single picture pinned to four corners on the map.
   // Giving all four corners (not just a box) lets MapLibre turn the picture slightly, matching the UTM grid (see backend/app/landcover.py).
   map.addSource('change', { type: 'image', url: change.image.url, coordinates: corners }); // The PNG (as a data URL) and where it goes
+  shownPicture = { url: change.image.url, corners }; // Remember the backend's picture, for the colour switches
+  drawChange(); // If some colours are switched off, redraw without them (with all on, this changes nothing)
   map.addLayer({ // Draw that picture:
     id: 'change-layer', // The layer's name
     type: 'raster', // A picture made of pixels
