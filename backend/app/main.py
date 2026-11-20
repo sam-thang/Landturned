@@ -7,7 +7,7 @@ from typing import Annotated  # Lets us attach extra rules to a function input (
 # HTTPException (for sending back an error answer) and Query (rules for ?name=value inputs in the address)
 from fastapi import FastAPI, HTTPException, Query
 
-from app import change_image, imagery, landcover  # Our own code: the change picture, the satellite photo, and the land-cover data
+from app import change_image, imagery, landcover, wayback  # Our own code: the change picture, the satellite photo, the land-cover data, and Esri's imagery archive
 
 # Create the app. The title is shown on FastAPI's automatic documentation page (at /docs).
 app = FastAPI(title="Landturn backend")
@@ -85,6 +85,24 @@ def timeline(
             change_answer(lat, lon, years, first, year, grids[first], grids[year], corners) for year in years[1:]  # first -> each later year
         ],  # End of the list
     }  # End of the answer
+
+
+# Sharp satellite imagery for the first and the last land-cover year, from Esri's archive ("Wayback"): the "before" and
+# "after" imagery for the map. Example: /api/wayback?lat=33.9785&lon=-117.5962
+# The first answer for a place can take up to a minute (Esri's archive services are slow to wake up); it is saved on disk,
+# so every later answer for the same place is instant.
+@app.get("/api/wayback")
+def wayback_imagery(
+    lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90
+    lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
+) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
+    items_by_year = landcover.find_items_by_year(lon, lat)  # The land-cover years for this point
+    if not items_by_year:  # None here:
+        raise HTTPException(status_code=404, detail="No land-cover data for this location.")  # Nothing to match
+    years = list(items_by_year)  # Oldest first
+    lat, lon = round(lat, 5), round(lon, 5)  # Rounded to about 1 m, so the saved answer is found again for the same place
+    photos = wayback.before_after(lat, lon, years[0], years[-1])  # The two photos (or None for each)
+    return {"years": {"from": years[0], "to": years[-1]}, **photos}  # e.g. {"years": {...}, "before": {...}, "after": {...}}
 
 
 # The Sentinel-2 photo of the 2 x 2 km square for one year, on the same pixel grid as the land-cover data.
