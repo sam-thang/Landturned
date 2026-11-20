@@ -28,6 +28,15 @@
               </div> <!-- End of the labels -->
             </div> <!-- End of the scale bar -->
           </div> <!-- End of the drawing marks -->
+          <!-- "Analyse this area": shown by map.js when the map's centre has left the analysis square. The dashed square marks
+               the 2 × 2 km that would be analysed (dashed = "proposed", as on a plan); the button runs the analysis there. -->
+          <div id="proposed-square" class="proposed-square" hidden> <!-- The dashed square, always at the map's centre (map.js sets its size) -->
+            <svg class="marquee" aria-hidden="true"> <!-- A small vector drawing filling the square; decorative, so screen readers skip it -->
+              <rect class="marquee-track" width="100%" height="100%" /> <!-- A dark line all the way round: it shows in the gaps between the dashes -->
+              <rect class="marquee-ants" width="100%" height="100%" /> <!-- Off-white dashes on top: together, a two-tone "marching ants" line -->
+            </svg> <!-- End of the drawing -->
+          </div> <!-- End of the dashed square -->
+          <button id="analyse-area" class="analyse-area" type="button" hidden>Analyse this area</button> <!-- The button, at the top of the map (CSS shows it in capitals) -->
           <div id="map-credit" class="map-credit"> <!-- The imagery credit the licence requires, in our own small dark style -->
             <button id="credit-toggle" class="credit-toggle" type="button" aria-expanded="false" aria-controls="credit-text" aria-label="Image credits">i</button> <!-- On phones: the small ⓘ that opens and closes the credit (hidden on wide screens); aria-expanded tells screen readers whether it's open -->
             <span id="credit-text" class="credit-text">Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community</span> <!-- The credit text itself -->

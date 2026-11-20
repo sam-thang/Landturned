@@ -128,6 +128,65 @@ body {
   pointer-events: none; /* Never block dragging the map */
 } /* End of the marks group rule */
 
+/* ---------- "Analyse this area" ---------- */
+
+/* The dashed square at the map's centre: the 2 × 2 km that would be analysed. Dashed means "proposed" on a plan; the
+   analysis square already on the map is solid ("existing"). map.js sets its size; it never blocks dragging the map. */
+.proposed-square {
+  position: absolute; /* Placed freely over the map */
+  top: 50%; /* Its centre... */
+  left: 50%; /* ...at the map's centre */
+  transform: translate(-50%, -50%); /* (move it back by half its own size, so its middle sits there) */
+  pointer-events: none; /* Never block dragging the map */
+} /* End of the proposed square rule */
+.proposed-square[hidden] { display: none; } /* Hidden until offered */
+
+/* The "marching ants" line: off-white dashes over a dark line, so it reads on any ground with a single line */
+.marquee {
+  position: absolute; /* Placed inside the square... */
+  inset: 0; /* ...filling it */
+  width: 100%; /* (SVGs need a size of their own) */
+  height: 100%; /* ... */
+  overflow: visible; /* The line is drawn centred on the square's edge, so half of it sits just outside: don't cut it off */
+} /* End of the marquee rule */
+.marquee rect {
+  fill: none; /* Only the outline, no fill */
+  stroke-width: 1.5px; /* As thick as the solid analysis square's line */
+} /* End of the shared line rule */
+.marquee-track { stroke: rgba(10, 12, 15, 0.75); } /* The dark line underneath (the page's near-black, slightly see-through) */
+.marquee-ants {
+  stroke: var(--ink); /* Off-white dashes */
+  stroke-dasharray: 6 6; /* 6 px dash, 6 px gap (the dark line shows in the gaps) */
+  animation: march 1s linear infinite; /* Creep around the square: one dash-and-gap every second, steadily, for ever */
+} /* End of the dashes rule */
+@keyframes march { /* The march: shift where the dash pattern starts... */
+  to { stroke-dashoffset: -12; } /* ...by one dash plus one gap (12 px); then it repeats seamlessly */
+} /* End of the march */
+@media (prefers-reduced-motion: reduce) { /* People who asked their device for less motion: */
+  .marquee-ants { animation: none; } /* the dashes stay still */
+} /* End of the reduced-motion rule */
+
+/* The button sitting on the dashed square's top-left corner (like "ANALYSIS AREA" on the solid square), in the drawing voice,
+   on the dark backing used by the map's labels. map.js sets its "left" and "top". */
+.analyse-area {
+  position: absolute; /* Placed freely over the map */
+  padding: 8px 14px; /* The same size as "← New place" */
+  border: 1px solid var(--ink); /* An off-white outline: it's the one thing to press here */
+  background: rgba(10, 12, 15, 0.85); /* The map labels' dark backing, a little stronger so it reads over any imagery */
+  color: var(--ink); /* Off-white text */
+  font: 12px / 1 var(--mono); /* Drawing lettering */
+  text-transform: uppercase; /* Capitals */
+  letter-spacing: 0.06em; /* Spread a little, like the other buttons */
+  white-space: nowrap; /* Always on one line */
+  cursor: pointer; /* Pointing hand on hover */
+  -webkit-tap-highlight-color: transparent; /* No flash box on phones */
+} /* End of the analyse button rule */
+.analyse-area[hidden] { display: none; } /* Hidden until offered */
+.analyse-area:focus-visible {
+  outline: 2px solid var(--water); /* The blue keyboard focus outline */
+  outline-offset: 2px; /* A small gap around the button */
+} /* End of the focus rule */
+
 /* The "ANALYSIS AREA · 2 × 2 KM" label, pinned just above the square's top-left corner (map.js adds it) */
 .area-label {
   padding: 3px 6px; /* A little space around the text */

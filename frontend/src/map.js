@@ -122,6 +122,7 @@ async function createMap(container, bounds) {
   map.on('resize', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // ...and when the map changes size (e.g. a phone turned sideways), since the maximum bar length depends on the width
   updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
   map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
+  map.on('move', updateAnalyseOffer); // Whenever the map moves or zooms, check whether to offer "Analyse this area"
 } // End of createMap
 
 // ---------- The change layer ----------
@@ -142,6 +143,8 @@ function clearChange() {
   if (areaLabel) areaLabel.remove(); // Take the old label off the map
   areaLabel = null; // And forget it
   clearSwipe(); // And the previous place's before/after swipe, if there is one
+  analysedCorners = null; // No analysis square any more...
+  updateAnalyseOffer(); // ...so no "Analyse this area" offer either
 } // End of clearChange
 
 // ---------- The before/after swipe ----------
@@ -164,11 +167,51 @@ function clearSwipe() {
   swipe = null; // Forget it
 } // End of clearSwipe
 
-// Where the square's left and right edges are on screen right now, as pixel positions in the map's box
-function squareOnScreen() {
-  const [topLeft, topRight, , bottomLeft] = swipe.corners.map((c) => map.project(c)); // "project" turns [lon, lat] into screen pixels
+// Where a square's edges are on screen right now, as pixel positions in the map's box. "corners" are its four corners as [lon, lat].
+function screenBox(corners) {
+  const [topLeft, topRight, , bottomLeft] = corners.map((c) => map.project(c)); // "project" turns [lon, lat] into screen pixels
   return { left: topLeft.x, right: topRight.x, top: topLeft.y, bottom: bottomLeft.y }; // Grid-up, so the edges are straight: one x per side, one y per top/bottom
+} // End of screenBox
+
+// Where the swipe's square is on screen right now
+function squareOnScreen() {
+  return screenBox(swipe.corners); // The analysis square's edges
 } // End of squareOnScreen
+
+// ---------- "Analyse this area": offered when the map's centre leaves the analysis square ----------
+
+let analysedCorners = null; // The analysis square now on the map (its four corners), or null when there's none
+const EARTH_CIRCUMFERENCE_M = 40075016.686; // The Earth's circumference at the equator, in metres
+
+// Show or hide the "Analyse this area" button and the dashed square, after every map move.
+// Rule: they appear when the map's centre is outside the analysis square. Zooming or looking around inside it never triggers them.
+function updateAnalyseOffer() {
+  const button = document.getElementById('analyse-area'); // The button
+  const proposed = document.getElementById('proposed-square'); // The dashed square
+  const box = analysedCorners && screenBox(analysedCorners); // The analysis square on screen (if there is one)
+  const container = map.getContainer(); // The map's box
+  const x = container.clientWidth / 2; // The centre of the map's box: across...
+  const y = container.clientHeight / 2; // ...and down
+  const outside = box !== null && (x < box.left || x > box.right || y < box.top || y > box.bottom); // Is the centre outside the square?
+  button.hidden = !outside; // Offer the button only then
+  proposed.hidden = !outside; // ...and the dashed square
+  if (!outside) return; // Nothing more to do
+  // How many metres one screen pixel covers here. MapLibre's world is 512 pixels wide at zoom 0 and doubles with each zoom
+  // level; a degree of longitude shrinks towards the poles by cos(latitude), and the Mercator map stretches by the same amount.
+  const latitude = (map.getCenter().lat * Math.PI) / 180; // The centre's latitude, in radians
+  const metresPerPixel = (EARTH_CIRCUMFERENCE_M * Math.cos(latitude)) / (512 * 2 ** map.getZoom()); // Metres per screen pixel
+  const side = (2 * RADIUS_METERS) / metresPerPixel; // 2 km in screen pixels
+  proposed.style.width = `${side}px`; // The dashed square's width...
+  proposed.style.height = `${side}px`; // ...and height
+
+  // The button sits just above the dashed square's top-left corner, like the "ANALYSIS AREA" label on the solid square.
+  // When that corner is off-screen (zoomed in, or a square almost as tall as the map), it stops EDGE_GAP px inside the map.
+  const EDGE_GAP = 8; // The closest the button gets to the map's edge, in pixels
+  const squareLeft = x - side / 2; // The dashed square's left edge on screen
+  const squareTop = y - side / 2; // ...and its top edge
+  button.style.left = `${Math.max(EDGE_GAP, squareLeft)}px`; // Level with the square's left edge, but never off-screen
+  button.style.top = `${Math.max(EDGE_GAP, squareTop - button.offsetHeight - 5)}px`; // Its bottom 5 px above the square's top edge, but never off-screen
+} // End of updateAnalyseOffer
 
 // Put the handle where it belongs: "fraction" of the way across the square, as tall as the square.
 // Runs on every map move too, because panning and zooming move the square on screen.
@@ -512,6 +555,9 @@ export async function showChange(change) {
   areaLabel = new maplibre.Marker({ element: label, anchor: 'bottom-left', offset: [-1, -5] }) // Pin the label's bottom-left corner, nudged 5 px up so it sits just above the line
     .setLngLat(corners[0]) // ...to the square's top-left corner
     .addTo(map); // ...and put it on the map
+
+  analysedCorners = corners; // Remember the square, for the "Analyse this area" check
+  updateAnalyseOffer(); // Check it once now (the centre is inside the new square, so nothing is offered)
 
   await waitForIdle(); // Turning the map can reveal a little new ground at the edges: wait until its imagery has loaded too
 } // End of showChange
