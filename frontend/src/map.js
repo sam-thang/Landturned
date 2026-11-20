@@ -125,6 +125,8 @@ async function createMap(container, bounds) {
   updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
   map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
   map.on('move', updateAnalyseOffer); // Whenever the map moves or zooms, check whether to offer "Analyse this area"
+  map.on('movestart', () => clearTimeout(settleTimer)); // Moving again: cancel a waiting head start (clearTimeout stops a setTimeout before it runs)
+  map.on('moveend', waitForSettledOffer); // Stopped moving: start counting towards the head start
 } // End of createMap
 
 // ---------- The change layer ----------
@@ -194,6 +196,26 @@ export function getMapCenter() {
   const { lng, lat } = map.getCenter(); // MapLibre calls longitude "lng"
   return { lon: lng, lat }; // Our name for it is "lon"
 } // End of getMapCenter
+
+// The head start: once "Analyse this area" is offered and the map has stayed still for a moment, main.js can start the
+// slow archive-imagery lookup for that spot in the background, so less of the wait comes after the press.
+const SETTLE_MS = 1500; // How long the map must stay still first, in milliseconds (a pan that keeps going triggers nothing)
+let settleTimer = null; // The waiting timer, so moving again can cancel it
+let onSettled = null; // What main.js wants done then (a function that gets the map's centre), or null
+
+// Tell the map what to do when the offer has settled: "callback" gets the map's centre as { lon, lat }
+export function onOfferSettled(callback) {
+  onSettled = callback; // Remember it
+} // End of onOfferSettled
+
+// The map stopped moving: wait SETTLE_MS, then, if the offer is still showing and nothing is being analysed, call back
+function waitForSettledOffer() {
+  clearTimeout(settleTimer); // Forget any earlier wait
+  settleTimer = setTimeout(() => { // After the wait:
+    const offered = !document.getElementById('analyse-area').hidden; // Is "Analyse this area" showing?
+    if (offered && analysingCenter === null && onSettled) onSettled(getMapCenter()); // Yes, and no analysis running: hand over the centre
+  }, SETTLE_MS); // ...SETTLE_MS from now
+} // End of waitForSettledOffer
 
 // Start or end the "analysing" state. "center" is the spot being analysed as [lon, lat], or null when it's over.
 // While it runs, the dashed square stays pinned to that spot (it moves with the ground if people pan), and the button

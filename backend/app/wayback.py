@@ -4,10 +4,11 @@
 
 import json  # Built into Python; reads the archive list and writes the saved answers
 import math  # Built into Python; math.tan, math.asinh and math.pi, for working out which map tile holds the point
+import threading  # Built into Python; a "lock" so parallel requests take turns checking which lookups are running
 import time  # Built into Python; time.time() tells how old the remembered archive list is
 import urllib.parse  # Built into Python; builds the "?name=value" part of a web address safely
 import urllib.request  # Built into Python; downloads from the internet
-from concurrent.futures import ThreadPoolExecutor  # Built into Python; asks many questions at the same time
+from concurrent.futures import Future, ThreadPoolExecutor  # Built into Python; asks many questions at the same time, and "Future" = an answer box to wait on
 from datetime import date  # Built into Python; dates we can subtract to measure how far apart they are
 from pathlib import Path  # Built into Python; a handy way to build file paths
 
@@ -139,14 +140,44 @@ def versions_near(changed, year):
     return ([before[-1]] if before else []) + inside  # The last one before, then the ones inside
 
 
+# The lookups running right now, one per saved-answer file: {path: Future}. A "Future" is a box for an answer that
+# isn't ready yet: whoever started the lookup puts the answer in, and anyone else can wait for it with .result().
+_running = {}
+_running_lock = threading.Lock()  # Only one request at a time may check or change _running (requests run in parallel threads)
+
+
 def before_after(lat, lon, first_year, last_year):
     """The sharp photo closest to the first year ("before") and to the last year ("after"), each as
-    {date, resolution_m, source, version, tiles}, or None when no dated photo was found. Saved on disk per place."""
+    {date, resolution_m, source, version, tiles}, or None when no dated photo was found. Saved on disk per map tile.
+    If the same tile is already being looked up (e.g. the app's head start before "Analyse this area" is pressed),
+    this waits for that answer instead of asking Esri all over again."""
     row, column = tile_at(lat, lon, TILE_ZOOM)  # The archive answers per map tile (about 600 m across), so save per tile:
     path = CACHE_DIR / f"z{TILE_ZOOM}_{row}_{column}_{first_year}_{last_year}.json"  # every address in the same tile reuses this file (rarely, a photo boundary crosses a tile; then a neighbour's real, dated photo is used)
     if path.exists():  # Found before:
         return json.loads(path.read_text(encoding="utf-8"))  # Read it back: no need to ask Esri at all
 
+    with _running_lock:  # Check and claim in one go, so two requests can't both think they're first
+        future = _running.get(path)  # A lookup of this tile that's already running, or None
+        mine = future is None  # None running: this request does the lookup itself
+        if mine:  # So:
+            future = _running[path] = Future()  # Put up an empty answer box that others can wait on
+    if not mine:  # Someone else is already looking it up:
+        return future.result()  # Wait for their answer (if their lookup failed, this raises the same error)
+
+    try:  # Do the lookup, and always fill the box, even if it fails
+        result = look_up(lat, lon, first_year, last_year, path)  # Ask Esri (12-17 s for a new tile)
+        future.set_result(result)  # Hand the answer to anyone waiting
+        return result  # And to our own caller
+    except Exception as error:  # It failed:
+        future.set_exception(error)  # Waiting requests get the same error
+        raise  # And so does our caller
+    finally:  # Either way, at the end:
+        with _running_lock:  # (again one request at a time)
+            _running.pop(path, None)  # This lookup no longer runs (the saved file answers from now on)
+
+
+def look_up(lat, lon, first_year, last_year, path):
+    """The actual lookup for before_after: the two walks, then the photo dates; saves a real answer in "path"."""
     with ThreadPoolExecutor(max_workers=2) as pool:  # Two helpers, so the two walks run at the same time
         walks = pool.map(lambda year: changed_versions(lat, lon, year), [first_year, last_year])  # One walk per year
         changed_first, changed_last = [sorted(walk, key=lambda v: v["date"]) for walk in walks]  # Each walk's changes, oldest first

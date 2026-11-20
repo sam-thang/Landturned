@@ -13,7 +13,7 @@ import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges, getMapCenter, setAnalysing } from './map.js';
+import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges, getMapCenter, setAnalysing, onOfferSettled } from './map.js';
 // Bring in the function that builds the 2017 picture for the before/after swipe, from swipe.js
 import { buildBeforeImage, tagText } from './swipe.js';
 
@@ -356,6 +356,15 @@ async function analyseArea() {
 } // End of analyseArea
 
 document.getElementById('analyse-area').addEventListener('click', analyseArea); // The button on the map
+
+// The head start: once "Analyse this area" has been offered for a moment, quietly ask for that spot's archive imagery.
+// The answer is thrown away here: the backend saves it (or, if it's still looking when the button is pressed, the real
+// request waits for this same lookup), so after the press the before/after swipe arrives sooner. Nothing on screen changes.
+onOfferSettled((center) => { // When the offer has settled (map.js), with the map's centre:
+  if (mode !== 'result') return; // Only while a finished result is shown (not while analysing or on the globe)
+  fetchWayback(Number(center.lat.toFixed(5)), Number(center.lon.toFixed(5))) // Rounded like analyseArea rounds it, so it's the same spot
+    .catch(() => {}); // A failure doesn't matter here: the real request after the press tries again
+}); // End of the head start
 
 // ---------- Year slider: compare the first year with any later year ----------
 
