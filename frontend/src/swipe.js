@@ -97,3 +97,11 @@ export function drawBeforePart(before, target, fraction) {
   context.drawImage(before.canvas, 0, 0); // Draw the whole before picture: only the part inside the shape appears
   context.restore(); // Forget the clip again
 } // End of drawBeforePart
+
+// The text of a year tag on the swipe line, from a photo's capture date: "2017-10-21" -> "2017 · 21 OCT".
+// The year is the photo's own year (not the land-cover year), so the tag is always true, even for an older photo.
+export function tagText(isoDate) {
+  const date = new Date(`${isoDate}T00:00`); // Turn the text into a date ("T00:00" = local midnight, so the day doesn't shift)
+  const month = date.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase(); // The short month name in capitals, e.g. "OCT"
+  return `${date.getFullYear()} · ${date.getDate()} ${month}`; // e.g. "2017 · 21 OCT"
+} // End of tagText

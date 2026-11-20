@@ -15,7 +15,7 @@ import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
 import { showPlace, showChange, swapChange, setBaseImagery, showSwipe } from './map.js';
 // Bring in the function that builds the 2017 picture for the before/after swipe, from swipe.js
-import { buildBeforeImage } from './swipe.js';
+import { buildBeforeImage, tagText } from './swipe.js';
 
 // ---------- Globe ----------
 
@@ -265,10 +265,11 @@ const timelineTicks = document.getElementById('timeline-ticks'); // The tick mar
 // can arrive much later than the result. "cancelled" tells whether the visitor has left this place meanwhile.
 async function setUpSwipe(change, archiveReady, cancelled) {
   const archive = await archiveReady; // Wait for the archive answer (instant for places seen before)
-  if (!change || !archive?.before || cancelled()) return; // No square, no 2017 photo, or the visitor left: no swipe
+  if (!change || !archive?.before || !archive?.after || cancelled()) return; // No square, a photo missing (each side's tag needs a real date), or the visitor left: no swipe
   const before = await buildBeforeImage(archive.before.tiles, change.image.corners); // Load its tiles and cut them to the square
   if (cancelled()) return; // Left while the tiles loaded: don't add it to another place's map
-  showSwipe(before, change.image.corners); // Put it on the map, with the handle at the left edge
+  const tags = { before: tagText(archive.before.date), after: tagText(archive.after.date) }; // The two year tags, e.g. "2017 · 21 OCT" and "2023 · 1 FEB"
+  showSwipe(before, change.image.corners, tags); // Put it on the map, with the handle at the left edge
 } // End of setUpSwipe
 
 let shown = null; // What the result panel shows: { place, coordsText, changes: { year: answer } }, or null

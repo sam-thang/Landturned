@@ -162,28 +162,41 @@ body {
   box-shadow: 0 0 0 1px rgba(10, 12, 15, 0.6); /* A dark edge, so it shows over bright ground too (like the outline's casing) */
 } /* End of the line rule */
 
-/* The grip: a small square in the middle of the line, with arrows saying "drag sideways" */
+/* The grip: a small solid square in the middle of the line, with arrows saying "drag sideways".
+   Solid off-white like the north arrow (over busy imagery, map marks are solid ink, not outlines), so it stands out on dark fields;
+   the dark edge keeps it visible on white roofs and bare ground too. */
 .swipe-grip {
   position: absolute; /* Placed inside the handle */
   top: 50%; /* Halfway down... */
   left: 50%; /* ...and across */
-  width: 28px; /* A small square */
-  height: 28px; /* (the grab area around it is bigger) */
+  width: 32px; /* A small square */
+  height: 32px; /* (the grab area around it is bigger) */
   transform: translate(-50%, -50%); /* Centred on that point */
   display: grid; /* So the arrows can be centred inside */
   place-items: center; /* Centred */
-  background: var(--bg); /* The page's near-black */
-  border: 1px solid var(--ink); /* An off-white edge, like a drawn box */
-  color: var(--ink); /* Off-white arrows */
-  font: 12px / 1 var(--mono); /* Small mono text */
+  background: var(--ink); /* Solid off-white */
+  box-shadow: 0 0 0 1px rgba(10, 12, 15, 0.6); /* A thin dark edge, like the line's (an outline, not a soft shadow) */
+  color: var(--bg); /* Dark arrows */
+  font: 500 14px / 1 var(--mono); /* Mono arrows, at the heaviest weight the design allows */
 } /* End of the grip rule */
 .swipe-grip::after { content: '‹ ›'; } /* The two arrows */
+.swipe-handle.is-dragging { cursor: grabbing; } /* While held, the mouse pointer shows a closed hand */
 
-/* While dragged: the grip fills in, to show it's held */
-.swipe-handle.is-dragging .swipe-grip {
-  background: var(--ink); /* Off-white fill */
-  color: var(--bg); /* Dark arrows */
-} /* End of the dragging rule */
+/* The year tags at the top of the line: when each side's photo was taken. Same look as the "ANALYSIS AREA" label. */
+.swipe-tag {
+  position: absolute; /* Placed inside the handle */
+  top: 8px; /* Just below the square's top edge */
+  padding: 3px 6px; /* A little space around the text */
+  background: rgba(10, 12, 15, 0.7); /* The same dark backing as the area label, scale bar and north arrow */
+  color: var(--ink); /* Off-white */
+  font: 10px / 1 var(--mono); /* Small mono text, like labels on a technical drawing */
+  letter-spacing: 0.08em; /* Slightly spread out, like the other small capital labels */
+  white-space: nowrap; /* Always on one line */
+  pointer-events: none; /* Never block grabbing the handle or dragging the map */
+} /* End of the tag rule */
+.swipe-tag[hidden] { display: none; } /* Hidden when there's no room beside the line (map.js decides) */
+.swipe-tag-before { right: calc(50% + 8px); } /* The 2017 tag: left of the line, 8 px away */
+.swipe-tag-after { left: calc(50% + 8px); } /* The 2023 tag: right of the line, 8 px away */
 
 /* ARROWHEAD: one solid shape */
 .north-arrow .north-head {

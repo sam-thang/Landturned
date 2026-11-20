@@ -172,6 +172,10 @@ function placeHandle() {
   const x = box.left + (box.right - box.left) * swipe.fraction; // The handle's position across
   swipe.handle.style.transform = `translate(${x}px, ${box.top}px)`; // Move it there ("translate" shifts an element without re-laying-out the page)
   swipe.handle.style.height = `${box.bottom - box.top}px`; // As tall as the square
+  const room = 12; // Space a tag needs between itself and the square's edge, in pixels
+  const [beforeTag, afterTag] = swipe.handle.querySelectorAll('.swipe-tag'); // The two year tags
+  beforeTag.hidden = x - box.left < beforeTag.offsetWidth + room; // Hide the 2017 tag when it wouldn't fit left of the line (e.g. the handle near the left edge)
+  afterTag.hidden = box.right - x < afterTag.offsetWidth + room; // Hide the 2023 tag when it wouldn't fit right of the line
 } // End of placeHandle
 
 // Move the handle to a new fraction (0 = left edge, all 2023; 1 = right edge, all 2017) and redraw the 2017 part
@@ -185,8 +189,9 @@ function setSwipe(fraction) {
 } // End of setSwipe
 
 // Show the before/after swipe: the 2017 picture inside the square, left of a handle that starts at the left edge.
-// "before" is what buildBeforeImage made, "corners" the square's corners (for the handle). Call after showChange.
-export function showSwipe(before, corners) {
+// "before" is what buildBeforeImage made, "corners" the square's corners (for the handle), "tags" the two year tags'
+// text ({ before: "2017 · 21 OCT", after: "2023 · 1 FEB" }). Call after showChange.
+export function showSwipe(before, corners, tags) {
   clearSwipe(); // Remove any earlier one first
   const canvas = document.createElement('canvas'); // The drawing the map shows: the visible part of 2017
   canvas.width = before.canvas.width; // The same size as the full 2017 picture...
@@ -197,6 +202,12 @@ export function showSwipe(before, corners) {
   const handle = document.createElement('div'); // The handle: a line with a grip in the middle
   handle.className = 'swipe-handle'; // Its styles (style.css)
   handle.innerHTML = '<span class="swipe-grip" aria-hidden="true"></span>'; // The grip you grab (decorative, so screen readers skip it)
+  for (const [side, text] of [['before', tags.before], ['after', tags.after]]) { // The two year tags, left then right:
+    const tag = document.createElement('span'); // A small label
+    tag.className = `swipe-tag swipe-tag-${side}`; // Its styles: shared, plus which side of the line it sits on
+    tag.textContent = text; // e.g. "2017 · 21 OCT" ("textContent" sets plain text, never HTML)
+    handle.appendChild(tag); // Put it on the handle, so it moves with the line
+  } // End of the tags loop
   map.getContainer().appendChild(handle); // Put it over the map, outside the part MapLibre listens to, so dragging it doesn't pan the map
 
   swipe = { before, canvas, handle, corners, fraction: 0 }; // Remember everything; start at the left edge (all 2023)
