@@ -204,6 +204,34 @@ body {
   pointer-events: none; /* Never block dragging the map */
 } /* End of the area label rule */
 
+/* The "HIDE / SHOW LAND COVER" button, pinned just above the square's top-right corner (map.js adds it). The same lettering
+   and backing as the label opposite, plus a thin outline so it reads as something to press. */
+.colours-toggle {
+  padding: 3px 6px; /* The label's spacing, so both sit at the same height */
+  border: 1px solid rgba(230, 233, 238, 0.6); /* A soft off-white outline */
+  background: rgba(10, 12, 15, 0.7); /* The label's dark backing */
+  color: var(--ink); /* Off-white */
+  font: 10px / 1 var(--mono); /* The label's small drawing lettering */
+  letter-spacing: 0.08em; /* Spread like the label */
+  text-transform: uppercase; /* Capitals, like the label */
+  white-space: nowrap; /* Always on one line */
+  cursor: pointer; /* Pointing hand on hover */
+  -webkit-tap-highlight-color: transparent; /* No flash box on phones */
+} /* End of the toggle rule */
+.colours-toggle::before { /* An invisible, bigger tap area around the small button, so a finger can hit it easily */
+  content: ''; /* An empty extra box... */
+  position: absolute; /* ...placed over the button... */
+  inset: -10px -6px; /* ...10 px further up and down, 6 px further left and right */
+} /* End of the tap-area rule */
+.colours-toggle[hidden] { display: none; } /* Hidden while the handle is away from the left edge */
+@media (hover: hover) { /* Only on devices with a real mouse (phones would keep the hover look after a tap): */
+  .colours-toggle:hover { border-color: var(--ink); } /* the outline brightens */
+} /* End of the hover rule */
+.colours-toggle:focus-visible {
+  outline: 2px solid var(--water); /* The blue keyboard focus outline, like the other buttons */
+  outline-offset: 2px; /* A small gap around the button */
+} /* End of the focus rule */
+
 /* THE SWIPE HANDLE: the line between 2017 (left) and 2023 (right). map.js moves it with "transform" and sets its height. */
 .swipe-handle {
   position: absolute; /* Placed by coordinates over the map */

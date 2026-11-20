@@ -35,6 +35,8 @@ const MIN_ZOOM = 10;
 let map = null; // The MapLibre map, once it has been created (null until then)
 let maplibre = null; // The MapLibre library itself, once downloaded (we need it again for the label marker)
 let areaLabel = null; // The "ANALYSIS AREA" label on the map, once shown (null until then)
+let coloursMarker = null; // The "HIDE / SHOW LAND COVER" button pinned to the square's top-right corner, once shown (null until then)
+let coloursOn = true; // Whether that button is ON (people can turn the colours off to see the plain imagery)
 
 // Work out the square that reaches RADIUS_METERS north, south, east, and west of a point.
 // Returns [[west, south], [east, north]] in degrees, the "bounds" format MapLibre expects.
@@ -142,6 +144,8 @@ function clearChange() {
   } // End of the sources loop
   if (areaLabel) areaLabel.remove(); // Take the old label off the map
   areaLabel = null; // And forget it
+  if (coloursMarker) coloursMarker.remove(); // The same for the "HIDE / SHOW LAND COVER" button
+  coloursMarker = null; // And forget it
   clearSwipe(); // And the previous place's before/after swipe, if there is one
   analysedCorners = null; // No analysis square any more...
   updateAnalyseOffer(); // ...so no "Analyse this area" offer either
@@ -261,11 +265,28 @@ const SNAP = 0.03;
 
 // Show or hide the change colours. The handle at the left edge is the result view (all 2023, with colours);
 // anywhere else is the comparison view (two clean photos), so the colours don't cover the 2017 imagery.
+// The colours only show when "shown" AND the "HIDE / SHOW LAND COVER" button is set to show them.
 function setColoursShown(shown) {
   if (!map.getLayer('change-layer')) return; // No colours on the map (no change data): nothing to do
   map.setPaintProperty('change-layer', 'raster-opacity-transition', { duration: COLOUR_FADE_MS, delay: 0 }); // Fade, rather than switch, when the see-through value changes
-  map.setPaintProperty('change-layer', 'raster-opacity', shown ? CHANGE_OPACITY : 0); // Fully see-through when hidden
+  map.setPaintProperty('change-layer', 'raster-opacity', shown && coloursOn ? CHANGE_OPACITY : 0); // Fully see-through when hidden
 } // End of setColoursShown
+
+// Keep the "HIDE / SHOW LAND COVER" button up to date: its words, and whether it shows at all.
+// It only shows in the result view (handle at the left edge, or no swipe yet): elsewhere the colours are hidden anyway.
+function updateColoursButton() {
+  if (!coloursMarker) return; // No button on the map: nothing to do
+  const button = coloursMarker.getElement(); // The button itself (a Marker's element)
+  button.hidden = Boolean(swipe && swipe.fraction > 0); // Hidden while the handle is away from the left edge
+  button.textContent = coloursOn ? 'Hide land cover' : 'Show land cover'; // Says what pressing will do (CSS turns it into capitals)
+} // End of updateColoursButton
+
+// Turn the colours on or off with the "HIDE / SHOW LAND COVER" button (or turn them back on from elsewhere)
+function setColoursOn(on) {
+  coloursOn = on; // Remember the choice
+  setColoursShown(!swipe || swipe.fraction === 0); // Fade the colours (they still only show in the result view)
+  updateColoursButton(); // Update the button's word and state
+} // End of setColoursOn
 
 // Move the handle to a new fraction (0 = left edge, all 2023; 1 = right edge, all 2017) and redraw the 2017 part
 function setSwipe(fraction) {
@@ -281,6 +302,7 @@ function setSwipe(fraction) {
   source.play(); // A canvas source only sends a new drawing to the map while "playing": switch that on...
   source.pause(); // ...and straight off again: pausing sends the latest drawing once, so nothing keeps running in between
   placeHandle(); // Move the handle line
+  updateColoursButton(); // Show the "HIDE / SHOW LAND COVER" button only with the handle at the left edge
 } // End of setSwipe
 
 // ---------- The swipe's motion: the opening sequence and the glide ----------
@@ -336,9 +358,14 @@ export function glideToMiddle() {
   moveHandle(0.5, GLIDE_MS, motion); // Glide
 } // End of glideToMiddle
 
-// Back to the result view (the year slider uses this, so its changing colours can be seen): stop any motion, handle to the left edge
+// Back to the result view (the year slider uses this, so its changing colours can be seen): colours on, stop any motion,
+// handle to the left edge
 export function resetSwipe() {
-  if (!swipe) return; // No swipe: nothing to do
+  if (!swipe) { // No swipe (yet):
+    setColoursOn(true); // just make sure the colours are on
+    return; // Nothing else to do
+  } // End of the no-swipe case
+  coloursOn = true; // Colours on (setSwipe below fades them in and updates the button)
   stopSwipeMotion(); // Stop any motion
   setSwipe(0); // Left edge: all latest imagery, colours on
 } // End of resetSwipe
@@ -479,7 +506,7 @@ async function drawChange() {
 // pressing a switch would seem to do nothing. Works before the map exists too (then it's only remembered).
 export function setShownChanges(types) {
   shownTypes = types; // Remember the choice (it stays for every year of this place)
-  if (swipe && swipe.fraction > 0) resetSwipe(); // Handle away from the edge (colours hidden): back to the edge, so the change can be seen
+  if (!coloursOn || (swipe && swipe.fraction > 0)) resetSwipe(); // Colours hidden (button OFF, or handle away from the edge): show them again, so the change can be seen
   drawChange(); // Redraw the picture with the chosen colours
 } // End of setShownChanges
 
@@ -579,6 +606,18 @@ export async function showChange(change) {
   areaLabel = new maplibre.Marker({ element: label, anchor: 'bottom-left', offset: [-1, -5] }) // Pin the label's bottom-left corner, nudged 5 px up so it sits just above the line
     .setLngLat(corners[0]) // ...to the square's top-left corner
     .addTo(map); // ...and put it on the map
+
+  // The "HIDE / SHOW LAND COVER" button just above the top-right corner, in the same lettering as the label opposite it.
+  // Its words say what pressing does (a verb reads as "press me"), and screen readers read those same words.
+  coloursOn = true; // A new result starts with the colours on
+  const button = document.createElement('button'); // A real button: reachable with Tab, pressed with Enter or Space
+  button.type = 'button'; // A plain button (not one that sends a form)
+  button.className = 'colours-toggle'; // Its styles (style.css); its words are filled in by updateColoursButton below
+  button.addEventListener('click', () => setColoursOn(!coloursOn)); // Each press flips it ("!" = the opposite)
+  coloursMarker = new maplibre.Marker({ element: button, anchor: 'bottom-right', offset: [1, -5] }) // Pin its bottom-right corner, 5 px up, like the label
+    .setLngLat(corners[1]) // ...to the square's top-right corner
+    .addTo(map); // ...and put it on the map
+  updateColoursButton(); // Fill in its word and state
 
   analysedCorners = corners; // Remember the square, for the "Analyse this area" check
   updateAnalyseOffer(); // Check it once now (the centre is inside the new square, so nothing is offered)
