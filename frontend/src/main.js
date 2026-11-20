@@ -142,6 +142,18 @@ const mapContainer = document.getElementById('map'); // The element MapLibre dra
 
 // ---------- The analysis: shared by choosing a place (from the globe) and by "Analyse this area" ----------
 
+// The "after" photo should match the last land-cover year, so the colours describe what the imagery shows. The archive
+// offers the photo closest to that year it could find, but sometimes Esri's current imagery is closer (e.g. archive
+// January 2021, current February 2025, land cover 2023). Then switching would make things worse, so the "after" photo
+// becomes the current imagery (tiles: null), with its own date. Hands back the archive answer, possibly with that new "after".
+function closerAfter(archive, currentDate) {
+  if (!archive?.after || !currentDate) return archive; // Nothing to compare (an answer or a date is missing): keep it as it is
+  const middle = new Date(`${archive.years.to}-07-01`); // The middle of the last land-cover year, e.g. 1 July 2023
+  const distance = (isoDate) => Math.abs(new Date(isoDate) - middle); // How far a date is from it (subtracting dates gives milliseconds; abs = ignore before/after)
+  if (distance(archive.after.date) < distance(currentDate)) return archive; // The archive photo is closer: switch to it, as before
+  return { ...archive, after: { date: currentDate, tiles: null } }; // The current imagery is as close or closer: keep it ("..." copies the rest of the answer)
+} // End of closerAfter
+
 // Send the requests for a place at once, so they run side by side: the land-cover change (a few seconds), when Esri's
 // current imagery was taken (quick), and the sharp archive imagery (instant for places seen before, up to a minute otherwise).
 // When the archive imagery arrives (and the map is ready), the map switches to it and the imagery line shows its date.
@@ -155,12 +167,13 @@ function startRequests(place, mapReady, cancelled) {
     if (!cancelled() && !archiveShown) showImageryDate(date); // Show it, unless the archive imagery is already up (its date is the right one then)
   }); // End of the current date handler
 
-  const archiveReady = fetchWayback(place.lat, place.lon).catch(() => null); // The archive answer ({ before, after, ... }), or null if it fails
+  const archiveReady = Promise.all([fetchWayback(place.lat, place.lon).catch(() => null), photoDateReady]) // The archive answer ({ before, after, ... }, or null if it fails), and the current imagery's date
+    .then(([archive, currentDate]) => closerAfter(archive, currentDate)); // Keep whichever "after" photo is closer to the last land-cover year
   let arrived = false; // Becomes true when the archive answer is here
   archiveReady.then(() => { arrived = true; }); // Note its arrival
   Promise.all([mapReady, archiveReady]).then(([loaded, archive]) => { // When the map and the archive answer are ready:
     if (!loaded || cancelled() || !archive?.after) return; // No map, the visitor went back, or no archive imagery: keep the current imagery
-    setBaseImagery(archive.after.tiles); // Switch the map to the archive version with the "after" photo
+    if (archive.after.tiles) setBaseImagery(archive.after.tiles); // Switch the map to the archive version with the "after" photo (no tiles = the current imagery is closer: it's already on the map, so no reload)
     showImageryDate(archive.after.date); // ...and show that photo's date, e.g. "1 February 2023"
     archiveShown = true; // From now on, the archive imagery's date stays
   }); // End of the archive handler
