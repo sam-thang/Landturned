@@ -459,8 +459,17 @@ export function showSwipe(before, corners, tags, start = 0) {
 // Esri's current imagery. Only where the tiles come from changes, so the map, its layers and the view stay as they are.
 export function setBaseImagery(tiles) {
   const source = map && map.getSource('satellite'); // The imagery source, if the map exists yet
-  if (source) source.setTiles([tiles ?? SATELLITE_TILES]); // Load tiles from the new address ("??" = the current imagery if none is given)
+  if (!source || (tiles ?? null) === baseTiles) return; // No map yet, or it already shows these tiles: nothing to change (a reload would only flicker)
+  source.setTiles([tiles ?? SATELLITE_TILES]); // Load tiles from the new address ("??" = the current imagery if none is given)
+  baseTiles = tiles ?? null; // Remember what the map shows now
 } // End of setBaseImagery
+let baseTiles = null; // The archive tile address the map shows now, or null for Esri's current imagery
+
+// Wait until the map's imagery has loaded and been drawn (at most MAX_WAIT_MS), e.g. after setBaseImagery
+export function waitForImagery() {
+  map.triggerRepaint(); // Ask for one more drawing, so "idle" comes even if nothing changed (otherwise we'd wait the full MAX_WAIT_MS)
+  return waitForIdle(); // Then wait for "idle": every tile loaded and drawn
+} // End of waitForImagery
 
 // Swap the change picture for another comparison of the same place (the year slider), without rebuilding anything:
 // the image source just gets a new picture at the same corners, so there's no flicker and the map doesn't move.
