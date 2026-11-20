@@ -29,7 +29,7 @@ def warm(place):
     years = list(landcover.find_items_by_year(lon, lat))  # Its land-cover years, oldest first (the app's request uses the same years)
     if not years:  # No land-cover data (shouldn't happen for a hotspot):
         return f"{pid:<15} no land-cover data"  # Say so
-    photos = wayback.before_after(round(lat, 5), round(lon, 5), years[0], years[-1])  # Find and save (or read back) the two photos
+    photos = wayback.before_after(round(lat, 5), round(lon, 5), years[0], years[-1], quick=False)  # Find and save (or read back) the two photos (the full answer: this fills the cache)
     show = lambda p: f"{p['date']} ({p['source']}, {p['resolution_m']} m)" if p else "none"  # How to print one photo
     return f"{pid:<15} {time.perf_counter() - start:5.1f} s   before {show(photos['before']):<40} after {show(photos['after'])}"  # The table row
 
