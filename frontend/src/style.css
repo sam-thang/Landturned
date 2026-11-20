@@ -164,6 +164,36 @@ body {
   .marquee-ants { animation: none; } /* the dashes stay still */
 } /* End of the reduced-motion rule */
 
+/* The steps in the middle of the dashed square while analysing. They share the loading panel's look (.steps: grey, pulsing "…",
+   green ✓); this adds a dark backing, like the map's labels, so they read over any imagery. Written ".steps.area-steps"
+   (both classes) so it outweighs the panel's ".steps" rule further down this file, which would otherwise win (same weight, later). */
+.steps.area-steps {
+  position: absolute; /* Placed inside the square... */
+  left: 50%; /* ...from its middle across... */
+  top: 50%; /* ...and down... */
+  transform: translate(-50%, -50%); /* ...moved back by half its own size, so it's centred */
+  margin: 0; /* No space above (the panel's list has some) */
+  padding: 10px 14px; /* Room around the text */
+  background: rgba(10, 12, 15, 0.85); /* The page's near-black, a little see-through */
+  font-size: 12px; /* A touch smaller than in the panel */
+  white-space: nowrap; /* Each step on one line */
+} /* End of the area steps rule */
+.steps.area-steps[hidden] { display: none; } /* Hidden unless an analysis runs */
+
+/* Text only screen readers get: hidden on screen in the standard way (a 1-pixel box with its contents clipped), but not
+   "display: none", which screen readers would skip too */
+.sr-only {
+  position: absolute; /* Out of the page's flow, so it takes no room */
+  width: 1px; /* A single pixel... */
+  height: 1px; /* ...in both directions */
+  margin: -1px; /* ...pulled onto its neighbour */
+  padding: 0; /* No padding */
+  overflow: hidden; /* Its text doesn't spill out */
+  clip: rect(0 0 0 0); /* And nothing of it is drawn */
+  white-space: nowrap; /* Kept on one line, so screen readers don't read it word by word */
+  border: 0; /* No border */
+} /* End of the screen-reader-only rule */
+
 /* The button sitting on the dashed square's top-left corner (like "ANALYSIS AREA" on the solid square), in the drawing voice,
    on the dark backing used by the map's labels. map.js sets its "left" and "top". */
 .analyse-area {

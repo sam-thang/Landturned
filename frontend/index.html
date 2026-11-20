@@ -35,7 +35,13 @@
               <rect class="marquee-track" width="100%" height="100%" /> <!-- A dark line all the way round: it shows in the gaps between the dashes -->
               <rect class="marquee-ants" width="100%" height="100%" /> <!-- Off-white dashes on top: together, a two-tone "marching ants" line -->
             </svg> <!-- End of the drawing -->
+            <ol id="area-steps" class="steps area-steps mono" hidden> <!-- While analysing: the real steps, in the middle of the square (main.js marks them running and done, like the loading panel's) -->
+              <li data-step="compare">Comparing land cover</li> <!-- The backend compares the two years -->
+              <li data-step="find">Finding the imagery</li> <!-- The archive's before/after photos (main.js puts the real years in) -->
+              <li data-step="imagery">Loading imagery</li> <!-- The photos load and the map draws them -->
+            </ol> <!-- End of the steps -->
           </div> <!-- End of the dashed square -->
+          <p id="area-status" class="sr-only" aria-live="polite"></p> <!-- Invisible, but screen readers read out each new text: the analysis's progress in words -->
           <button id="analyse-area" class="analyse-area" type="button" hidden>Analyse this area</button> <!-- The button, at the top of the map (CSS shows it in capitals) -->
           <div id="map-credit" class="map-credit"> <!-- The imagery credit the licence requires, in our own small dark style -->
             <button id="credit-toggle" class="credit-toggle" type="button" aria-expanded="false" aria-controls="credit-text" aria-label="Image credits">i</button> <!-- On phones: the small ⓘ that opens and closes the credit (hidden on wide screens); aria-expanded tells screen readers whether it's open -->

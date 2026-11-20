@@ -325,6 +325,21 @@ async function selectPlace(place) {
 // ---------- "Analyse this area": analyse the map's centre, without going back to the globe ----------
 
 const resultPanel = document.getElementById('panel-result'); // The result panel (dimmed while busy)
+const areaSteps = document.getElementById('area-steps'); // The steps in the middle of the dashed square
+const areaStatus = document.getElementById('area-status'); // The invisible line screen readers read out
+
+// Mark one of the dashed square's steps: state is 'running', 'done', 'failed', or null (not started). The classes are the
+// loading panel's (style.css .steps), so the steps look the same: grey, a pulsing "…", a green ✓, or a dash.
+function setAreaStep(step, state) {
+  const item = areaSteps.querySelector(`[data-step="${step}"]`); // The step's list item, e.g. <li data-step="find">
+  item.classList.remove('running', 'done', 'failed'); // Clear its old state...
+  if (state) item.classList.add(state); // ...and set the new one (if any)
+} // End of setAreaStep
+
+// Tell screen-reader users how the analysis is going: they hear each new text in the invisible status line
+function announce(text) {
+  areaStatus.textContent = text; // "aria-live" on the line makes screen readers read it out when it changes
+} // End of announce
 
 // Dim the old result while a new area is analysed (busy = true), or bring it back (false)
 function setResultBusy(busy) {
@@ -345,6 +360,11 @@ async function analyseArea() {
   const place = { name: null, lon: Number(center.lon.toFixed(5)), lat: Number(center.lat.toFixed(5)), source: 'area' }; // Rounded to about 1 m, like places in the address
   setAnalysing([place.lon, place.lat]); // The dashed square stays on this spot, and the button says "Analysing…"
   setResultBusy(true); // Dim the old result
+  for (const step of ['compare', 'find', 'imagery']) setAreaStep(step, null); // The square's steps: none started yet (an earlier run may have ticked them)
+  areaSteps.querySelector('[data-step="find"]').textContent = 'Finding the imagery'; // Reset this one's text (it gets the real years below)
+  areaSteps.hidden = false; // Show the steps in the dashed square
+  setAreaStep('compare', 'running'); // The comparison starts at once
+  announce('Analysing this area: comparing land cover.'); // Say so to screen-reader users
 
   const nameReady = reverseGeocode(place.lat, place.lon).catch(() => null); // Ask which town this is (e.g. "Fontana"); null if unknown or it fails
   const { changeReady, archiveReady, photoDateReady } = startRequests(place); // The same requests as for a chosen place
@@ -352,6 +372,8 @@ async function analyseArea() {
   if (cancelled()) return; // The visitor left meanwhile ("← New place" cleans up)
 
   if (!change) { // The analysis failed:
+    areaSteps.hidden = true; // Hide the steps (the button says what happened)
+    announce("Couldn't analyse this area. The previous result is back."); // Say so to screen-reader users
     setResultBusy(false); // Bring the old result back...
     setAnalysing(null, "Couldn't analyse · Try again"); // ...and let the button say so (pressing it tries again)
     mode = 'result'; // Ready again
@@ -362,8 +384,27 @@ async function analyseArea() {
   resetColourSwitches(); // A new area starts with all four colours on...
   setShownChanges(shownChanges()); // ...and the map follows
   setUrlPlace(place); // The new spot in the address bar, so a reload or a shared link opens it
-  const early = await showFinishedResult(place, change, archiveReady, photoDateReady, cancelled, 0); // Wait for the imagery, then draw the change, add the swipe, fill in the panel (no pause needed here)
+  const imageryText = `Finding ${change.years.from} and ${change.years.to} imagery`; // The real years, e.g. "Finding 2017 and 2023 imagery"
+  setAreaStep('compare', 'done'); // Tick off the comparison
+  areaSteps.querySelector('[data-step="find"]').textContent = imageryText; // Put the years in
+  setAreaStep('find', 'running'); // The imagery lookup is running (it started with the press, or even before: the head start)
+  announce(`Land cover compared. ${imageryText}.`); // Say so to screen-reader users
+  const imagerySteps = { // What getImagery reports, shown as the square's last two steps:
+    found: (archive) => { // The archive answer is here (or the time ran out):
+      if (archive?.before) setAreaStep('find', 'done'); // A 2017 photo was found: tick it off
+      else { // None found in time:
+        areaSteps.querySelector('[data-step="find"]').textContent = 'No earlier imagery found in time'; // Say so (the result shows without the swipe)
+        setAreaStep('find', 'failed'); // With the dash
+      } // End of the found check
+      setAreaStep('imagery', 'running'); // Loading the imagery is running
+      announce('Loading imagery.'); // Say so to screen-reader users
+    }, // End of found
+    loaded: () => setAreaStep('imagery', 'done'), // The imagery is drawn: tick it off
+  }; // End of the imagery steps
+  const early = await showFinishedResult(place, change, archiveReady, photoDateReady, cancelled, 0, imagerySteps); // Wait for the imagery, then draw the change, add the swipe, fill in the panel (no pause needed here)
   if (cancelled()) return; // The visitor left meanwhile
+  areaSteps.hidden = true; // The steps are done
+  announce(`Result ready. ${document.getElementById('result-name').textContent}`); // Read out the new result's sentence
   setAnalysing(null); // The analysis is over: the new square is solid, so the dashed one and the button go
   setResultBusy(false); // The new result, at full strength
   mode = 'result'; // Ready for the next pan
@@ -476,6 +517,8 @@ async function returnToGlobe() {
   mode = 'returning'; // We're busy going back: ignore place clicks until we're done
   placeTicket += 1; // A new ticket: if a place is still loading (or an area being analysed), its chain sees this and stops (that's the cancel)
   setAnalysing(null); // End any "Analysing…" state on the map
+  areaSteps.hidden = true; // ...hide its steps
+  announce(''); // ...clear the screen-reader line
   setResultBusy(false); // ...and undim the result panel, ready for next time
   document.getElementById('callout').classList.remove('visible'); // Fade out the callout (still up while loading or after a failed load; already gone after a result)
   clearUrlPlace(); // Back to the plain address, so a reload now opens the landing page
