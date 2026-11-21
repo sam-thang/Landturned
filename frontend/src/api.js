@@ -38,6 +38,9 @@ export async function fetchWayback(lat, lon) {
 
 // Esri's metadata service: for any point it says which piece of photo World Imagery shows there, and when it was taken.
 const ESRI_IDENTIFY = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/identify';
+// The longest we wait for Esri's photo date, in milliseconds. It usually answers in under a second; when it doesn't,
+// the app goes on without the date rather than waiting.
+const PHOTO_DATE_TIMEOUT_MS = 3000;
 
 // Ask Esri when the map's photo at a point was taken. Returns a Promise with the date as "YYYY-MM-DD", or null if unknown.
 // World Imagery is a patchwork of photos from different dates, so the date differs from place to place.
@@ -54,7 +57,12 @@ export async function fetchPhotoDate(lat, lon) {
     returnGeometry: 'false', // We don't need the photo's outline
     f: 'json', // Answer in JSON
   }); // End of the question
-  const response = await fetch(`${ESRI_IDENTIFY}?${params}`); // Send it straight to Esri (it allows browsers to ask)
+  let response; // Esri's reply (filled in below)
+  try { // Esri's service sometimes hangs for 25 s or more, so give up after PHOTO_DATE_TIMEOUT_MS:
+    response = await fetch(`${ESRI_IDENTIFY}?${params}`, { signal: AbortSignal.timeout(PHOTO_DATE_TIMEOUT_MS) }); // Send it straight to Esri (it allows browsers to ask); the "signal" cancels the request when the time is up
+  } catch { // Timed out, or no connection:
+    return null; // No date (the app carries on without it)
+  } // End of the timeout check
   if (!response.ok) return null; // A problem: no date
   const answer = await response.json(); // Read the reply
   const raw = answer.results?.[0]?.attributes?.['DATE (YYYYMMDD)']; // e.g. "20260523" ("?." stops quietly if a part is missing)

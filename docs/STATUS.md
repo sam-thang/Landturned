@@ -2,6 +2,8 @@
 
 A factual snapshot for performance advice. It's based on reading the code and on timings measured on 2026-11-21 (section 4). "Not checked" means I didn't verify it.
 
+**Speed-up phases done:** Phase 1 (quick fixes) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
+
 ## 1. Stack and structure
 
 **Frontend:** Vite 8 dev server and bundler, plain JavaScript (ES modules), no framework.
@@ -74,7 +76,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
         - **two tilemap walks in parallel** (2017 window and 2023 window; each walk is sequential)
         - about 15 metadata identify calls **in parallel** (32 workers)
         - a **quick answer after about 5 s** (only if each year has a photo within 365 days of 1 July); the full answer finishes in the background and is saved
-3. **The frontend waits for both the Wayback answer and the identify date** (`Promise.all`), then picks the "after" photo (`closerAfter`).
+3. **When the Wayback answer arrives,** the frontend picks the "after" photo (`closerAfter`), using the identify date **only if it has already arrived**. Since Phase 1 nothing waits for identify; it gives up after 3 s. Without a date, the imagery line uses its dateless wording, and the swipe's right tag reads "LATEST" if the current imagery is the "after" photo.
 4. **Browser:**
    - switches the base imagery to the archive "after" version (Esri Wayback tiles)
    - builds the 2017 canvas from about 25 zoom-16 Wayback tiles, all requested in parallel
@@ -86,7 +88,7 @@ All imagery waits race a single **40 s deadline**. If it's hit, the result shows
 
 ### b) "Analyse this area" after panning
 
-1. **Head start:** once the map has been still for **1.5 s** (counted from MapLibre `moveend`, so after inertia) with the offer visible, the browser sends `/api/wayback` for the map centre and throws the answer away. The backend shares a running lookup per tile, so a later request joins it.
+1. **Head start:** once the map has been still for **0.5 s** (1.5 s before Phase 1) (counted from MapLibre `moveend`, so after inertia) with the offer visible, the browser sends `/api/wayback` for the map centre and throws the answer away. The backend shares a running lookup per tile, so a later request joins it.
 2. **On press, in parallel:**
    - Nominatim reverse geocode
    - Esri identify
@@ -157,18 +159,40 @@ Measured 2026-11-21:
 | One year's square read | 2.82 s (first), 1.37 s (second) | 1.44 s / 1.55 s |
 | Reading a saved Wayback answer | 0.2 ms | 0.2 ms |
 
-**Slowest steps, in order:**
+**Slowest steps, in order (baseline):**
 1. **The cold Wayback lookup** (12–15 s): sequential tilemap walks plus slow metadata services.
-2. **The Esri identify call when it stalls.** In the Fontana cold run it hung 25 s and **held the whole imagery step about 10 s past the Wayback answer**.
+2. **The Esri identify call when it stalls.** In the Fontana cold run it hung 25 s and **held the whole imagery step about 10 s past the Wayback answer**. *Fixed in Phase 1.*
 3. **`/api/change`** (2–8 s): a STAC search plus two sequential COG reads.
 4. **Archive tile loading** before the reveal (3–5 s, 55–106 tiles).
 5. **`/api/timeline`** (3–5 s), which only starts after the reveal.
+
+### After Phase 1 (identify timeout, 0.5 s head start)
+
+Same setup and searches. "Cold" = the two saved Wayback answers were deleted first. Single runs.
+
+| Step | Fontana cold | Fontana warm | Stavanger cold | Stavanger warm |
+|---|---|---|---|---|
+| Nominatim search | 0.68 s | 0.72 s | 0.53 s | 0.72 s |
+| Esri identify | 0.78 s | 0.78 s | 0.75 s | 1.02 s |
+| `/api/change` | 7.0 s | 3.3 s | 5.6 s | 1.9 s |
+| `/api/wayback` | 14.0 s | 1.9 s | 10.9 s | 1.9 s |
+| Archive tiles | 55, 3.5 s | 55, 3.6 s | 106, 5.3 s | 106, 5.4 s |
+| **Result shown** | **19.7 s** (baseline 32.1 s) | **9.1 s** (8.8 s) | **18.1 s** (20.7 s) | **10.3 s** |
+| Year slider usable | 23.7 s | 11.2 s | 22.0 s | 11.8 s |
+
+- **Identify didn't stall in these runs,** so most of the Fontana cold difference against the baseline is the missing 25 s stall.
+- **Forced stall test** (identify never answers, Stavanger warm): the app cancels identify after about 3 s, and the result appears at 8.7 s after page load, the normal time.
+  - With the archive "after" photo also removed, the result appears at 4.0 s with the tag "LATEST" and the dateless imagery line.
+- **"Analyse this area"** (Fontana area, new spot, pressed 2.0 s after the mouse was released):
+  - the head start fired 1.5 s after release, which is 0.5 s after the map's glide ended
+  - the new result appeared **15.5 s after the press**; `/api/wayback` took 12.3–13.5 s
+  - Unexplained: the button's own `/api/wayback` request finished 1.7 s after the head-start request it should have joined. Not checked further.
 
 ## 5. Loading and caching
 
 **Preloaded:**
 - **Hotspots:** `warm_wayback.py` pre-fills the Wayback cache for the 11 hotspots. It must be re-run on the server at deploy (not done; no deploy exists yet).
-- **Head start:** `/api/wayback` starts 1.5 s after the "Analyse this area" offer has settled.
+- **Head start:** `/api/wayback` starts 0.5 s after the "Analyse this area" offer has settled.
 - **Map during the globe turn:** MapLibre and the map start loading while the globe turns.
 - **Parallel start:** all first-wave requests start at once when a place is chosen.
 - **Fonts:** Google Fonts preconnect.
@@ -229,19 +253,20 @@ Measured 2026-11-21:
 - 30 s per Esri request (backend)
 - 8 s map idle wait
 - 5 s Wayback quick answer
-- 1.5 s head-start settle time
+- 3 s Esri identify (photo date) timeout, never waited on
+- 0.5 s head-start settle time
 
 ## 7. Known problems and unfinished work
 
 **Performance and robustness:**
-- **The Esri identify call has no timeout.** It runs in `Promise.all` with the Wayback answer, so a stalled identify delays the imagery step. Observed once: a 25 s hang, then a failure, which added about 10 s.
+- ~~**The Esri identify call has no timeout.**~~ Fixed in Phase 1: a 3 s timeout, and nothing waits for it.
 - **`/api/wayback` is called without `from`/`to`,** so every call runs a STAC search, even when the answer is cached (about 1.5–2.4 s).
 - **The same STAC search runs up to 3 times per place.** Results aren't cached.
 - **`/api/change` reads its two years one after the other,** not in parallel. Nothing is cached, so repeat visits recompute.
 - **`/api/timeline` starts only after the reveal** and re-reads all 7 years, including the 2 `/api/change` already read. The slider stays greyed out 3–5 s after the result.
 - **A cold Wayback lookup takes 12–15 s,** mostly sequential tilemap steps and slow Esri metadata services. Only hotspots are pre-warmed.
 - **The reveal waits for all archive tiles** (55–106 requests, 3–5 s), even on warm visits.
-- **The head start only helps** if the user waits at least 1.5 s after the map stops moving (including inertia).
+- **The head start only helps** if the user waits at least 0.5 s after the map stops moving (including its glide); before Phase 1 it was 1.5 s.
 - **Nominatim:** the browser calls it directly with no custom User-Agent and no rate limiting in code. Usage-policy compliance: **not checked**.
 
 **Data quality:**

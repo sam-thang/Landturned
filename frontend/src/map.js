@@ -203,7 +203,7 @@ export function getMapCenter() {
 
 // The head start: once "Analyse this area" is offered and the map has stayed still for a moment, main.js can start the
 // slow archive-imagery lookup for that spot in the background, so less of the wait comes after the press.
-const SETTLE_MS = 1500; // How long the map must stay still first, in milliseconds (a pan that keeps going triggers nothing)
+const SETTLE_MS = 500; // How long the map must stay still first, in milliseconds (a pan that keeps going triggers nothing; half a second is enough to tell a pause from a drag)
 let settleTimer = null; // The waiting timer, so moving again can cancel it
 let onSettled = null; // What main.js wants done then (a function that gets the map's centre), or null
 
