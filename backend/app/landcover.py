@@ -281,6 +281,28 @@ def square_grid(url, lon, lat):
     return crs, rasterio.windows.transform(window, file_transform), window.width  # The projection, the square's own transform, and 200
 
 
+_zone_grids = {}  # Per grid zone: its files' projection and pixel grid, e.g. {"11S": (crs, transform)}, remembered while the server runs
+
+
+def zone_grid(zone, url):
+    """The projection and pixel grid ("transform") of a grid zone's files. Every year's file of a zone uses exactly the same
+    grid (checked for 11S, 32V and 33U, 2017-2024), so one file header (url, any year) is read once per zone and remembered."""
+    if zone not in _zone_grids:  # Not read yet:
+        with rasterio.open(url) as src:  # Open the file over the internet (only its header is read)
+            _zone_grids[zone] = (src.crs, src.transform)  # Remember its projection and grid
+    return _zone_grids[zone]  # Hand them back
+
+
+def square_position(lon, lat, url):
+    """Where the point's 2 x 2 km square sits on the land-cover grid: (grid zone, first column, first row), e.g.
+    ("11S", 37112, 40381). The same snapped window read_square reads, so it identifies exactly which 200 x 200 pixels
+    an analysis uses. "url" is any of the place's files (only needed the first time its zone is seen)."""
+    zone = grid_zone(lat, lon)  # The grid zone, e.g. "11S"
+    crs, file_transform = zone_grid(zone, url)  # Its projection and grid (remembered after the first time)
+    window = square_window(crs, file_transform, lon, lat)  # The square's snapped rows and columns
+    return zone, int(window.col_off), int(window.row_off)  # Where it starts on the grid
+
+
 def read_square(url, lon, lat):
     """Read only the 2 x 2 km square around the point from one map file (its web address, from find_files_by_year).
     Returns (grid of dataset class numbers, the square's four corners as [longitude, latitude])."""

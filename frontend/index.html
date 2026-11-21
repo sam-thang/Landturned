@@ -113,7 +113,7 @@
           <h2 id="result-name" class="reveal" tabindex="-1"></h2> <!-- The reveal sentence (results.js fills it in). tabindex="-1": main.js can move focus here when the result appears (screen readers then read it out), but Tab doesn't stop on it -->
           <div id="timeline" class="timeline" hidden> <!-- The year slider: compare the first year with any later year (main.js shows it when there is change data) -->
             <div class="timeline-head"> <!-- The label on the left, the chosen year on the right -->
-              <span id="timeline-label" class="timeline-label">Loading years…</span> <!-- "Loading years…" until the timeline arrives, then e.g. "Since 2017" (main.js) -->
+              <span id="timeline-label" class="timeline-label"></span> <!-- e.g. "Since 2017" (main.js fills it in with the result; every year comes with the analysis) -->
               <output id="timeline-year" class="timeline-year" for="timeline-range"></output> <!-- The chosen end year, large; <output> is the HTML element for a value a control produces -->
             </div> <!-- End of the head -->
             <input id="timeline-range" class="timeline-range" type="range" step="1" disabled aria-labelledby="timeline-label" /> <!-- The slider: one step per year; main.js sets its years, its value, what screen readers say (aria-valuetext), and --filled (how much of the track is ink) -->

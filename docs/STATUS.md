@@ -2,7 +2,7 @@
 
 A factual snapshot for performance advice. It's based on reading the code and on timings measured on 2026-11-21 (section 4). "Not checked" means I didn't verify it.
 
-**Speed-up phases done:** Phase 1 (quick fixes) and Phase 2 (land cover read from AWS, years to 2024) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
+**Speed-up phases done:** Phase 1 (quick fixes), Phase 2 (land cover read from AWS, years to 2024) and Phase 3 (one analysis request, land-cover disk cache) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
 
 ## 1. Stack and structure
 
@@ -28,7 +28,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `frontend/src/main.js` | Flow control: search, globe pick, My location, the request plan (`startRequests`, `getImagery`, `showFinishedResult`), "Analyse this area", year slider, URL state |
 | `frontend/src/map.js` | MapLibre map: base imagery, change layer, analysis square, label, swipe handle and opening animation, colour switches, "Analyse this area" offer and head start, land cover toggle |
 | `frontend/src/swipe.js` | Builds the 2017 "before" picture from Esri archive tiles on a canvas, cut to the square |
-| `frontend/src/api.js` | Calls to our backend (`/api/change`, `/api/timeline`, `/api/wayback`) and to Esri's identify service |
+| `frontend/src/api.js` | Calls to our backend (`/api/analysis`, `/api/wayback`) and to Esri's identify service |
 | `frontend/src/geocode.js` | Nominatim search and reverse geocoding |
 | `frontend/src/globe.js` | D3 landing globe, hotspots, tap-to-pin |
 | `frontend/src/results.js` | Result sentence, stats rows, small print |
@@ -36,7 +36,8 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `frontend/src/places.js` | The 11 hotspots |
 | `frontend/src/scalebar.js` | Scale bar |
 | `frontend/how/`, `how.js`, `how.css` | "How this works" page, partly built |
-| `backend/app/main.py` | API routes: `/api/health`, `/api/change`, `/api/timeline`, `/api/wayback`, `/api/imagery` |
+| `backend/app/main.py` | API routes: `/api/health`, `/api/analysis` (since Phase 3; replaces `/api/change` and `/api/timeline`), `/api/wayback`, `/api/imagery` |
+| `backend/app/analysis.py` | Since Phase 3: reads all years in parallel, builds the main result plus every slider comparison, and keeps the land-cover disk cache |
 | `backend/app/landcover.py` | Works out the land-cover file from the coordinates (grid zone + year), 200 × 200 px square read, class mapping, comparison, edge cleaning, stats |
 | `backend/app/change_image.py` | Change grid → transparent PNG → base64 data URL |
 | `backend/app/wayback.py` | Esri Wayback lookup: which archive versions and photo dates for "before" and "after", with a disk cache |
@@ -68,7 +69,10 @@ A factual snapshot for performance advice. It's based on reading the code and on
 2. **These all start at the same moment, in parallel:**
    - **Browser:** the globe turns and zooms (1.6 s animation). MapLibre is downloaded if not yet loaded (lazy import), and the map is created hidden. **Esri current tiles** load.
    - **Browser → Esri identify:** the current photo date.
-   - **Browser → `/api/change`.** The backend does, **in sequence**: work out the file names (instant after the first request in a grid zone; the first costs one HEAD request), then read the first year's square, then read the last year's square, then compare, clean, compute stats and encode the PNG. It returns JSON with the PNG as a data URL.
+   - **Browser → `/api/analysis`** (since Phase 3).
+     - **First, the cache key:** the backend works out the file names, then the square's position on the zone's grid. Both are instant once the zone is known in this server run; the first request per zone costs one HEAD request plus one file-header read.
+     - **Saved square:** it reads the JSON file and is done.
+     - **Otherwise:** it reads **all 8 years in parallel**, builds 7 comparisons (2017 → each later year; the last is the main result) with PNGs as data URLs, saves them, and returns them.
    - **Browser → `/api/wayback`** (no years passed). The backend does, in sequence:
      1. Work out the years (no STAC search since Phase 2).
      2. If the tile is cached: read the JSON file. Otherwise:
@@ -82,7 +86,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
    - builds the 2017 canvas from about 25 zoom-16 Wayback tiles, all requested in parallel
    - waits for the map to be `idle`
 5. **Browser:** draws the change layer, turns the map grid-up, adds the swipe at the right edge, fills the panel, crossfades from the globe, then plays the opening sweep (about 5.5 s of animation).
-6. **Browser → `/api/timeline`.** This starts only after the reveal. The backend works out the files, then reads **all 8 years in parallel** (8 COG windows, 2017–2024), compares 2017 with each later year, and returns 7 answers including PNGs. The slider is greyed out until it arrives.
+6. ~~`/api/timeline` after the reveal~~: gone since Phase 3. The slider is filled from the `/api/analysis` answer and works at the reveal.
 
 All imagery waits race a single **40 s deadline**. If it's hit, the result shows on current imagery with no swipe.
 
@@ -93,12 +97,12 @@ All imagery waits race a single **40 s deadline**. If it's hit, the result shows
    - Nominatim reverse geocode
    - Esri identify
    - `/api/wayback`
-   - `/api/change`
+   - `/api/analysis`
 3. The same sequence as (a) steps 3–6, but **no globe and no map creation**. The old result stays dimmed until everything is ready, then switches at once.
 
 ### c) Moving the year slider
 
-- **No network.** All years come from the one `/api/timeline` answer held in memory.
+- **No network.** All years come from the one `/api/analysis` answer held in memory.
 - On each `input` event it swaps the change PNG (`setUrl`) and re-renders the stats. Measured: under 1 ms to handle.
 - The colour on/off filter re-processes the PNG on a canvas (`getImageData`) in the browser.
 - It also sends the swipe handle back to the left edge.
@@ -231,6 +235,38 @@ Before Phase 2, `/api/change` took 1.6–2.5 s even on repeat.
   - Western Sydney: 24 Jul 2025
 - **"Before" photos:** unchanged, e.g. Hasankeyf still 4 Jun 2013, the closest the archive has.
 
+### After Phase 3 (one `/api/analysis` request, land-cover disk cache)
+
+Same setup. "Cold": the saved land-cover and Wayback answers for both places were deleted, and the server had just restarted. Single runs.
+
+| Step | Fontana cold | Fontana warm | Stavanger cold | Stavanger warm |
+|---|---|---|---|---|
+| `/api/analysis` | 3.8 s (Phase 2 `/api/change`: 3.8 s) | **0.08 s** | 3.5 s (3.8 s) | **0.08 s** |
+| `/api/wayback` | 12.4 s | 0.08 s | 9.6 s | 0.08 s |
+| Archive tiles | 55, 3.5 s | 55, 3.3 s | 56, 3.3 s | 81, 4.6 s |
+| **Result shown** | **17.9 s** (Phase 2: 17.8 s) | **8.4 s** (8.5 s) | **15.1 s** (15.5 s) | **9.5 s** (10.3 s) |
+| Year slider usable | **at the reveal** (19.7 s → 18.6 s*) | at the reveal | at the reveal | at the reveal |
+
+* "Year slider ready" was logged 0.4–1.0 s after "result shown" only because the test script checks it after other checks. The slider is enabled in the same step that shows the result; there's no request left to wait for.
+
+**Warm after a server restart** (memory empty, disk cache only):
+- Fontana and Stavanger: `/api/analysis` 0.08 s; result shown at 8.4 s and 10.4 s (Stavanger loaded 106 archive tiles that time).
+- **But** the very first request per grid zone after a restart took 1.3–1.6 s, even with the answer saved. Finding the cache file needs the zone's availability (a HEAD request) and its pixel grid (a file-header read), and both are held in memory only.
+
+**New places, zone already known** (curl, 1st / 2nd call):
+
+| Place | `/api/analysis` |
+|---|---|
+| Riverside | 2.22 s / **0.016 s** |
+| Bergen | 2.36 s / **0.017 s** |
+
+**Answer size:** 6–26 KB per place (7 comparisons with PNGs).
+
+**Effect:** the result itself isn't faster on cold visits; the Wayback lookup still decides that. What changed:
+- the slider is usable at the reveal (it used to be 1–5 s later)
+- one request instead of two
+- every repeat visit to a square, by anyone and after restarts, skips the land-cover reads
+
 ## 5. Loading and caching
 
 **Preloaded:**
@@ -249,7 +285,8 @@ Before Phase 2, `/api/change` took 1.6–2.5 s even on repeat.
 | Wayback version list | Memory | — | 24 h |
 | Sentinel-2 photo (unused endpoint) | Disk `cache/imagery` plus `lru_cache` | Lat/lon rounded to 5 decimals, plus year | Forever |
 | ~~STAC search results~~ | — | — | No STAC search since Phase 2. The grid zone's availability and the newest year are remembered in memory while the server runs |
-| **Land-cover squares, change answers, timeline** | **Not cached** (except GDAL's in-memory block cache, see section 4) | — | Recomputed on every request; `/api/timeline` re-reads the 2 years `/api/change` just read |
+| **Land-cover analysis** (main result + every slider comparison, with PNGs) | Disk: `backend/cache/landcover/*.json` (since Phase 3) | `{zone}_c{column}_r{row}_{first}_{last}`: the square's snapped position on the zone's 10 m grid, plus the years, e.g. `11S_c22735_r67113_2017_2024`. The visitor's exact point isn't saved; it's added per request | Forever. A new data year changes the key |
+| Grid-zone availability and pixel grid | Memory (`_zone_has_data`, `_zone_grids`) | Grid zone | Until the server restarts (about 1.3 s to rebuild per zone) |
 
 **Browser:**
 - `/api/timeline` answers are kept in memory for the current place only.
@@ -307,8 +344,9 @@ Before Phase 2, `/api/change` took 1.6–2.5 s even on repeat.
 - ~~**`/api/wayback` runs a STAC search on every call.**~~ Fixed in Phase 2: no STAC search; a cached answer now takes 0.08 s.
 - **Weda Bay hotspot, decision pending:** with 2024 data its biggest change is built (93.7 ha), not cleared (now 23.1 ha). Its teaser and red type still show the 2017–2023 figure (30 ha cleared).
 - **Old Wayback cache files:** 70 files keyed `…_2017_2023` in `backend/cache/wayback/` are no longer used.
-- **`/api/change` reads its two years one after the other,** not in parallel. Nothing is cached, so repeat visits recompute.
-- **`/api/timeline` starts only after the reveal** and re-reads all 7 years, including the 2 `/api/change` already read. The slider stays greyed out 3–5 s after the result.
+- ~~**`/api/change` reads its two years one after the other; nothing cached.**~~ Fixed in Phase 3: all years in parallel, saved on disk.
+- ~~**`/api/timeline` starts only after the reveal.**~~ Fixed in Phase 3: merged into `/api/analysis`.
+- **After a server restart,** the first request per grid zone costs about 1.3 s before the saved answer can be found (zone availability and grid are in memory only). Could be saved to disk too: not done.
 - **A cold Wayback lookup takes 12–15 s,** mostly sequential tilemap steps and slow Esri metadata services. Only hotspots are pre-warmed.
 - **The reveal waits for all archive tiles** (55–106 requests, 3–5 s), even on warm visits.
 - **The head start only helps** if the user waits at least 0.5 s after the map stops moving (including its glide); before Phase 1 it was 1.5 s.

@@ -503,7 +503,7 @@ export function waitForImagery() {
 
 // Swap the change picture for another comparison of the same place (the year slider), without rebuilding anything:
 // the image source just gets a new picture at the same corners, so there's no flicker and the map doesn't move.
-// "change" is one /api/timeline (or /api/change) answer for the place already shown by showChange.
+// "change" is one comparison from the /api/analysis answer, for the place already shown by showChange.
 export function swapChange(change) {
   shownPicture = { url: change.image.url, corners: change.image.corners }; // Remember the backend's picture (unfiltered)
   drawChange(); // Put it on the map, without the switched-off colours

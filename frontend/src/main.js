@@ -5,7 +5,7 @@ import { startGlobe, TURN_MS } from './globe.js';
 // Bring in the functions for the loading steps and progress bar, from loading.js
 import { resetSteps, startStep, finishStep, failStep } from './loading.js';
 // Bring in the function that asks our backend for the land-cover change, from api.js
-import { fetchChange, fetchPhotoDate, fetchTimeline, fetchWayback } from './api.js';
+import { fetchAnalysis, fetchPhotoDate, fetchWayback } from './api.js';
 // Bring in the function that fills in the result panel, from results.js
 import { showResults, showImageryDate, setUpColourSwitches, shownChanges, resetColourSwitches } from './results.js';
 // Bring in the list of hotspot places, from places.js
@@ -172,10 +172,14 @@ function startRequests(place) {
     .catch(() => null) // ...or null if it fails...
     .then((archive) => closerAfter(archive, currentDate)); // ...then keep whichever "after" photo is closer to the last land-cover year
 
-  const changeReady = fetchChange(place.lat, place.lon).catch((error) => { // The land-cover change; if the request fails...
-    console.error(error); // ...print the details in the developer console (F12)
-    return null; // ...and carry on with "no change data"
-  }); // End of changeReady
+  // The land-cover analysis: one answer with the main result and every year slider stop. The main result ("change") is the
+  // last comparison; it also carries the whole list ("steps"), so the slider can be filled straight away.
+  const changeReady = fetchAnalysis(place.lat, place.lon) // Ask the backend...
+    .then((analysis) => ({ ...analysis.changes.at(-1), steps: analysis.changes })) // ...take the main result, with every comparison attached ("at(-1)" = the last)
+    .catch((error) => { // ...and if the request fails:
+      console.error(error); // print the details in the developer console (F12)
+      return null; // and carry on with "no change data"
+    }); // End of changeReady
 
   return { changeReady, archiveReady, photoDate }; // The answers still to come (Promises), and the photo date ({ ready, now })
 } // End of startRequests
@@ -223,7 +227,7 @@ async function showFinishedResult(place, change, archiveReady, photoDate, cancel
   if (cancelled()) return null; // Went back during that pause
   if (swipe) showSwipe(swipe.before, change.image.corners, swipe.tags, 1); // The swipe, with the handle at the right edge (all 2017), ready for the opening
   showResults(place, change, formatCoords(place.lon, place.lat)); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
-  setUpTimeline(place, change, formatCoords(place.lon, place.lat), placeTicket); // The year slider: its years at once, greyed out until the timeline has loaded in the background
+  setUpTimeline(place, change, formatCoords(place.lon, place.lat)); // The year slider, ready at once (every year came with the analysis)
   return swipe; // The swipe, so the caller can play the opening (or null: no swipe for this place)
 } // End of showFinishedResult
 
@@ -443,7 +447,7 @@ onOfferSettled((center) => { // When the offer has settled (map.js), with the ma
 // ---------- Year slider: compare the first year with any later year ----------
 
 const timeline = document.getElementById('timeline'); // The whole slider block
-const timelineLabel = document.getElementById('timeline-label'); // "Loading years…", then "Since 2017"
+const timelineLabel = document.getElementById('timeline-label'); // e.g. "Since 2017"
 const timelineYear = document.getElementById('timeline-year'); // The chosen end year, large
 const timelineRange = document.getElementById('timeline-range'); // The slider itself
 const timelineTicks = document.getElementById('timeline-ticks'); // The tick marks and year labels under it
@@ -474,7 +478,7 @@ function setSliderYear(year) {
 
 // Prepare the slider for a new result. "change" is the first answer (first -> latest year), or null (then no slider).
 // The ticks are built at once from the years the answer lists; the slider stays greyed out until the timeline has loaded.
-function setUpTimeline(place, change, coordsText, ticket) {
+function setUpTimeline(place, change, coordsText) {
   shown = null; // Forget the previous place's timeline
   timeline.hidden = !change; // No change data: no slider
   if (!change) return; // Nothing more to do
@@ -490,20 +494,13 @@ function setUpTimeline(place, change, coordsText, ticket) {
     return tick; // Hand it to replaceChildren
   })); // End of the ticks
   setSliderYear(change.years.to); // The handle starts at the year shown (the latest)
-  timelineRange.disabled = true; // Greyed out...
-  timelineLabel.textContent = 'Loading years…'; // ...and say why
 
-  fetchTimeline(place.lat, place.lon).then((answer) => { // In the background (about 5 seconds):
-    if (ticket !== placeTicket) return; // The visitor went back or chose another place meanwhile: ignore this late answer
-    const changes = {}; // year -> that comparison's answer, e.g. changes[2020] = 2017 -> 2020
-    for (const step of answer.changes) changes[step.years.to] = step; // Fill it in
-    shown = { place, coordsText, changes }; // Everything needed to show any year
-    timelineLabel.textContent = `Since ${from}`; // e.g. "Since 2017"
-    timelineRange.disabled = false; // Ready to use
-  }).catch((error) => { // The timeline couldn't load:
-    console.error(error); // Details for the developer console (F12)
-    if (ticket === placeTicket) timeline.hidden = true; // Hide the slider; the result itself is unaffected
-  }); // End of the timeline request
+  // Every comparison came with the analysis ("steps"), so the slider is ready at once: no second request, no waiting
+  const changes = {}; // year -> that comparison's answer, e.g. changes[2020] = 2017 -> 2020
+  for (const step of change.steps) changes[step.years.to] = step; // Fill it in
+  shown = { place, coordsText, changes }; // Everything needed to show any year
+  timelineLabel.textContent = `Since ${from}`; // e.g. "Since 2017"
+  timelineRange.disabled = false; // Ready to use
 } // End of setUpTimeline
 
 // Show one end year: the map's colours, the sentence, the stats and the notes all switch to "first -> year" at once

@@ -1,28 +1,18 @@
 // Talking to our own backend (the FastAPI server in backend/).
 // Addresses start with /api, which the Vite proxy forwards to the backend (see vite.config.js).
 
-// Ask the backend how the land changed in the 2 × 2 km square around a point.
-// Returns a Promise with the backend's answer: years, stats in hectares, and the change picture with its corners.
-// "export" lets main.js use it.
-export async function fetchChange(lat, lon) {
+// Ask the backend how the land changed in the 2 × 2 km square around a point: the whole analysis in one answer.
+// Returns a Promise with { years: { from, to, available }, changes, location }: "changes" holds one comparison per later
+// year (first year -> that year), oldest first, each with its years, stats in hectares, and change picture with corners.
+// The last one is the main result; the others are the year slider's stops. "export" lets main.js use it.
+export async function fetchAnalysis(lat, lon) {
   const params = new URLSearchParams({ lat, lon }); // Build the "?lat=...&lon=..." part safely
-  const response = await fetch(`/api/change?${params}`); // Send the request and wait for the reply
+  const response = await fetch(`/api/analysis?${params}`); // Send the request and wait for the reply (instant for squares analysed before)
   if (!response.ok) { // Not a success (e.g. 404 "no data here", or 502 because the backend isn't running)?
-    throw new Error(`Change request failed: ${response.status}`); // Stop with an error, including the status number for the console
+    throw new Error(`Analysis request failed: ${response.status}`); // Stop with an error, including the status number for the console
   } // End of the error check
   return response.json(); // Read the reply as JSON and hand it back
-} // End of fetchChange
-
-// Ask the backend for every comparison from the first year to each later year (for the year slider).
-// Returns a Promise with { years: { from, available }, changes: [one /api/change-style answer per later year] }.
-export async function fetchTimeline(lat, lon) {
-  const params = new URLSearchParams({ lat, lon }); // Build the "?lat=...&lon=..." part safely
-  const response = await fetch(`/api/timeline?${params}`); // Send the request and wait for the reply (about 5 seconds)
-  if (!response.ok) { // Not a success?
-    throw new Error(`Timeline request failed: ${response.status}`); // Stop with an error, including the status number for the console
-  } // End of the error check
-  return response.json(); // Read the reply as JSON and hand it back
-} // End of fetchTimeline
+} // End of fetchAnalysis
 
 // Ask the backend for sharp "before" and "after" imagery from Esri's archive (Wayback): the archive photos taken closest to
 // the first and the last land-cover year. Returns a Promise with { years, before, after }; each photo is

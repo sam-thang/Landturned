@@ -4,7 +4,7 @@
 // every winner's change picture by eye. The coordinates below are those best squares' centers, and the
 // hectares in the teasers are the analysis results (2017 -> 2024, re-measured 2026-11-21 when 2024 became available; Weda Bay still shows its 2017 -> 2023 figure, see its note), so clicking a place shows the same numbers.
 // They were updated on 2026-11-19 when the analysis started removing edge noise (changes narrower than 30 m);
-// if the analysis changes again, re-check every place's numbers against /api/change and update them here.
+// if the analysis changes again, re-check every place's numbers against /api/analysis (its last comparison) and update them here.
 // Each place is an object with:
 //   id     - a short unique name for use in code
 //   name   - the name shown to people; the buttons show only the part before the first comma
