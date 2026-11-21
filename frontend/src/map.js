@@ -100,8 +100,11 @@ export async function showPlace(container, lon, lat) {
 } // End of showPlace
 
 // Show "Search another address to explore further." while the visible map touches the edge of the place's box (maxBounds),
-// so people know why the map stops moving. Runs on every map move.
-function updateEdgeNote() {
+// so people know why the map stops moving. Runs on every map move, but only moves people make themselves (dragging, zoom
+// buttons, keys, pinching) change it: those carry the browser event that caused them ("originalEvent"). When the app frames a
+// new result, the view may just reach the box's side on a wide screen, and the message would pop up unasked over the square.
+function updateEdgeNote(event) {
+  if (!event?.originalEvent) return; // Moved by the app, not by a person: leave the message as it is (a new result hides it, see showChange)
   const box = map.getMaxBounds(); // The box (MapLibre's LngLatBounds), or null if none is set yet
   const note = document.getElementById('map-edge-note'); // The message
   if (!box) { note.hidden = true; return; } // No box: nothing to say
@@ -153,10 +156,10 @@ async function createMap(container, bounds) {
   map.on('resize', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // ...and when the map changes size (e.g. a phone turned sideways), since the maximum bar length depends on the width
   updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
   map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
-  map.on('move', updateAnalyseOffer); // Whenever the map moves or zooms, check whether to offer "Analyse this area" (and where)
+  map.on('move', updateEdgeNote); // Whenever the map moves, check whether it has reached the edge of the place's 10 km box (first, so the "Analyse this area" button below knows whether that message is showing)
+  map.on('move', updateAnalyseOffer); // ...whether to offer "Analyse this area" (and where)
   setUpProposedGrip(); // The dashed square's grip: drag it (or use the arrow keys) to choose the spot to analyse
   map.on('move', placeColoursButton); // ...and whether the "Hide land cover" button still fits beside the label
-  map.on('move', updateEdgeNote); // ...and whether the map has reached the edge of the place's 10 km box
   map.on('movestart', () => clearTimeout(settleTimer)); // Moving again: cancel a waiting head start (clearTimeout stops a setTimeout before it runs)
   map.on('moveend', waitForSettledOffer); // Stopped moving: start counting towards the head start
 } // End of createMap
@@ -237,9 +240,63 @@ const ZOOMED_OUT_SHARE = 0.4; // The result's square counts as "zoomed out" when
 
 // The spot "Analyse this area" analyses, as { lon, lat }: the dashed square's centre (or the map's centre if there's none)
 export function getAnalyseSpot() {
-  const [lon, lat] = proposedSpot ?? map.getCenter().toArray(); // toArray() gives [lng, lat]
+  const [lon, lat] = proposedSpot ?? keepInSafeBox(map.getCenter().toArray()); // toArray() gives [lng, lat]
   return { lon, lat }; // Our names
 } // End of getAnalyseSpot
+
+// Extra room kept between a new result's view and the 10 km box's edge, in metres: more than the 100 m that counts as
+// "touching" the edge (updateEdgeNote), plus a little for the slight grid-up turn of the map
+const EDGE_SLACK_M = 200;
+
+// The part of the 10 km box where an analysed square's centre may go, so that the new result's view (the square plus the
+// room around it, as showChange frames it) fits inside the box. Otherwise the box stops the map short: the square ends up
+// against the screen's edge, and its label (top) or "Hide land cover" button (bottom) is cut off. The room around the square
+// depends on the screen's shape: a tall phone shows more ground above and below the square than beside it.
+// Hands back { west, east, south, north } in degrees, or null when there's no box.
+function safeBox() {
+  const bounds = map.getMaxBounds(); // The 10 km box, or null
+  if (!bounds) return null; // No box: no limit
+  const el = map.getContainer(); // The map's box on the page
+  const side = Math.min(el.clientWidth, el.clientHeight) - 2 * FIT_PADDING; // The square's size on screen once a result is framed (the map's shorter side, less the padding)
+  const metresPerPixel = (2 * RADIUS_METERS) / side; // How many metres one pixel covers then
+  const northSouth = RADIUS_METERS + ((el.clientHeight - side) / 2) * metresPerPixel + EDGE_SLACK_M; // From the centre to the view's top/bottom edge, plus slack, in metres
+  const eastWest = northSouth; // The same distance on the left and right, so the safe box is the 10 km box shrunk evenly on all four sides. (The labels sit above and below the square, so top and bottom are what matter; at the sides, a wide desktop map may stop a little short, which only moves the square sideways on screen)
+  const middle = bounds.getCenter().lat * (Math.PI / 180); // The box's middle latitude, in radians (Math.cos needs radians)
+  const lonStep = eastWest / (METERS_PER_DEGREE * Math.cos(middle)); // The east-west distance in degrees of longitude
+  const latStep = northSouth / METERS_PER_DEGREE; // The north-south distance in degrees of latitude
+  return { west: bounds.getWest() + lonStep, east: bounds.getEast() - lonStep, south: bounds.getSouth() + latStep, north: bounds.getNorth() - latStep }; // The box, shrunk on every side
+} // End of safeBox
+
+// Move a [lon, lat] point to the nearest spot inside safeBox (a point already inside stays where it is)
+function keepInSafeBox([lon, lat]) {
+  const safe = safeBox(); // The allowed area
+  if (!safe) return [lon, lat]; // No box: anything goes
+  return [Math.min(Math.max(lon, safe.west), safe.east), Math.min(Math.max(lat, safe.south), safe.north)]; // Clamp each number between its two limits
+} // End of keepInSafeBox
+
+// Is a [lon, lat] point inside safeBox?
+function insideSafeBox(lngLat) {
+  const [lon, lat] = keepInSafeBox(lngLat); // Where clamping would put it
+  return lon === lngLat[0] && lat === lngLat[1]; // Unmoved = it was inside
+} // End of insideSafeBox
+
+// The lowest a dashed square may reach on screen, in map pixels: 6 px above the scale bar's backing, so it never touches it
+function bottomLimit() {
+  const marks = document.querySelector('.map-marks'); // The north arrow and scale bar group
+  const mapTop = map.getContainer().getBoundingClientRect().top; // Where the map starts on the page
+  return marks.getBoundingClientRect().top - mapTop - 6; // The group's top edge in map pixels, less a 6 px gap
+} // End of bottomLimit
+
+// The highest a dragged dashed square's top may go, in map pixels. Normally the map's top edge. But while "Search another
+// address to explore further." shows (top middle), the square stops lower, so its "Analyse this area" button fits between
+// that message and the square, instead of being hidden under the message.
+function topLimit() {
+  const note = document.getElementById('map-edge-note'); // The message
+  if (note.hidden) return 0; // Not showing: the map's top edge
+  const mapTop = map.getContainer().getBoundingClientRect().top; // Where the map starts on the page
+  const button = document.getElementById('analyse-area'); // The button that sits above the dashed square
+  return note.getBoundingClientRect().bottom - mapTop + 6 + button.offsetHeight + 5; // Below the message: a 6 px gap, the button, and the button's 5 px gap to the square
+} // End of topLimit
 
 // Is a [lon, lat] point on screen, at least "margin" pixels inside the map's edges?
 function onScreen(lngLat, margin = 0) {
@@ -247,12 +304,6 @@ function onScreen(lngLat, margin = 0) {
   const box = map.getContainer(); // The map's box
   return p.x >= margin && p.y >= margin && p.x <= box.clientWidth - margin && p.y <= box.clientHeight - margin; // Inside all four edges?
 } // End of onScreen
-
-// Is a [lon, lat] point inside the 10 km box around the searched address (or is there no box)?
-function insideExploreBox(lngLat) {
-  const bounds = map.getMaxBounds(); // The box (MapLibre's LngLatBounds), or null
-  return !bounds || bounds.contains(lngLat); // Inside it?
-} // End of insideExploreBox
 
 // Is a [lon, lat] point inside the result's analysis square?
 function insideAnalysed(lngLat) {
@@ -275,16 +326,29 @@ function spotBesideResult() {
   const middleY = (box.top + box.bottom) / 2; // ...and down
   const candidates = [ // Screen points for the dashed square's centre, in order of preference:
     [Math.max(box.right, labelRight) + gap + side / 2, middleY], // right of the square and its label
-    [middleX, box.bottom + 36 + side / 2], // below, past the "Hide land cover" button (about 27 px tall with its gap)
+    [middleX, box.bottom + 66 + side / 2], // below, past the "Hide land cover" button (5 px gap + 19 px) and the dashed square's own "Analyse this area" button above it (6 px gap + 30 px + 5 px)
     [box.left - gap - side / 2, middleY], // left
     [middleX, box.top - 40 - side / 2], // above, past the result's label (about 25 px tall with its gap)
   ]; // End of the candidates
   for (const [x, y] of candidates) { // Try each in turn
     const spot = map.unproject([x, y]).toArray(); // That screen point on the ground, as [lon, lat]
-    if (onScreen(spot, side / 2) && insideExploreBox(spot)) return spot; // Fully on screen and inside the box: use it
+    const clearOfMarks = y + side / 2 <= bottomLimit(); // Its bottom stays above the scale bar?
+    if (onScreen(spot, side / 2) && clearOfMarks && insideSafeBox(spot)) return spot; // Fully on screen, clear of the scale bar, and far enough inside the box: use it
   } // End of the candidates loop
   return null; // No room
 } // End of spotBesideResult
+
+// Would a dashed square centred on this [lon, lat] (with its "Analyse this area" button above it) run into the result's
+// square or its labels (the "ANALYSIS AREA" label above, the "Hide land cover" button below)?
+function crowdsResult(lngLat) {
+  const box = screenBox(analysedCorners); // The result's square on screen
+  const half = squareSidePixels() / 2; // Half the dashed square's side
+  const p = map.project(lngLat); // The dashed square's centre on screen
+  const ROOM = 30; // Space taken by a label or button above or below a square, in pixels
+  const across = p.x - half < box.right && p.x + half > box.left; // Do they share any width? (the labels sit within the square's width or close to it)
+  const down = p.y - half - ROOM - 5 < box.bottom + ROOM && p.y + half > box.top - ROOM; // Do they share any height, counting the labels?
+  return across && down; // Both: they crowd each other
+} // End of crowdsResult
 
 // The 2 x 2 km square's side on screen, in pixels, at the current zoom
 function squareSidePixels() {
@@ -303,10 +367,15 @@ function placeProposedSpot() {
   if (proposedSpot && zoomed && !proposedBeside) proposedPinned = true; // Zooming keeps a square on its ground spot (it doesn't jump back to the middle)
   if (proposedBeside) { proposedSpot = null; proposedPinned = false; proposedBeside = false; } // Placed beside the result automatically: work it out afresh below (labels keep their pixel size while the map zooms)
   if (proposedSpot && proposedPinned && !onScreen(proposedSpot)) { proposedSpot = null; proposedPinned = false; proposedBeside = false; } // Pinned but panned off-screen: start over at the centre
-  const centre = map.getCenter().toArray(); // The map's centre as [lon, lat]
-  if (!proposedPinned) proposedSpot = insideAnalysed(centre) ? null : centre; // Not pinned: follow the centre (offered once it leaves the result's square)
+  const rawCentre = map.getCenter().toArray(); // The map's centre as [lon, lat]
+  const centre = keepInSafeBox(rawCentre); // ...near the box's edge, held back where a result would still fit
+  const held = centre[0] !== rawCentre[0] || centre[1] !== rawCentre[1]; // Was it held back?
   const box = screenBox(analysedCorners); // The result's square on screen
-  if (!proposedSpot && box.right - box.left < ZOOMED_OUT_SHARE * map.getContainer().clientWidth) { // Nothing offered, but zoomed out:
+  const zoomedOut = box.right - box.left < ZOOMED_OUT_SHARE * map.getContainer().clientWidth; // Is the result's square small on screen?
+  // Not pinned: follow the centre (offered once it leaves the result's square). But zoomed out (or held back at the box's
+  // edge), a square at the centre that runs into the result's labels is skipped: the placement below finds a clear spot.
+  if (!proposedPinned) proposedSpot = insideAnalysed(centre) || ((held || zoomedOut) && crowdsResult(centre)) ? null : centre;
+  if (!proposedSpot && zoomedOut) { // Nothing offered, but zoomed out:
     proposedSpot = spotBesideResult(); // offer a square right next to the result (re-placed on every move until someone grabs it)...
     proposedPinned = proposedSpot !== null; // ...staying put meanwhile...
     proposedBeside = proposedSpot !== null; // ...and marked as placed automatically
@@ -318,9 +387,8 @@ function moveProposedTo(x, y) {
   const box = map.getContainer(); // The map's box
   const half = Math.min(squareSidePixels() / 2, box.clientWidth / 2, box.clientHeight / 2); // Keep the whole square visible (when it fits)
   const cx = Math.min(Math.max(x, half), box.clientWidth - half); // Clamp across...
-  const cy = Math.min(Math.max(y, half), box.clientHeight - half); // ...and down
-  const lngLat = map.unproject([cx, cy]).toArray(); // That screen point on the ground, as [lon, lat]
-  if (!insideExploreBox(lngLat)) return; // Outside the 10 km box: don't move there
+  const cy = Math.min(Math.max(y, topLimit() + half), Math.max(half, bottomLimit() - half)); // ...and down (its top leaves room for its button, its bottom stays above the scale bar)
+  const lngLat = keepInSafeBox(map.unproject([cx, cy]).toArray()); // That screen point on the ground, as [lon, lat], kept far enough inside the 10 km box for a result to fit
   proposedSpot = lngLat; // The new spot...
   proposedPinned = true; // ...stays put on the ground from now on...
   proposedBeside = false; // ...because the person chose it (it's no longer re-placed automatically)
@@ -420,8 +488,18 @@ function updateAnalyseOffer() {
   const EDGE_GAP = 8; // The closest the button gets to the map's edge, in pixels
   const squareLeft = spot.x - side / 2; // The dashed square's left edge on screen
   const squareTop = spot.y - side / 2; // ...and its top edge
-  button.style.left = `${Math.max(EDGE_GAP, squareLeft)}px`; // Level with the square's left edge, but never off-screen
-  button.style.top = `${Math.max(EDGE_GAP, squareTop - button.offsetHeight - 5)}px`; // Its bottom 5 px above the square's top edge, but never off-screen
+  const rightmost = map.getContainer().clientWidth - button.offsetWidth - EDGE_GAP; // The furthest right the button can start and still fit on the map
+  button.style.left = `${Math.max(EDGE_GAP, Math.min(squareLeft, rightmost))}px`; // Level with the square's left edge, but never off the map's left or right side
+  let top = Math.max(EDGE_GAP, squareTop - button.offsetHeight - 5); // Its bottom 5 px above the square's top edge, but never off-screen
+  const note = document.getElementById('map-edge-note'); // "Search another address to explore further." (top middle, shown at the box's edge)
+  if (!note.hidden) { // That message is showing: keep the button out from under it
+    const mapRect = map.getContainer().getBoundingClientRect(); // Where the map is on the page
+    const noteRect = note.getBoundingClientRect(); // Where the message is on the page
+    const buttonLeft = parseFloat(button.style.left); // The button's left edge in map pixels (as set above)
+    const across = buttonLeft < noteRect.right - mapRect.left && buttonLeft + button.offsetWidth > noteRect.left - mapRect.left; // Do they overlap side to side?
+    if (across) top = Math.max(top, noteRect.bottom - mapRect.top + 6); // Yes: put the button 6 px below the message
+  } // End of the message check
+  button.style.top = `${top}px`; // Place it
 } // End of updateAnalyseOffer
 
 // Put the handle where it belongs: "fraction" of the way across the square, as tall as the square.
@@ -805,6 +883,7 @@ function gridBearing(corners) {
 // Returns a Promise that finishes when the turned map has loaded all its imagery.
 export async function showChange(change) {
   clearChange(); // Remove the previous place's drawing first
+  document.getElementById('map-edge-note').hidden = true; // A new result starts without "Search another address…" (it shows again once people pan to the box's edge)
   if (!change) return; // No change data: leave the map north-up, without a change layer
 
   const corners = change.image.corners; // The square's four corners as [lon, lat]: top-left, top-right, bottom-right, bottom-left

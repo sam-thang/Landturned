@@ -406,7 +406,13 @@ Esri's archive services vary a lot from run to run, so single-run differences of
   - **Dragging:** an off-white grip with a four-way arrow (44 px touch area; arrow keys move it 400 m). It can't leave the screen or the 10 km box. Dropped on the result, the offer goes (zoomed out, it comes back beside the result). Panned off-screen, it returns to the centre.
   - **"Analyse this area"** analyses the dashed square's spot (`getAnalyseSpot`). The head start begins on release.
   - **Tested:** desktop, zoomed fully out, dragged to the top-left of the view and analysed → 34.0195° N, 117.6462° W (about 5 km north-west of Ontario Ranch). Arrow keys moved it 50 px. No overlaps with the result's label on desktop or phone. No page errors.
-  - **Known, phone at zoom 12:** the dashed square appears below the result. Its "Analyse this area" button can overlap the result's "Hide land cover" button when that shows, and its corner touches the scale bar box. Not fixed.
+  - **Phone at zoom 12 (fixed):** the "below" spot now leaves room for both "Hide land cover" and the dashed square's own button (66 px gap), and no dashed square may reach lower than 6 px above the scale bar. On a 390 × 844 phone the dashed square now appears above the result.
+  - **Analysing near the box's edge (fixed):** a dashed square's centre is held inside a "safe box": the 10 km box shrunk by 1 km plus the room around a framed result (worked out from the map's height) plus 200 m, the same distance on all four sides (user's choice). So a new result near the edge is framed fully, and its label (top) and "Hide land cover" (bottom) are no longer cut off. Tested at the north and south edges on phone and desktop. The edge message no longer shows right after such a result.
+  - **Edge message only on people's own moves:** with equal margins, a wide desktop view can just reach the box's side after a new result. The message now changes only on moves people make (MapLibre's `originalEvent`), and a new result hides it.
+  - **"Analyse this area" at the right edge (fixed):** the button no longer runs off the map when the dashed square is dragged to the far right.
+  - **Planned:** a diagram on the "How this works" page of the 20 × 20 km box and the safe box.
+  - **Edge message vs "Analyse this area" (fixed):** while "Search another address to explore further." shows, a dragged dashed square stops below it, with room for its button, and the button is pushed below the message if they would overlap.
+  - **Zoomed out, the centre square under the result (fixed):** when zoomed out (or held back at the edge), a centre-following square that would run into the result's labels is replaced by the beside-the-result placement.
 - **The "drag left for land cover" hint** hides while it's wider than the result's square (zoomed far out).
 
 ## 5. Loading and caching
