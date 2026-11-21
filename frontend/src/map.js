@@ -37,6 +37,8 @@ let map = null; // The MapLibre map, once it has been created (null until then)
 let maplibre = null; // The MapLibre library itself, once downloaded (we need it again for the label marker)
 let areaLabel = null; // The "ANALYSIS AREA" label on the map, once shown (null until then)
 let findingTag = null; // The "FINDING 2017 IMAGERY…" tag while the swipe's earlier photo is on its way (null otherwise)
+let swipeHint = null; // The "◀ DRAG LEFT FOR LAND COVER" hint while the handle rests away from the left edge (null otherwise)
+let hintLearned = false; // Becomes true once someone has brought the handle to the left edge themselves: the hint isn't needed any more (for this result; a new place or analysed area starts over)
 let coloursMarker = null; // The "HIDE / SHOW LAND COVER" button pinned to the square's top-right corner, once shown (null until then)
 let coloursOn = true; // Whether that button is ON (people can turn the colours off to see the plain imagery)
 let coloursCorners = null; // The corners of the square the button belongs to, as [lon, lat]: top-left, top-right, bottom-right, bottom-left
@@ -165,6 +167,7 @@ let swipe = null; // The swipe while it's on the map: { before, canvas, handle, 
 
 // Remove the swipe: its layer, its source, its handle, and the listener that keeps the handle in place
 function clearSwipe() {
+  hideSwipeHint(); // Its hint goes with it
   if (map.getLayer('before-layer')) map.removeLayer('before-layer'); // The 2017 layer (layers go first...)
   if (map.getSource('before')) map.removeSource('before'); // ...then its source)
   if (swipe) { // A swipe was shown:
@@ -343,6 +346,34 @@ function setColoursOn(on) {
 } // End of setColoursOn
 
 // Move the handle to a new fraction (0 = left edge, all 2023; 1 = right edge, all 2017) and redraw the 2017 part
+// The hint that the colours come back at the left edge. After the opening the handle rests in the middle with the colours
+// hidden, and people wouldn't know how to get them back. Shown just inside the square's bottom-left corner while the handle
+// rests away from the left edge, until someone brings it there themselves once.
+function showSwipeHint() {
+  if (!swipe || swipe.fraction === 0 || hintLearned || swipeHint) return; // No swipe, colours already shown, already learned, or already showing
+  const hint = document.createElement('div'); // A new element
+  hint.className = 'area-label swipe-hint'; // The map labels' look, drawn above the swipe's line (style.css)
+  hint.textContent = '◀ DRAG LEFT FOR LAND COVER'; // What to do (short enough for a phone)
+  swipeHint = new maplibre.Marker({ element: hint, anchor: 'bottom-left', offset: [8, -8] }) // Pin its bottom-left corner, 8 px inside the square
+    .setLngLat(swipe.corners[3]) // ...to the square's bottom-left corner (corners go top-left, top-right, bottom-right, bottom-left)
+    .addTo(map); // ...and put it on the map
+} // End of showSwipeHint
+
+// Remove the hint, if it's showing
+function hideSwipeHint() {
+  if (swipeHint) swipeHint.remove(); // Take it off the map
+  swipeHint = null; // And forget it
+} // End of hideSwipeHint
+
+// Someone moved the handle themselves (dragging or with the keyboard) and let go: at the left edge they've found the
+// colours, so the hint is learned; anywhere else, remind them
+function afterHandMove() {
+  if (swipe.fraction === 0) { // At the left edge:
+    hintLearned = true; // They know now
+    hideSwipeHint(); // No hint needed
+  } else showSwipeHint(); // Away from the edge: show the hint (unless it's learned)
+} // End of afterHandMove
+
 function setSwipe(fraction) {
   swipe.fraction = Math.min(1, Math.max(0, fraction)); // Keep it between 0 and 1 (min and max cap it at both ends)
   setColoursShown(swipe.fraction === 0); // Colours only in the result view (handle at the left edge)
@@ -357,6 +388,7 @@ function setSwipe(fraction) {
   source.pause(); // ...and straight off again: pausing sends the latest drawing once, so nothing keeps running in between
   placeHandle(); // Move the handle line
   updateColoursButton(); // Show the "HIDE / SHOW LAND COVER" button only with the handle at the left edge
+  if (swipe.fraction === 0) hideSwipeHint(); // Colours showing: the hint isn't needed
 } // End of setSwipe
 
 // ---------- The swipe's motion: the opening sequence and the glide ----------
@@ -398,18 +430,18 @@ function moveHandle(target, ms, myMotion) {
 export async function playOpening() {
   if (!swipe) return; // No swipe: nothing to play
   const myMotion = motion; // The motion number this sequence belongs to
-  if (REDUCE_MOTION) return setSwipe(0.5); // Less motion wanted: go straight to the end position, without moving
+  if (REDUCE_MOTION) { setSwipe(0.5); showSwipeHint(); return; } // Less motion wanted: go straight to the end position, without moving, and show the hint
   if (!(await waitUnlessStopped(400, myMotion))) return; // A short moment on 2017 first (stop if interrupted)
   if (!(await moveHandle(0, SWEEP_MS, myMotion))) return; // Sweep right to left: 2023 replaces 2017 (the colours fade in at the edge)
   if (!(await waitUnlessStopped(COLOUR_HOLD_MS, myMotion))) return; // Let the colours stay
-  await moveHandle(0.5, GLIDE_MS, myMotion); // Glide to the middle (the colours fade out as it leaves the edge)
+  if (await moveHandle(0.5, GLIDE_MS, myMotion)) showSwipeHint(); // Glide to the middle (the colours fade out as it leaves the edge), then show the hint
 } // End of playOpening
 
 // Just the glide to the middle: for a swipe that arrives late, while people are already looking at the result
 export function glideToMiddle() {
   if (!swipe) return; // No swipe: nothing to do
-  if (REDUCE_MOTION) return setSwipe(0.5); // Less motion wanted: jump there
-  moveHandle(0.5, GLIDE_MS, motion); // Glide
+  if (REDUCE_MOTION) { setSwipe(0.5); showSwipeHint(); return; } // Less motion wanted: jump there, and show the hint
+  moveHandle(0.5, GLIDE_MS, motion).then((arrived) => { if (arrived) showSwipeHint(); }); // Glide, then show the hint (not if the glide was interrupted)
 } // End of glideToMiddle
 
 // Back to the result view (the year slider uses this, so its changing colours can be seen): colours on, stop any motion,
@@ -450,6 +482,7 @@ export function hideFindingTag() {
 export function showSwipe(before, corners, tags, start = 0) {
   clearSwipe(); // Remove any earlier one first
   hideFindingTag(); // The earlier photo is here: no more "Finding … imagery" tag
+  hintLearned = false; // A new result (a new place, or "Analyse this area"): show the "drag left" hint again after its opening
   const canvas = document.createElement('canvas'); // The drawing the map shows: the visible part of 2017
   canvas.width = before.canvas.width; // The same size as the full 2017 picture...
   canvas.height = before.canvas.height; // ...so the same four corners fit it
@@ -481,6 +514,7 @@ export function showSwipe(before, corners, tags, start = 0) {
   const release = () => { // Let go:
     handle.classList.remove('is-dragging'); // Back to the normal look
     if (swipe.fraction > 0 && swipe.fraction < SNAP) setSwipe(0); // Very close to the left edge: snap onto it, so the colours come back
+    afterHandMove(); // At the left edge: hint learned; elsewhere: show the hint
   }; // End of release
 
   // Keyboard and screen readers: the handle is a slider ("role" tells screen readers what it is) that the keyboard can reach
@@ -495,6 +529,7 @@ export function showSwipe(before, corners, tags, start = 0) {
     event.preventDefault(); // Stop the page or map from also reacting (e.g. arrows panning the map)
     const next = moves[event.key]; // The new position
     setSwipe(next < 0.01 ? 0 : next); // Move there (landing just above 0 after several steps counts as the left edge)
+    afterHandMove(); // At the left edge: hint learned; elsewhere: show the hint
   }); // End of the keyboard listener
   handle.addEventListener('pointerup', release); // Released
   handle.addEventListener('pointercancel', release); // Or interrupted (e.g. the browser took over the touch)

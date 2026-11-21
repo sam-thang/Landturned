@@ -238,6 +238,11 @@ body {
 .finding-tag {
   animation: finding-pulse 1.6s ease-in-out infinite; /* Fade gently between 60% and full, for ever (while it's shown) */
 } /* End of the finding tag rule */
+/* "◀ DRAG LEFT FOR LAND COVER": drawn above the swipe's handle (z-index 2), so the handle's line passes behind the words
+   instead of cutting through them */
+.swipe-hint {
+  z-index: 3; /* Above the handle */
+} /* End of the hint rule */
 @keyframes finding-pulse { /* Softer than the loading steps' pulse, so the tag stays readable over the imagery: */
   0%, 100% { opacity: 0.6; } /* 60% at the start and end of each cycle */
   50% { opacity: 1; } /* full in the middle */

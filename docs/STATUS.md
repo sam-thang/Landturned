@@ -2,7 +2,7 @@
 
 A factual snapshot for performance advice. It's based on reading the code and on timings measured on 2026-11-21 (section 4). "Not checked" means I didn't verify it.
 
-**Speed-up phases done:** Phase 1 (quick fixes), Phase 2 (land cover read from AWS, years to 2024) Phase 3 (one analysis request, land-cover disk cache) and Phase 4 (reveal sooner; the "after" photo is always the current imagery) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
+**Speed-up phases done:** Phase 1 (quick fixes), Phase 2 (land cover read from AWS, years to 2024), Phase 3 (one analysis request, land-cover disk cache), Phase 4 (reveal sooner; the "after" photo is always the current imagery) and Phase 5 (faster before-only archive lookup, zoom-14 cache) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
 
 ## 1. Stack and structure
 
@@ -54,8 +54,8 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | **Esri World Imagery tiles** (current) | `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}` | Raster tiles, max zoom 19. `tileSize` 128 on screens with DPR ≥ 2 (sharper, about 4× the tiles), else 256 | Browser, MapLibre (`map.js`) |
 | **Esri World Imagery identify** | `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/identify` | Capture date of the current photo at the point (layer 0, about 1 km map extent, 400 × 400 display) | Browser, `api.js fetchPhotoDate` |
 | **Esri Wayback config** | `https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json` | The list of all archive versions (about 170 since 2016) | Backend, `wayback.versions` |
-| **Esri Wayback tilemap** | `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap/{version}/16/{row}/{col}` | "Which version did this zoom-16 tile last change in?" Small JSON; chained requests walk backwards | Backend, `wayback.changed_versions` |
-| **Esri Wayback metadata** | `{version metadataLayerUrl}/identify` | Photo capture date, resolution and source at the point (2 km extent, 800 px display), for about 15 candidate versions | Backend, `wayback.photo_in_once` |
+| **Esri Wayback tilemap** | `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap/{version}/16/{row}/{col}` | "Which version did this zoom-16 tile last change in?" Small JSON; chained requests walk backwards, since Phase 5 only around the first year (2016–2019) | Backend, `wayback.changed_versions` |
+| **Esri Wayback metadata** | `{version metadataLayerUrl}/identify` | Photo capture date, resolution and source at the point (2 km extent, 800 px display), since Phase 5 only for the 4–6 candidate versions around the first year (about 15 before) | Backend, `wayback.photo_in_once` |
 | **Esri Wayback tiles** | `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/{version}/{z}/{y}/{x}` | (a) the "after" version as the map's base imagery, through MapLibre; (b) "before" tiles at zoom 16 drawn into a canvas for the swipe | Browser, `map.js setBaseImagery`, `swipe.js buildBeforeImage` |
 | **Nominatim (OpenStreetMap)** | `https://nominatim.openstreetmap.org/search` and `/reverse` | Search: `q`, `format=jsonv2`, `limit=1`. Reverse: `zoom=10` (city level) | Browser, `geocode.js` |
 | **Google Fonts** | `fonts.googleapis.com`, `fonts.gstatic.com` | Two font families | Browser, `index.html` |
@@ -75,11 +75,12 @@ A factual snapshot for performance advice. It's based on reading the code and on
      - **Otherwise:** it reads **all 8 years in parallel**, builds 7 comparisons (2017 → each later year; the last is the main result) with PNGs as data URLs, saves them, and returns them.
    - **Browser → `/api/wayback`** (no years passed). The backend does, in sequence:
      1. Work out the years (no STAC search since Phase 2).
-     2. If the tile is cached: read the JSON file. Otherwise:
+     2. Since Phase 5 it looks up **only the earlier ("before") photo** (`wayback.before_photo`). If the zoom-14 tile is cached: read the JSON file. Otherwise:
         - fetch the version list (memory cache, 24 h)
-        - **two tilemap walks in parallel** (2017 window and last-year window, 2024 since Phase 2; each walk is sequential)
-        - about 15 metadata identify calls **in parallel** (32 workers)
-        - a **quick answer after about 5 s** (only if each year has a photo within 365 days of 1 July); the full answer finishes in the background and is saved
+        - **one tilemap walk** (versions published 2017–2019 plus the change just before; sequential, 2–5 s). Asking all 73 versions of 2016–2019 at once was measured and was not faster (3.9–5.9 s).
+        - the 4–6 candidates' photo dates asked **all at once**
+        - **Early answer:** the first photo within half a year of 1 July, or after 6 s the closest so far if it's within a year.
+        - **Saved answer:** the lookup still waits for every candidate, then saves the **best photo of all**. So the first visitor sees a good photo early, and everyone after gets the best one.
 3. **Since Phase 4 the "after" photo is always Esri's current imagery.**
    - It must be from the last land-cover year (2024) or later, and the archive only holds older versions, so nothing newer exists.
    - The map never switches to archive tiles; `setBaseImagery(null)`.
@@ -192,7 +193,7 @@ Same setup and searches. "Cold" = the two saved Wayback answers were deleted fir
 - **"Analyse this area"** (Fontana area, new spot, pressed 2.0 s after the mouse was released):
   - the head start fired 1.5 s after release, which is 0.5 s after the map's glide ended
   - the new result appeared **15.5 s after the press**; `/api/wayback` took 12.3–13.5 s
-  - Unexplained: the button's own `/api/wayback` request finished 1.7 s after the head-start request it should have joined. Not checked further.
+  - Unexplained at the time: the button's own `/api/wayback` request finished 1.7 s after the head-start request it should have joined. **Re-checked in Phase 5:** both now finish at the same moment, probably because the per-request STAC search (removed in Phase 2) ran before a request could join.
 
 ### After Phase 2 (land cover from AWS, 2017–2024, no STAC search)
 
@@ -322,6 +323,46 @@ Random land over-represents remote areas, so the share for real searches is prob
 | Shandong, China (35.5112, 116.9028) | 16 Nov 2019 | 4.2 s | shown ("changes after 2019 …") | 2017 · 22 SEPT \| 2019 · 16 NOV (2.2 years apart) |
 | Stavanger | 5 Sep 2024 | 4.1 s | none | 2018 · 27 MAY \| 2024 · 5 SEPT |
 
+### After Phase 5 (before-only archive lookup, early answer + best answer saved, zoom-14 cache)
+
+**The lookup on its own** (Python, 9 places, first lookup; the old full answers were saved by Phase 4):
+- before the change: 3.8–64 s
+- **after: 2.6–9.8 s**
+- **the same 2017 photo as the old full answer at all 9**
+
+**Two rejected variants, measured on the way:**
+- **"Ask the likeliest 2–3 versions first".**
+  - **What happened:** which archive services are slow (12–60 s) has nothing to do with which one holds the right photo; e.g. Cajamar's likeliest version took 12.6 s to answer.
+  - **Why it was dropped:** waiting for whole rounds cost up to 64 s.
+- **"Take the closest photo after 6 s and save it".**
+  - **What happened:** three hotspots got photos 4–6 years off (Renaissance Dam Dec 2011 instead of Feb 2016, Weda Bay Apr 2012 instead of Apr 2018, Hasankeyf Jan 2011 at 2.5 m instead of Jun 2013 at 0.5 m), and Fontana's saved photo became Aug 2016 instead of Aug 2017.
+  - **The fix:** answer early, but save the best of all.
+
+**Hotspots re-warmed** under the new key: 33 s for all 11. The saved photos match the original full answers at all 11.
+
+**Neighbour sharing:** a second spot inside the same zoom-14 tile (2.0 km wide near Ontario) answered in **6 ms**.
+
+**App runs** (same setup, the two places' saved answers deleted, server restarted; single runs; times from pressing Enter):
+
+| | Fontana cold | Fontana warm | Stavanger cold | Stavanger warm |
+|---|---|---|---|---|
+| `/api/wayback` | 6.5 s (Phase 4: 10.2 s) | 0.08 s | 9.7 s (8.6 s) | 0.08 s |
+| Result shown | 4.9 s | 5.0 s | 4.6 s | 5.1 s |
+| **Swipe joins** | **9.3 s** (12.8 s) | at the reveal | **13.7 s** (12.6 s) | at the reveal |
+| 2017 photo | 6 Aug 2017 | 6 Aug 2017 | 27 May 2018 | 27 May 2018 |
+
+Esri's archive services vary a lot from run to run, so single-run differences of a few seconds aren't meaningful. The reliable gains:
+- a third as many questions (one walk, 4–6 photo dates)
+- no 60 s waits
+- neighbours sharing answers
+
+**"Analyse this area" with the head start:** the result appeared 1.2 s after the press. The head-start and button requests for `/api/wayback` finished together at 7.52 s.
+
+**Also in this round:** a hint **"◀ DRAG LEFT FOR LAND COVER"** inside the square's bottom-left corner.
+- It's shown once the handle rests away from the left edge (after the opening or a late swipe).
+- It's hidden while the colours show, and gone for the visit once someone brings the handle to the left edge themselves.
+- It's drawn above the handle's line.
+
 ## 5. Loading and caching
 
 **Preloaded:**
@@ -335,7 +376,7 @@ Random land over-represents remote areas, so the share for real searches is prob
 
 | What | Where | Key | Lifetime |
 |---|---|---|---|
-| Wayback answer (before/after photo, date, tile URL) | Disk: `backend/cache/wayback/*.json` (70 files now) | `z16_{row}_{col}_{firstYear}_{lastYear}`: the zoom-16 Web Mercator tile of the point (about 500–600 m) plus years | Forever. Only the full answer is saved, not the 5 s quick answer |
+| Wayback answer (the earlier photo: date, source, resolution, tile URL) | Disk: `backend/cache/wayback/z14_*.json` | Since Phase 5 `z14_{row}_{col}_{firstYear}`: the zoom-14 Web Mercator tile (about 2.4 km at the equator, 2.0 km near Ontario, 1.2 km in Norway) plus the first year, so neighbouring squares share it. The photo is the one at the first lookup's point; at a few spots another patch of the photo mosaic shows at the exact centre | Forever. The best photo of all candidates is saved, even when an early answer was shown first |
 | Wayback lookups in progress | Memory (`Future` per cache path) | Same path | While running; concurrent requests share one lookup |
 | Wayback version list | Memory | — | 24 h |
 | Sentinel-2 photo (unused endpoint) | Disk `cache/imagery` plus `lru_cache` | Lat/lon rounded to 5 decimals, plus year | Forever |
@@ -388,7 +429,7 @@ Random land over-represents remote areas, so the share for real searches is prob
 - 40 s imagery limit (frontend)
 - 30 s per Esri request (backend)
 - 8 s map idle wait
-- 5 s Wayback quick answer
+- Wayback early answer: the first photo within 183 days of 1 July, or after 6 s the closest within 365 days (the best of all is saved)
 - 3 s Esri identify (photo date) timeout, never waited on
 - 0.5 s head-start settle time
 
@@ -399,13 +440,13 @@ Random land over-represents remote areas, so the share for real searches is prob
 - ~~**`/api/wayback` runs a STAC search on every call.**~~ Fixed in Phase 2: no STAC search; a cached answer now takes 0.08 s.
 - **Places with old Esri imagery** (about 4 in 10 random land points): no sharp photo from the last land-cover year exists. The panel shows an "OLDER SATELLITE PHOTO" disclaimer, and the swipe is hidden when its photos are under 2 years apart.
 - **Weda Bay hotspot, decision pending:** with 2024 data its biggest change is built (93.7 ha), not cleared (now 23.1 ha). Its teaser and red type still show the 2017–2023 figure (30 ha cleared).
-- **Old Wayback cache files:** 70 files keyed `…_2017_2023` in `backend/cache/wayback/` are no longer used.
+- **Old Wayback cache files:** the files keyed `z16_…` (Phase 2–4 keys, incl. 70 keyed `…_2017_2023`) in `backend/cache/wayback/` are no longer used.
 - ~~**`/api/change` reads its two years one after the other; nothing cached.**~~ Fixed in Phase 3: all years in parallel, saved on disk.
 - ~~**`/api/timeline` starts only after the reveal.**~~ Fixed in Phase 3: merged into `/api/analysis`.
 - ~~**After a server restart, the first request per grid zone costs about 1.3 s.**~~ Fixed in the Phase 3 follow-up: zone facts are saved in `zones.json`. Measured right after a restart: Fontana 0.012 s, Bergen 0.002 s. Only a zone never seen before pays once: Stavanger 1.6 s, because its zone had been deleted for the test.
 - **A cold Wayback lookup takes 12–15 s,** mostly sequential tilemap steps and slow Esri metadata services. Only hotspots are pre-warmed.
 - ~~**The reveal waits for all archive tiles.**~~ Fixed in Phase 4: the reveal waits for neither the archive answer nor its tiles; only the 2017 photo's tiles load (25–56), for the swipe.
-- **The backend still finds an archive "after" photo** (its tilemap walk and identify calls) that the app no longer uses since Phase 4. Phase 5 can drop it.
+- ~~**The backend still finds an archive "after" photo.**~~ Dropped in Phase 5.
 - **The head start only helps** if the user waits at least 0.5 s after the map stops moving (including its glide); before Phase 1 it was 1.5 s.
 - **Nominatim:** the browser calls it directly with no custom User-Agent and no rate limiting in code. Usage-policy compliance: **not checked**.
 

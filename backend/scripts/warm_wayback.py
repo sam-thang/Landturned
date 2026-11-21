@@ -23,15 +23,15 @@ def read_places():
 
 
 def warm(place):
-    """Find and save one place's before/after imagery. Returns a line for the table."""
+    """Find and save one place's earlier ("before") photo for the swipe. Returns a line for the table."""
     pid, name, lat, lon = place  # Take the place apart
     start = time.perf_counter()  # Note the start time
     years = list(landcover.find_files_by_year(lon, lat))  # Its land-cover years, oldest first (the app's request uses the same years)
     if not years:  # No land-cover data (shouldn't happen for a hotspot):
         return f"{pid:<15} no land-cover data"  # Say so
-    photos = wayback.before_after(round(lat, 5), round(lon, 5), years[0], years[-1], quick=False)  # Find and save (or read back) the two photos (the full answer: this fills the cache)
-    show = lambda p: f"{p['date']} ({p['source']}, {p['resolution_m']} m)" if p else "none"  # How to print one photo
-    return f"{pid:<15} {time.perf_counter() - start:5.1f} s   before {show(photos['before']):<40} after {show(photos['after'])}"  # The table row
+    photo = wayback.before_photo(round(lat, 5), round(lon, 5), years[0])  # Find and save (or read back) the earlier photo
+    show = f"{photo['date']} ({photo['source']}, {photo['resolution_m']} m)" if photo else "none"  # How to print it
+    return f"{pid:<15} {time.perf_counter() - start:5.1f} s   before {show}"  # The table row
 
 
 def main():

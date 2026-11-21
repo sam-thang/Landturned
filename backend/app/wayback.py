@@ -1,6 +1,6 @@
 # Esri World Imagery "Wayback": the archive of every earlier version of Esri's satellite map (since 2014).
-# For the map's "before" and "after" imagery, this module finds, for one place, the sharp photo the archive has shown there
-# closest to the first land-cover year and to the last one, with the date each photo was taken.
+# For the before/after swipe's earlier ("before") photo, this module finds, for one place, the sharp photo the archive has
+# shown there closest to the first land-cover year, with the date it was taken. (The "after" photo is Esri's current imagery.)
 
 import json  # Built into Python; reads the archive list and writes the saved answers
 import math  # Built into Python; math.tan, math.asinh and math.pi, for working out which map tile holds the point
@@ -148,100 +148,98 @@ def versions_near(changed, year):
     return ([before[-1]] if before else []) + inside  # The last one before, then the ones inside
 
 
-# Most archive versions say when their photo was taken within about a second, but one or two "sleepy" ones can take
-# 10-15 s. So a request gets a quick answer this long after the questions start: the closest photo among the answers so
-# far (every date is still real). The full lookup carries on in the background and saves the best answer for next time.
-QUICK_S = 5
+# ---------- The "before" photo (since speed-up phase 5 the only one looked up) ----------
+# The app's "after" photo is always Esri's current imagery (it must be from the last land-cover year or later, and the
+# archive only holds older versions), so only the earlier photo, for the before/after swipe, comes from the archive.
 
-# The lookups running right now, one per saved-answer file: {path: {"quick": Future, "full": Future}}. A "Future" is a box
-# for an answer that isn't ready yet: the lookup puts the answer in, and anyone can wait for it with .result().
+CACHE_ZOOM = 14  # Answers are saved per zoom-14 map tile (about 2.4 km at the equator, 2 km in California, 1.2 km in Norway),
+# so neighbouring squares share one answer. The photo is the one Esri's archive shows where the first lookup in that tile
+# was made; at a few spots a different patch of the photo mosaic shows at the exact centre, so its date can be slightly off.
+GOOD_DAYS = 183  # A photo within half a year of 1 July is good enough to show at once (the lookup still finishes, and saves the best)
+OK_DAYS = 365  # After LOOKUP_WAIT_S, a photo within a year of 1 July is still shown; a further one isn't: then every answer is waited for
+# (with a 6 s cut-off for any photo, three hotspots got a photo 4-6 years off while a slow service held a much closer one)
+LOOKUP_WAIT_S = 6  # After this long, use the closest photo answered so far if it's within OK_DAYS. Some archive services are "sleepy" (12-60 s, measured
+# 2026-11-21) and which one is slow has nothing to do with which one holds the right photo, so asking the "likeliest" ones
+# first didn't help; asking all candidates (only 4-6 since phase 5) at once and not waiting for the slow ones does
+
+# The lookups running right now, one per saved-answer file: {path: Future}. A "Future" is a box for an answer that isn't
+# ready yet: the lookup puts the answer in, and every request for the same tile waits for it with .result().
 _running = {}
 _running_lock = threading.Lock()  # Only one request at a time may check or change _running (requests run in parallel threads)
-_background = ThreadPoolExecutor(max_workers=8)  # Helpers that run the lookups, so they can finish after the request has its quick answer
+_background = ThreadPoolExecutor(max_workers=8)  # Helpers that run the lookups (a request just waits for the answer box)
 
 
-def before_after(lat, lon, first_year, last_year, quick=True):
-    """The sharp photo closest to the first year ("before") and to the last year ("after"), each as
-    {date, resolution_m, source, version, tiles}, or None when no dated photo was found. Saved on disk per map tile.
-    For a tile not seen before, quick=True answers after about QUICK_S seconds of asking (see QUICK_S); quick=False waits
-    for the full answer (the warm-up script). If the same tile is already being looked up (e.g. the app's head start
-    before "Analyse this area" is pressed), this waits for that lookup instead of asking Esri all over again."""
-    row, column = tile_at(lat, lon, TILE_ZOOM)  # The archive answers per map tile (about 600 m across), so save per tile:
-    path = CACHE_DIR / f"z{TILE_ZOOM}_{row}_{column}_{first_year}_{last_year}.json"  # every address in the same tile reuses this file (rarely, a photo boundary crosses a tile; then a neighbour's real, dated photo is used)
-    if path.exists():  # Found before:
-        return json.loads(path.read_text(encoding="utf-8"))  # Read it back: no need to ask Esri at all
-
+def before_photo(lat, lon, year):
+    """The sharp archive photo closest to the middle of the year (1 July), as {date, resolution_m, source, version, tiles},
+    or None when no dated photo was found. Saved on disk per zoom-14 map tile, so neighbours share it. If the same tile is
+    already being looked up (e.g. the app's head start before "Analyse this area" is pressed), this waits for that lookup."""
+    row, column = tile_at(lat, lon, CACHE_ZOOM)  # The zoom-14 tile the point is in
+    path = CACHE_DIR / f"z{CACHE_ZOOM}_{row}_{column}_{year}.json"  # e.g. "z14_3265_2853_2017.json"
+    if path.exists():  # Found before (by anyone, anywhere in this tile):
+        return json.loads(path.read_text(encoding="utf-8"))["before"]  # Read it back: no need to ask Esri at all
     with _running_lock:  # Check and claim in one go, so two requests can't both start a lookup
-        boxes = _running.get(path)  # A lookup of this tile that's already running, or None
-        if boxes is None:  # None running: start one
-            boxes = _running[path] = {"quick": Future(), "full": Future()}  # Two empty answer boxes that requests can wait on
-            _background.submit(run_lookup, lat, lon, first_year, last_year, path, boxes)  # A background helper does the lookup
-    return boxes["quick" if quick else "full"].result()  # Wait for the answer we want (if the lookup failed, this raises its error)
+        future = _running.get(path)  # A lookup of this tile that's already running, or None
+        if future is None:  # None running: start one
+            future = _running[path] = Future()  # An empty answer box that requests can wait on
+            _background.submit(run_lookup, lat, lon, year, path, future)  # A background helper does the lookup
+    return future.result()  # Wait for the answer (if the lookup failed, this raises its error)
 
 
-def run_lookup(lat, lon, first_year, last_year, path, boxes):
-    """Runs in the background: the whole lookup, filling both answer boxes (or both with the error if it fails)."""
-    try:  # Always fill the boxes, even if it fails
-        result = look_up(lat, lon, first_year, last_year, path, boxes["quick"])  # Ask Esri (fills the quick box on the way)
-        boxes["full"].set_result(result)  # The full answer
-        if not boxes["quick"].done():  # Every answer came in before QUICK_S:
-            boxes["quick"].set_result(result)  # then the quick answer is the full one
+def run_lookup(lat, lon, year, path, future):
+    """Runs in the background: the whole lookup. Waiting requests get an early answer as soon as a good-enough photo is in
+    (see look_up); the lookup then carries on until every version has answered and saves the best photo of all, so
+    everyone after that gets the best one. The questions are already sent, so finishing them costs Esri nothing extra."""
+    def answer_early(photo):  # Called by look_up when a good-enough photo is in
+        if not future.done():  # Only the first time
+            future.set_result(photo)  # Hand it to everyone waiting
+    try:  # Always fill the box, even if it fails
+        photo = look_up(lat, lon, year, answer_early)  # Ask Esri; the best photo of all once every version has answered
+        if photo:  # Only save a real answer
+            CACHE_DIR.mkdir(parents=True, exist_ok=True)  # Create the folder the first time
+            temporary = path.with_suffix(".tmp")  # Write under a temporary name first...
+            temporary.write_text(json.dumps({"before": photo}), encoding="utf-8")  # ...the answer...
+            temporary.replace(path)  # ...then rename it in one go, so a half-written file can never be read
+        answer_early(photo)  # If nobody got an answer yet (no early one), they get this one
     except Exception as error:  # It failed:
-        for box in boxes.values():  # Each box...
-            if not box.done():  # ...that's still empty...
-                box.set_exception(error)  # ...gets the error, so waiting requests don't wait for ever
+        if not future.done():  # Nobody got an answer yet:
+            future.set_exception(error)  # Waiting requests get the error, so they don't wait for ever
     finally:  # Either way, at the end:
         with _running_lock:  # (one request at a time)
             _running.pop(path, None)  # This lookup no longer runs (the saved file answers from now on)
 
 
-def close_enough(photo, year):
-    """Whether a photo (or None) was taken within a year of the middle of the year (1 July), so it can stand for that year."""
-    return photo is not None and abs((date.fromisoformat(photo["date"]) - date(year, 7, 1)).days) <= 365  # Subtracting dates gives the days between
+def days_from_middle(photo, year):
+    """How many days a photo was taken from 1 July of the year (before or after)."""
+    return abs((date.fromisoformat(photo["date"]) - date(year, 7, 1)).days)  # Subtracting dates gives the days between
 
 
-def choose(answers, wanted, first_year, last_year):
-    """From the photo dates answered so far ({version id: photo or None}), the closest photo per moment, or None."""
-    result = {}  # "before" and "after"
-    for moment, year in [("before", first_year), ("after", last_year)]:  # Each moment and its year
-        photos = [{**answers[v["id"]], "version": v["date"], "tiles": v["tiles"]} for v in wanted[moment] if answers.get(v["id"])]  # Its dated photos so far, each with the version that shows it ("**" copies the photo's fields in; .get = None if not answered yet)
-        result[moment] = photo_for_year(photos, year) if photos else None  # The closest one, or None
-    return result  # Hand back both
+def choose(answers, candidates, year):
+    """From the photo dates answered so far ({version id: photo or None}), the photo closest to 1 July, or None."""
+    photos = [{**answers[v["id"]], "version": v["date"], "tiles": v["tiles"]} for v in candidates if answers.get(v["id"])]  # The dated photos so far, each with the version that shows it ("**" copies the photo's fields in)
+    return photo_for_year(photos, year) if photos else None  # The closest one, or None
 
 
-def look_up(lat, lon, first_year, last_year, path, quick_box):
-    """The actual lookup for before_after: the two walks, then the photo dates; saves the full answer in "path".
-    Puts a quick answer in "quick_box" about QUICK_S seconds after the photo-date questions start."""
-    with ThreadPoolExecutor(max_workers=2) as pool:  # Two helpers, so the two walks run at the same time
-        walks = pool.map(lambda year: changed_versions(lat, lon, year), [first_year, last_year])  # One walk per year
-        changed_first, changed_last = [sorted(walk, key=lambda v: v["date"]) for walk in walks]  # Each walk's changes, oldest first
-    wanted = {"before": versions_near(changed_first, first_year), "after": versions_near(changed_last, last_year)}  # The few versions worth asking, per moment
-    to_ask = list({v["id"]: v for group in wanted.values() for v in group}.values())  # Each version once (a dict keyed by id removes repeats)
-
+def look_up(lat, lon, year, answer_early):
+    """The actual lookup for before_photo: walk back through the archive versions where this place got new imagery around
+    the year, then ask all of them at once when their photo was taken. As soon as a photo is good enough, answer_early(photo)
+    is called (so the app can show it): the first one within half a year of 1 July, or after LOOKUP_WAIT_S the closest one so
+    far if it's within a year. Then every answer is waited for, and the closest photo of all is handed back (to be saved)."""
+    changed = sorted(changed_versions(lat, lon, year), key=lambda v: v["date"])  # Where the imagery changed around the year, oldest first
+    candidates = versions_near(changed, year)  # The versions that could hold a photo close to the year (usually 4-6)
     answers = {}  # version id -> its photo (or None), filled in as the answers arrive
-    quick_at = time.time() + QUICK_S  # When the quick answer is due
-    with ThreadPoolExecutor(max_workers=WORKERS) as pool:  # Many helpers, so the questions overlap
-        jobs = {pool.submit(photo_in, v, lat, lon): v for v in to_ask}  # Ask every version at once; each "job" is a Future for its answer
+    deadline = time.time() + LOOKUP_WAIT_S  # When an answer within a year becomes good enough
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool:  # Helpers, so all the questions run at the same time
+        jobs = {pool.submit(photo_in, v, lat, lon): v for v in candidates}  # Ask every candidate at once
         pending = set(jobs)  # The questions not answered yet
-        while pending:  # Until every version has answered:
-            due = quick_box.done() or time.time() >= quick_at  # Is the quick answer's moment past (or already handled)?
-            wait_s = None if due else quick_at - time.time()  # Wait for the next answer, but not past that moment (None = no limit: just the next answer)
-            done, pending = wait(pending, timeout=wait_s, return_when=FIRST_COMPLETED)  # The answers that came in meanwhile, and the rest
+        while pending:  # Until every candidate has answered (each question gives up after TIMEOUT_S, twice):
+            past_deadline = time.time() >= deadline  # Has the first waiting time run out?
+            timeout = None if past_deadline else deadline - time.time()  # Wait for the next answer, but not past the deadline (once past it, just the next answer)
+            done, pending = wait(pending, timeout=timeout, return_when=FIRST_COMPLETED)  # The answers that came in meanwhile, and the rest
             for job in done:  # Each new answer:
                 answers[jobs[job]["id"]] = job.result()  # Note it (photo_in never fails: a failure is None)
-            if not quick_box.done() and time.time() >= quick_at:  # The quick answer is due:
-                quick = choose(answers, wanted, first_year, last_year)  # The closest photos so far
-                still_asking = {jobs[job]["id"] for job in pending}  # The versions that haven't answered
-                years = {"before": first_year, "after": last_year}  # Each moment's year
-                # Good enough when each moment has a photo within a year of its year's middle, or none of its versions are
-                # left to answer (so waiting can't help). Otherwise e.g. an October 2018 photo could stand in for "2017".
-                if all(close_enough(quick[m], years[m]) or not any(v["id"] in still_asking for v in wanted[m]) for m in years):
-                    quick_box.set_result(quick)  # Hand it to the waiting requests (not saved: the full answer below is)
-
-    result = choose(answers, wanted, first_year, last_year)  # The full answer: the closest photos among all
-    if result["before"] or result["after"]:  # Only save a real answer
-        CACHE_DIR.mkdir(parents=True, exist_ok=True)  # Create the folder the first time
-        temporary = path.with_suffix(".tmp")  # Write under a temporary name first...
-        temporary.write_text(json.dumps(result), encoding="utf-8")  # ...the whole answer...
-        temporary.replace(path)  # ...then rename it in one go, so a half-written file can never be read
-    return result  # Hand back both
+            best = choose(answers, candidates, year)  # The closest photo so far (or None)
+            if best:  # There is one: is it good enough to show now?
+                days = days_from_middle(best, year)  # How far from 1 July it was taken
+                if days <= GOOD_DAYS or (time.time() >= deadline and days <= OK_DAYS):  # Within half a year, or within a year once the waiting time is over:
+                    answer_early(best)  # Let the app show it (only the first call counts)
+    return choose(answers, candidates, year)  # Every version has answered: the closest photo of all (or None)
