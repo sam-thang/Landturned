@@ -283,6 +283,86 @@ Same setup and searches. "Cold" = the two saved Wayback answers were deleted fir
 - Not built yet: the long-view era (GLC_FCS30D, 1985–2016), the share screen, and the "new construction sites" stat.
 - **No production deployment or build** has been checked.
 
+## Phase 2 findings: land-cover years (2026-11-21, research only, no code changed)
+
+**Source checked:** Impact Observatory's public AWS Open Data bucket `s3://io-10m-annual-lulc`, read over HTTPS at `https://io-10m-annual-lulc.s3.amazonaws.com/` with no account. Bucket region: not checked.
+
+**Years:**
+- 2017–2023, plus **2024** (757 files, uploaded 2025-06-23).
+- **No 2025**: none among all 5,902 objects.
+
+**File naming:** `{UTM zone}{latitude band}_{year}.tif`, e.g. `11S_2024.tif` (Fontana, Ontario Ranch), `32V_2024.tif` (Stavanger), `33U_2024.tif` (Giga Berlin).
+- One file per MGRS grid zone (6° × 8°) per year, 90–160 MB each.
+- These are the same tiles Planetary Computer serves: its item IDs are `11S-2023`, `32V-2023`, …
+
+**Format** (checked on `11S_2024.tif`):
+- EPSG:32611 (UTM), 10 m pixels, uint8, nodata 0
+- LZW compression, 512 × 512 internal tiles, overviews 2–32: a cloud-optimised GeoTIFF that supports windowed reads, like today
+- no version tags in the file
+
+**Same dataset:** the 2023 square read from AWS is **pixel-for-pixel identical** to the Planetary Computer 2023 square, at Fontana and at Stavanger. 2017–2022 weren't compared.
+
+**Method consistency of 2024** (share of pixels whose category changed, year to year):
+
+| Place | 2022→2023 | 2023→2024 |
+|---|---|---|
+| Ontario Ranch | 7.5% | 6.1% |
+| Giga Berlin | 10.4% | 1.7% |
+| Stavanger | 1.3% | 1.4% |
+| Fontana | 0.1% | 0.1% |
+
+No jump suggests a method change. The known 2019–2021 flip (Stavanger, Berlin, 23–35%) is in the old years too.
+
+**Effect on results:**
+
+| Place | 2017→2023 | 2017→2024 |
+|---|---|---|
+| Ontario Ranch, built | 187.9 ha | 192.5 ha |
+| Ontario Ranch, gained | 2.7 ha | 5.5 ha |
+| Giga Berlin, built | 160.1 ha | 156.8 ha |
+| Stavanger, built | 4.9 ha | 3.6 ha |
+
+**Read speed from here** (one run each):
+
+| Read | AWS | Planetary Computer |
+|---|---|---|
+| Open + square | 0.6–0.9 s (first open of a session: 1.75 s) | 1.5–2.7 s, plus a 1.5–2.4 s STAC search |
+
+AWS needs no URL signing.
+
+**Can the file be computed from coordinates, skipping STAC?** Yes:
+- **Zone:** `floor((lon + 180) / 6) + 1`.
+- **Band letter:** from `"CDEFGHJKLMNPQRSTUVWX"[floor((lat + 80) / 8)]`, where X covers 72–84°N.
+- **Exceptions:**
+  - Norway's `32V` covers 3–12°E (`31V` doesn't exist).
+  - Svalbard uses `31X`, `33X`, `35X`, `37X` (`32X`, `34X`, `36X` don't exist).
+- **Checked:** `32V`, `33X`, `35X`, `37X`, `33U`, `22X`, `19H`, `01C` exist. `31V`, `31X`, `32X`, `60X` return 404, so a missing file must count as "no data here".
+- **Not covered** by MGRS zones: south of 80°S and north of 84°N.
+
+**Existing limitation (also true today):** each file covers one grid zone. A square that straddles a zone boundary reads only one file; the rest is filled with 0 and reported as "no data". Not measured how often this happens.
+
+### Plan: switch to AWS and the newest year (not built; waiting for OK)
+
+1. **Read from AWS instead of Planetary Computer** (`landcover.py`).
+   - Build the file URL from the coordinates (`grid_zone(lat, lon)` plus the year).
+   - Drop the STAC search and the signing.
+   - Keep `read_square` as it is; it already opens a file by URL and reads a window.
+2. **The year list:**
+   - A constant `YEARS = 2017…2024` in one place.
+   - On server start, a quick check (HEAD request) for one file of the year after the last. If it exists, that year is added automatically when Impact Observatory publishes 2025.
+   - Per place, a year whose file returns 404 is skipped. The main result compares the first and last year that exist there.
+3. **The main result compares 2017 → 2024,** and the slider gets a 2024 stop. All text already takes its years from the answer, so the sentence, small print and tags follow on their own.
+4. **Knock-on updates:**
+   - The source line ("Impact Observatory annual land cover, 10 m, AWS Open Data")
+   - README, the method page brief, and "How this works" mentions of Planetary Computer
+   - **Hotspot teasers**, which quote 2017–2023 hectares and must be re-measured
+   - Wayback cache keys include the last year (`…_2017_2024`), so the hotspots must be re-warmed (`warm_wayback.py`). The "after" photo is then matched to mid-2024.
+5. **Not in this plan:**
+   - other land-cover datasets
+   - zone-boundary stitching (above)
+   - Sentinel-2 `/api/imagery`, which still uses Planetary Computer STAC but is unused
+6. **Licence:** Impact Observatory's maps are CC BY 4.0 on Planetary Computer. The licence and attribution wording for the AWS copy and for 2024: not checked; to confirm before switching.
+
 ## 8. Git status
 
 - **Branch:** `main`, in sync with `origin/main` (last push `dab77d9`).
