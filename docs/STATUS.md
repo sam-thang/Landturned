@@ -70,7 +70,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
    - **Browser:** the globe turns and zooms (1.6 s animation). MapLibre is downloaded if not yet loaded (lazy import), and the map is created hidden. **Esri current tiles** load.
    - **Browser → Esri identify:** the current photo date.
    - **Browser → `/api/analysis`** (since Phase 3).
-     - **First, the cache key:** the backend works out the file names, then the square's position on the zone's grid. Both are instant once the zone is known in this server run; the first request per zone costs one HEAD request plus one file-header read.
+     - **First, the cache key:** the backend works out the file names, then the square's position on the zone's grid. Both are instant once the zone is known; the zone facts are saved in `zones.json`, so a zone never seen before pays one HEAD request plus one file-header read, once ever.
      - **Saved square:** it reads the JSON file and is done.
      - **Otherwise:** it reads **all 8 years in parallel**, builds 7 comparisons (2017 → each later year; the last is the main result) with PNGs as data URLs, saves them, and returns them.
    - **Browser → `/api/wayback`** (no years passed). The backend does, in sequence:
@@ -286,7 +286,7 @@ Same setup. "Cold": the saved land-cover and Wayback answers for both places wer
 | Sentinel-2 photo (unused endpoint) | Disk `cache/imagery` plus `lru_cache` | Lat/lon rounded to 5 decimals, plus year | Forever |
 | ~~STAC search results~~ | — | — | No STAC search since Phase 2. The grid zone's availability and the newest year are remembered in memory while the server runs |
 | **Land-cover analysis** (main result + every slider comparison, with PNGs) | Disk: `backend/cache/landcover/*.json` (since Phase 3) | `{zone}_c{column}_r{row}_{first}_{last}`: the square's snapped position on the zone's 10 m grid, plus the years, e.g. `11S_c22735_r67113_2017_2024`. The visitor's exact point isn't saved; it's added per request | Forever. A new data year changes the key |
-| Grid-zone availability and pixel grid | Memory (`_zone_has_data`, `_zone_grids`) | Grid zone | Until the server restarts (about 1.3 s to rebuild per zone) |
+| Grid-zone facts: has data (with the year checked), projection, pixel grid | Disk: `backend/cache/zones.json`, plus memory | Grid zone, e.g. `11S` | Forever. "Has data" is re-checked once when a newer year appears (since the Phase 3 follow-up) |
 
 **Browser:**
 - `/api/timeline` answers are kept in memory for the current place only.
@@ -346,7 +346,7 @@ Same setup. "Cold": the saved land-cover and Wayback answers for both places wer
 - **Old Wayback cache files:** 70 files keyed `…_2017_2023` in `backend/cache/wayback/` are no longer used.
 - ~~**`/api/change` reads its two years one after the other; nothing cached.**~~ Fixed in Phase 3: all years in parallel, saved on disk.
 - ~~**`/api/timeline` starts only after the reveal.**~~ Fixed in Phase 3: merged into `/api/analysis`.
-- **After a server restart,** the first request per grid zone costs about 1.3 s before the saved answer can be found (zone availability and grid are in memory only). Could be saved to disk too: not done.
+- ~~**After a server restart, the first request per grid zone costs about 1.3 s.**~~ Fixed in the Phase 3 follow-up: zone facts are saved in `zones.json`. Measured right after a restart: Fontana 0.012 s, Bergen 0.002 s. Only a zone never seen before pays once: Stavanger 1.6 s, because its zone had been deleted for the test.
 - **A cold Wayback lookup takes 12–15 s,** mostly sequential tilemap steps and slow Esri metadata services. Only hotspots are pre-warmed.
 - **The reveal waits for all archive tiles** (55–106 requests, 3–5 s), even on warm visits.
 - **The head start only helps** if the user waits at least 0.5 s after the map stops moving (including its glide); before Phase 1 it was 1.5 s.

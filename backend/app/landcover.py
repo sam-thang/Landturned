@@ -3,7 +3,9 @@
 # The maps are Impact Observatory's 10 m annual land cover, read from its public AWS Open Data bucket (CC BY 4.0):
 # one file per UTM grid zone per year, so the file for a place can be worked out from its coordinates (no catalog search).
 
+import json  # Built into Python; reads and writes the saved grid-zone facts (zones.json)
 import os  # Built into Python; os.environ holds settings that GDAL reads
+import threading  # Built into Python; a "lock" so two requests never write zones.json at the same moment
 
 # Settings for GDAL, the library rasterio uses to read files over the internet. They must be set before any file is opened.
 # Without them, every file opening first lists the whole online folder and makes many small requests: about 2 seconds
@@ -15,6 +17,7 @@ os.environ.setdefault("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", ".tif")  # Only treat 
 
 import urllib.error  # Built into Python; the error raised when a web address answers "not found"
 import urllib.request  # Built into Python; asks a web server whether a file exists (a HEAD request)
+from pathlib import Path  # Built into Python; a handy way to build file paths
 
 import numpy as np  # numpy: fast math on big grids of numbers
 import planetary_computer  # Signs Planetary Computer file links so we're allowed to download them
@@ -222,7 +225,6 @@ def file_exists(url):
 
 
 _newest_year = None  # The newest year with files, once checked (None = not yet): checked once per server run, see newest_year
-_zone_has_data = {}  # Per grid zone: whether it has files at all, e.g. {"11S": True, "06N": False}, remembered while the server runs
 REFERENCE_ZONE = "11S"  # A zone that certainly has data (southern California), used to look for newly published years
 
 
@@ -238,13 +240,45 @@ def newest_year():
     return _newest_year  # Hand it back
 
 
+# ---------- Facts about each grid zone, saved on disk ----------
+# Two facts per zone are needed before a saved analysis can even be found: whether the zone has data, and its pixel grid.
+# Finding them out costs a HEAD request and a file-header read (about 1.3 s together), so they are saved in a small file
+# and survive server restarts. They never change, except "has data", which is re-checked when a new year appears.
+ZONE_FILE = Path(__file__).resolve().parents[1] / "cache" / "zones.json"  # backend/cache/zones.json (generated, ignored by git)
+_zone_lock = threading.Lock()  # One request at a time may change and save the facts (requests run in parallel threads)
+
+
+def load_zone_facts():
+    """The saved facts, e.g. {"11S": {"checked_year": 2024, "has_data": true, "crs": "EPSG:32611", "transform": [...]}},
+    or an empty dictionary if there's no file yet (or it can't be read)."""
+    try:  # The file may not exist yet
+        return json.loads(ZONE_FILE.read_text(encoding="utf-8"))  # Read it
+    except (OSError, ValueError):  # No file, or a damaged one:
+        return {}  # Start empty (the facts are simply found out again)
+
+
+_zone_facts = load_zone_facts()  # Read once when the server starts, then kept up to date in memory and on disk
+
+
+def save_zone_fact(zone, **facts):
+    """Add or update facts about one zone (e.g. has_data=True), in memory and in the file."""
+    with _zone_lock:  # One at a time
+        _zone_facts[zone] = {**_zone_facts.get(zone, {}), **facts}  # Merge the new facts into the zone's entry ("**" spreads a dictionary)
+        ZONE_FILE.parent.mkdir(parents=True, exist_ok=True)  # Create the cache folder the first time
+        temporary = ZONE_FILE.with_suffix(".tmp")  # Write under a temporary name first...
+        temporary.write_text(json.dumps(_zone_facts, indent=1), encoding="utf-8")  # ...all the facts...
+        temporary.replace(ZONE_FILE)  # ...then rename it in one go, so a half-written file can never be read
+
+
 def years_in_zone(zone):
     """The years that have a file for this grid zone, oldest first (an empty list if the zone has none, e.g. open ocean).
-    One quick check per zone while the server runs: is there a file for the newest year? (Every year has the same zones.)"""
+    One quick check per zone, saved on disk: is there a file for the newest year? (Every year has the same zones.)"""
     last = newest_year()  # The newest year (checked once per server run)
-    if zone not in _zone_has_data:  # This zone not checked yet:
-        _zone_has_data[zone] = file_exists(LULC_URL.format(zone=zone, year=last))  # Does it have a file for that year?
-    return list(range(FIRST_YEAR, last + 1)) if _zone_has_data[zone] else []  # Every year from 2017 to the newest, or none
+    facts = _zone_facts.get(zone, {})  # What we know about this zone so far
+    if facts.get("checked_year") != last:  # Never checked, or checked before a newer year appeared:
+        save_zone_fact(zone, checked_year=last, has_data=file_exists(LULC_URL.format(zone=zone, year=last)))  # Check and save
+        facts = _zone_facts[zone]  # The updated facts
+    return list(range(FIRST_YEAR, last + 1)) if facts["has_data"] else []  # Every year from 2017 to the newest, or none
 
 
 def find_files_by_year(lon, lat):
@@ -281,16 +315,15 @@ def square_grid(url, lon, lat):
     return crs, rasterio.windows.transform(window, file_transform), window.width  # The projection, the square's own transform, and 200
 
 
-_zone_grids = {}  # Per grid zone: its files' projection and pixel grid, e.g. {"11S": (crs, transform)}, remembered while the server runs
-
-
 def zone_grid(zone, url):
     """The projection and pixel grid ("transform") of a grid zone's files. Every year's file of a zone uses exactly the same
-    grid (checked for 11S, 32V and 33U, 2017-2024), so one file header (url, any year) is read once per zone and remembered."""
-    if zone not in _zone_grids:  # Not read yet:
+    grid (checked for 11S, 32V and 33U, 2017-2024), so one file header (url, any year) is read once per zone and saved on disk."""
+    facts = _zone_facts.get(zone, {})  # What we know about this zone so far
+    if "crs" not in facts:  # Its grid isn't known yet:
         with rasterio.open(url) as src:  # Open the file over the internet (only its header is read)
-            _zone_grids[zone] = (src.crs, src.transform)  # Remember its projection and grid
-    return _zone_grids[zone]  # Hand them back
+            save_zone_fact(zone, crs=src.crs.to_string(), transform=list(src.transform)[:6])  # Save the projection's name and the grid's six numbers
+        facts = _zone_facts[zone]  # The updated facts
+    return rasterio.crs.CRS.from_string(facts["crs"]), rasterio.Affine(*facts["transform"])  # Rebuild the projection and grid from the saved text and numbers
 
 
 def square_position(lon, lat, url):
