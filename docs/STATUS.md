@@ -89,7 +89,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 5. **The reveal** happens when the land-cover answer, the map's tiles (`idle`) and the callout's minimum time are done. It does **not** wait for `/api/wayback`.
    - The change layer is drawn, the map turned grid-up, the panel and the year slider filled, then the crossfade.
    - **If the archive answer is already in** (saved places), the reveal allows up to 1.5 s for the 2017 tiles. When they're ready, the swipe starts at the right edge and the opening sweep plays.
-   - **Otherwise:** "FINDING 2017 IMAGERY…" shows inside the square. When the 2017 photo is ready, the swipe is added at the left edge and glides to the middle, and screen readers hear "2017 imagery added". The base photo is never replaced.
+   - **Otherwise:** "FINDING EARLIER IMAGERY…" shows inside the square (no year: the archive's closest photo to 2017 can be a few years either side). When the earlier photo is ready, the swipe is added at the left edge and glides to the middle, and screen readers hear "Earlier imagery added". (Until 2026-11-21 it said "FINDING 2017 IMAGERY…".) The base photo is never replaced.
 
 The 2017 photo races a **40 s deadline** counted from the place being chosen. If it's hit, the tag disappears and the result has no swipe.
 

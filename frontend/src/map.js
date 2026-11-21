@@ -42,7 +42,7 @@ const EXPLORE_RADIUS_M = 10000;
 let map = null; // The MapLibre map, once it has been created (null until then)
 let maplibre = null; // The MapLibre library itself, once downloaded (we need it again for the label marker)
 let areaLabel = null; // The "ANALYSIS AREA" label on the map, once shown (null until then)
-let findingTag = null; // The "FINDING 2017 IMAGERY…" tag while the swipe's earlier photo is on its way (null otherwise)
+let findingTag = null; // The "FINDING EARLIER IMAGERY…" tag while the swipe's earlier photo is on its way (null otherwise)
 let swipeHint = null; // The "◀ DRAG LEFT FOR LAND COVER" hint while the handle rests away from the left edge (null otherwise)
 let hintLearned = false; // Becomes true once someone has brought the handle to the left edge themselves: the hint isn't needed any more (for this result; a new place or analysed area starts over)
 let coloursMarker = null; // The "HIDE / SHOW LAND COVER" button pinned to the square's top-right corner, once shown (null until then)
@@ -529,7 +529,7 @@ const COLOUR_FADE_MS = REDUCE_MOTION ? 0 : 400;
 const SNAP = 0.03;
 
 // Show or hide the change colours. The handle at the left edge is the result view (all 2023, with colours);
-// anywhere else is the comparison view (two clean photos), so the colours don't cover the 2017 imagery.
+// anywhere else is the comparison view (two clean photos), so the colours don't cover the earlier imagery.
 // The colours only show when "shown" AND the "HIDE / SHOW LAND COVER" button is set to show them.
 function setColoursShown(shown) {
   if (!map.getLayer('change-layer')) return; // No colours on the map (no change data): nothing to do
@@ -690,14 +690,15 @@ export function resetSwipe() {
   setSwipe(0); // Left edge: all latest imagery, colours on
 } // End of resetSwipe
 
-// Show "FINDING 2017 IMAGERY…" just inside the square's top-left corner (where the swipe's year tag will sit), while the
-// swipe's earlier photo is still on its way after the result is shown. "corners" are the square's corners as [lon, lat],
-// "year" the earlier year (e.g. 2017). Removed by hideFindingTag, showSwipe, or a new place.
-export function showFindingTag(corners, year) {
+// Show "FINDING EARLIER IMAGERY…" just inside the square's top-left corner (where the swipe's year tag will sit), while the
+// swipe's earlier photo is still on its way after the result is shown. No year in it: the archive's closest photo to 2017 can be
+// from a few years either side; the swipe's own tag shows its real date once it's here. "corners" are the square's corners as
+// [lon, lat]. Removed by hideFindingTag, showSwipe, or a new place.
+export function showFindingTag(corners) {
   hideFindingTag(); // Never two at once
   const tag = document.createElement('div'); // A new element
   tag.className = 'area-label finding-tag'; // The map labels' look (style.css), plus a gentle pulse while it waits
-  tag.textContent = `FINDING ${year} IMAGERY…`; // e.g. "FINDING 2017 IMAGERY…"
+  tag.textContent = 'FINDING EARLIER IMAGERY…'; // What it says, in capitals like the other map labels
   findingTag = new maplibre.Marker({ element: tag, anchor: 'top-left', offset: [8, 8] }) // Pin its top-left corner, 8 px inside the square
     .setLngLat(corners[0]) // ...to the square's top-left corner
     .addTo(map); // ...and put it on the map

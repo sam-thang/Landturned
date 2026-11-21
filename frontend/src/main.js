@@ -200,7 +200,7 @@ const SWIPE_GRACE_MS = 1500;
 // Show a finished analysis as soon as the colours and the map's photo are ready: draw the change on the map (turning it
 // grid-up), fill in the result panel and the year slider. The photo is always Esri's current imagery, so it never changes
 // afterwards. The before/after swipe joins when its earlier photo is ready: at once if it's ready (the caller then plays the
-// opening sequence), or later, with a "Finding 2017 imagery…" tag on the map meanwhile and a glide to the middle when it
+// opening sequence), or later, with a "Finding earlier imagery…" tag on the map meanwhile and a glide to the middle when it
 // arrives. "change" is the backend's answer (or null), "holdMs" a short pause before the reveal (the globe uses it so people
 // see the loading steps completed). Hands back the swipe if it's ready for the opening, otherwise null.
 async function showFinishedResult(place, change, swipeJob, photoDate, cancelled, holdMs) {
@@ -230,14 +230,14 @@ async function showFinishedResult(place, change, swipeJob, photoDate, cancelled,
   if (cancelled()) return null; // Went back while we waited
   if (swipe) showSwipe(swipe.before, change.image.corners, swipe.tags, 1); // Ready: handle at the right edge (all earlier photo), for the opening
   else if (change) { // Not ready yet (and there is a square):
-    showFindingTag(change.image.corners, change.years.from); // "FINDING 2017 IMAGERY…" in the square's corner, so the wait is visible
+    showFindingTag(change.image.corners); // "FINDING EARLIER IMAGERY…" in the square's corner, so the wait is visible
     swipeReady.then((late) => { // When the earlier photo is ready (or isn't coming):
       if (cancelled()) return; // The visitor left or chose another place: that place's map is gone, nothing to do
       hideFindingTag(); // The search is over either way
       if (!late) return; // No earlier photo (none found in time): the result stays as it is
       showSwipe(late.before, change.image.corners, late.tags); // Add the swipe with the handle at the left edge (the colours stay)...
       glideToMiddle(); // ...and glide gently to the middle, for the comparison
-      announce(change.years.from + ' imagery added: drag the handle on the map to compare.'); // Tell screen-reader users (e.g. "2017 imagery added: …")
+      announce('Earlier imagery added: drag the handle on the map to compare.'); // Tell screen-reader users (no year: the photo's real date is on its tag)
     }); // End of the late swipe
   } // End of the swipe check
   showResults(place, change, formatCoords(place.lon, place.lat)); // The reveal sentence, stats, and notes (or a "not available" message if change is null)

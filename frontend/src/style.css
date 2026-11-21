@@ -233,7 +233,7 @@ body {
   pointer-events: none; /* Never block dragging the map */
 } /* End of the area label rule */
 
-/* "FINDING 2017 IMAGERY…" inside the square while the swipe's earlier photo is on its way (map.js). It looks like the
+/* "FINDING EARLIER IMAGERY…" inside the square while the swipe's earlier photo is on its way (map.js). It looks like the
    area label and pulses gently, like the running loading steps, so it reads as "still working" (honest progress) */
 .finding-tag {
   animation: finding-pulse 1.6s ease-in-out infinite; /* Fade gently between 60% and full, for ever (while it's shown) */
