@@ -37,8 +37,7 @@
             </svg> <!-- End of the drawing -->
             <ol id="area-steps" class="steps area-steps mono" hidden> <!-- While analysing: the real steps, in the middle of the square (main.js marks them running and done, like the loading panel's) -->
               <li data-step="compare">Comparing land cover</li> <!-- The backend compares the two years -->
-              <li data-step="find">Finding the imagery</li> <!-- The archive's before/after photos (main.js puts the real years in) -->
-              <li data-step="imagery">Loading imagery</li> <!-- The photos load and the map draws them -->
+              <li data-step="imagery">Loading imagery</li> <!-- The map's photo at the new spot loads (the swipe's earlier photo joins later, without holding this up) -->
             </ol> <!-- End of the steps -->
           </div> <!-- End of the dashed square -->
           <p id="area-status" class="sr-only" aria-live="polite"></p> <!-- Invisible, but screen readers read out each new text: the analysis's progress in words -->
@@ -101,8 +100,6 @@
             <li id="step-locate">Locating the site</li> <!-- Step 1: the globe turns and zooms -->
             <li id="step-map">Loading detailed map</li> <!-- Step 2: the satellite map loads -->
             <li id="step-compare">Comparing land cover</li> <!-- Step 3: the backend compares the two years -->
-            <li id="step-find">Finding the imagery</li> <!-- Step 4: the archive's before/after photos (main.js puts the real years in, e.g. "Finding 2017 and 2023 imagery") -->
-            <li id="step-imagery">Loading imagery</li> <!-- Step 5: the photos load and the map draws them -->
           </ol> <!-- End of the steps -->
           <div id="progress" class="progress" aria-hidden="true"><i></i></div> <!-- One progress bar; the <i> is the fill (screen readers get the step list instead) -->
 

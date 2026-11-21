@@ -2,7 +2,7 @@
 
 A factual snapshot for performance advice. It's based on reading the code and on timings measured on 2026-11-21 (section 4). "Not checked" means I didn't verify it.
 
-**Speed-up phases done:** Phase 1 (quick fixes), Phase 2 (land cover read from AWS, years to 2024) and Phase 3 (one analysis request, land-cover disk cache) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
+**Speed-up phases done:** Phase 1 (quick fixes), Phase 2 (land cover read from AWS, years to 2024) Phase 3 (one analysis request, land-cover disk cache) and Phase 4 (reveal sooner; the "after" photo is always the current imagery) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
 
 ## 1. Stack and structure
 
@@ -80,15 +80,17 @@ A factual snapshot for performance advice. It's based on reading the code and on
         - **two tilemap walks in parallel** (2017 window and last-year window, 2024 since Phase 2; each walk is sequential)
         - about 15 metadata identify calls **in parallel** (32 workers)
         - a **quick answer after about 5 s** (only if each year has a photo within 365 days of 1 July); the full answer finishes in the background and is saved
-3. **When the Wayback answer arrives,** the frontend picks the "after" photo (`closerAfter`), using the identify date **only if it has already arrived**. Since Phase 1 nothing waits for identify; it gives up after 3 s. Without a date, the imagery line uses its dateless wording, and the swipe's right tag reads "LATEST" if the current imagery is the "after" photo.
-4. **Browser:**
-   - switches the base imagery to the archive "after" version (Esri Wayback tiles)
-   - builds the 2017 canvas from about 25 zoom-16 Wayback tiles, all requested in parallel
-   - waits for the map to be `idle`
-5. **Browser:** draws the change layer, turns the map grid-up, adds the swipe at the right edge, fills the panel, crossfades from the globe, then plays the opening sweep (about 5.5 s of animation).
-6. ~~`/api/timeline` after the reveal~~: gone since Phase 3. The slider is filled from the `/api/analysis` answer and works at the reveal.
+3. **Since Phase 4 the "after" photo is always Esri's current imagery.**
+   - It must be from the last land-cover year (2024) or later, and the archive only holds older versions, so nothing newer exists.
+   - The map never switches to archive tiles; `setBaseImagery(null)`.
+   - The identify date is only used for the imagery line and the swipe's right tag ("LATEST" if it didn't come). Nothing waits for it.
+4. **As soon as both answers are in** (`/api/analysis` and `/api/wayback`), in the browser, during the globe turn: the 2017 photo's zoom-16 tiles load (about 25–56, in parallel) and are drawn into a canvas (`startSwipe`).
+5. **The reveal** happens when the land-cover answer, the map's tiles (`idle`) and the callout's minimum time are done. It does **not** wait for `/api/wayback`.
+   - The change layer is drawn, the map turned grid-up, the panel and the year slider filled, then the crossfade.
+   - **If the archive answer is already in** (saved places), the reveal allows up to 1.5 s for the 2017 tiles. When they're ready, the swipe starts at the right edge and the opening sweep plays.
+   - **Otherwise:** "FINDING 2017 IMAGERY…" shows inside the square. When the 2017 photo is ready, the swipe is added at the left edge and glides to the middle, and screen readers hear "2017 imagery added". The base photo is never replaced.
 
-All imagery waits race a single **40 s deadline**. If it's hit, the result shows on current imagery with no swipe.
+The 2017 photo races a **40 s deadline** counted from the place being chosen. If it's hit, the tag disappears and the result has no swipe.
 
 ### b) "Analyse this area" after panning
 
@@ -98,7 +100,7 @@ All imagery waits race a single **40 s deadline**. If it's hit, the result shows
    - Esri identify
    - `/api/wayback`
    - `/api/analysis`
-3. The same sequence as (a) steps 3–6, but **no globe and no map creation**. The old result stays dimmed until everything is ready, then switches at once.
+3. The same sequence as (a) steps 3–6, but **no globe and no map creation**. The old result stays dimmed until the land-cover answer and the map's tiles are ready (since Phase 4 it doesn't wait for the archive), then switches at once. The square's checklist is "Comparing land cover", then "Loading imagery".
 
 ### c) Moving the year slider
 
@@ -109,7 +111,7 @@ All imagery waits race a single **40 s deadline**. If it's hit, the result shows
 
 ### d) Before/after swipe imagery
 
-- **"After" (right side):** the map's base raster source is switched to the chosen Wayback version's tile URL. MapLibre loads its tiles. If Esri's current photo is closer to the middle of the last land-cover year (1 July 2024 since Phase 2), there's no switch.
+- **"After" (right side):** the map's own base photo, Esri's current imagery (since Phase 4; before, an archive "after" version could replace it). Its tag shows the identify date, or "LATEST".
 - **"Before" (left side):**
   - the zoom-16 Wayback tiles covering the square, all fetched in parallel (`crossOrigin = anonymous`)
   - drawn into one canvas and clipped to the square
@@ -267,6 +269,25 @@ Same setup. "Cold": the saved land-cover and Wayback answers for both places wer
 - one request instead of two
 - every repeat visit to a square, by anyone and after restarts, skips the land-cover reads
 
+### After Phase 4 (reveal without waiting for the archive; "after" = current imagery)
+
+Same setup. "Cold" = both saved answers deleted for the two places. **The server wasn't restarted, so its file reader still had those land-cover squares in memory;** a truly new square takes about 2–2.4 s for `/api/analysis` (Phase 3). That fits inside the globe's turn and callout time, so the reveal time hardly depends on it. Single runs; times from pressing Enter.
+
+| Step | Fontana cold | Fontana warm | Stavanger cold | Stavanger warm |
+|---|---|---|---|---|
+| `/api/analysis` | 1.0 s | 0.08 s | 0.16 s | 0.09 s |
+| `/api/wayback` (no longer delays the result) | 10.2 s | 0.08 s | 8.6 s | 0.09 s |
+| **Result shown** | **4.7 s** (Phase 3: 17.9 s) | **4.9 s** (8.4 s) | **5.0 s** (15.1 s) | **5.3 s** (9.5 s) |
+| Swipe | joins at **12.8 s** with a glide; "Finding 2017 imagery" tag until then | **at the reveal**, opening sweep plays | joins at **12.6 s** | **at the reveal**, opening sweep plays |
+| Archive tiles | 25 (2017 photo only) | 25 | 56 | 56 |
+| Year slider | at the reveal | at the reveal | at the reveal | at the reveal |
+
+- **The reveal time (about 5 s) is now mostly the globe animation:** the 1.6 s turn, the callout's 1.2 s minimum and the 0.5 s hold, plus the map tiles.
+- **The archive "after" tiles are gone** (Phase 3 loaded 55–106 archive tiles, now 25–56), which also removes the same-photo switch seen in Phase 2.
+- **"Analyse this area" at a new spot near Fontana:** the result appeared **1.7 s after the press** (Phase 1: 15.5 s). The swipe joined at 12.1 s and glided to the middle; screen readers heard "2017 imagery added: drag the handle on the map to compare." No page errors.
+- **Right-hand tags now show the current photo's date,** which can be later than the last land-cover year, e.g. Fontana "2026 · 23 MAY". That's by design: the "after" photo must be from 2024 or later.
+- **A first attempt** started loading the 2017 tiles only at the reveal. The Stavanger warm swipe then arrived 0.6 s too late for the opening sweep. Moving the tile loading into `startRequests` (it starts when both answers are in, during the globe turn) fixed it.
+
 ## 5. Loading and caching
 
 **Preloaded:**
@@ -348,7 +369,8 @@ Same setup. "Cold": the saved land-cover and Wayback answers for both places wer
 - ~~**`/api/timeline` starts only after the reveal.**~~ Fixed in Phase 3: merged into `/api/analysis`.
 - ~~**After a server restart, the first request per grid zone costs about 1.3 s.**~~ Fixed in the Phase 3 follow-up: zone facts are saved in `zones.json`. Measured right after a restart: Fontana 0.012 s, Bergen 0.002 s. Only a zone never seen before pays once: Stavanger 1.6 s, because its zone had been deleted for the test.
 - **A cold Wayback lookup takes 12–15 s,** mostly sequential tilemap steps and slow Esri metadata services. Only hotspots are pre-warmed.
-- **The reveal waits for all archive tiles** (55–106 requests, 3–5 s), even on warm visits.
+- ~~**The reveal waits for all archive tiles.**~~ Fixed in Phase 4: the reveal waits for neither the archive answer nor its tiles; only the 2017 photo's tiles load (25–56), for the swipe.
+- **The backend still finds an archive "after" photo** (its tilemap walk and identify calls) that the app no longer uses since Phase 4. Phase 5 can drop it.
 - **The head start only helps** if the user waits at least 0.5 s after the map stops moving (including its glide); before Phase 1 it was 1.5 s.
 - **Nominatim:** the browser calls it directly with no custom User-Agent and no rate limiting in code. Usage-policy compliance: **not checked**.
 

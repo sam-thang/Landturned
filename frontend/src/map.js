@@ -36,6 +36,7 @@ const MIN_ZOOM = 10;
 let map = null; // The MapLibre map, once it has been created (null until then)
 let maplibre = null; // The MapLibre library itself, once downloaded (we need it again for the label marker)
 let areaLabel = null; // The "ANALYSIS AREA" label on the map, once shown (null until then)
+let findingTag = null; // The "FINDING 2017 IMAGERY…" tag while the swipe's earlier photo is on its way (null otherwise)
 let coloursMarker = null; // The "HIDE / SHOW LAND COVER" button pinned to the square's top-right corner, once shown (null until then)
 let coloursOn = true; // Whether that button is ON (people can turn the colours off to see the plain imagery)
 let coloursCorners = null; // The corners of the square the button belongs to, as [lon, lat]: top-left, top-right, bottom-right, bottom-left
@@ -153,6 +154,7 @@ function clearChange() {
   if (coloursMarker) coloursMarker.remove(); // The same for the "HIDE / SHOW LAND COVER" button
   coloursMarker = null; // And forget it
   clearSwipe(); // And the previous place's before/after swipe, if there is one
+  hideFindingTag(); // And its "Finding … imagery" tag, if it's still waiting
   analysedCorners = null; // No analysis square any more...
   updateAnalyseOffer(); // ...so no "Analyse this area" offer either
 } // End of clearChange
@@ -422,12 +424,32 @@ export function resetSwipe() {
   setSwipe(0); // Left edge: all latest imagery, colours on
 } // End of resetSwipe
 
+// Show "FINDING 2017 IMAGERY…" just inside the square's top-left corner (where the swipe's year tag will sit), while the
+// swipe's earlier photo is still on its way after the result is shown. "corners" are the square's corners as [lon, lat],
+// "year" the earlier year (e.g. 2017). Removed by hideFindingTag, showSwipe, or a new place.
+export function showFindingTag(corners, year) {
+  hideFindingTag(); // Never two at once
+  const tag = document.createElement('div'); // A new element
+  tag.className = 'area-label finding-tag'; // The map labels' look (style.css), plus a gentle pulse while it waits
+  tag.textContent = `FINDING ${year} IMAGERY…`; // e.g. "FINDING 2017 IMAGERY…"
+  findingTag = new maplibre.Marker({ element: tag, anchor: 'top-left', offset: [8, 8] }) // Pin its top-left corner, 8 px inside the square
+    .setLngLat(corners[0]) // ...to the square's top-left corner
+    .addTo(map); // ...and put it on the map
+} // End of showFindingTag
+
+// Remove the "Finding … imagery" tag, if there is one
+export function hideFindingTag() {
+  if (findingTag) findingTag.remove(); // Take it off the map
+  findingTag = null; // And forget it
+} // End of hideFindingTag
+
 // Show the before/after swipe: the 2017 picture inside the square, left of a handle that starts at the left edge.
 // "before" is what buildBeforeImage made, "corners" the square's corners (for the handle), "tags" the two year tags'
 // text ({ before: "2017 · 21 OCT", after: "2023 · 1 FEB" }), "start" where the handle begins (0 = left edge, 1 = right edge).
 // Call after showChange.
 export function showSwipe(before, corners, tags, start = 0) {
   clearSwipe(); // Remove any earlier one first
+  hideFindingTag(); // The earlier photo is here: no more "Finding … imagery" tag
   const canvas = document.createElement('canvas'); // The drawing the map shows: the visible part of 2017
   canvas.width = before.canvas.width; // The same size as the full 2017 picture...
   canvas.height = before.canvas.height; // ...so the same four corners fit it
@@ -493,13 +515,7 @@ export function setBaseImagery(tiles) {
   source.setTiles([tiles ?? SATELLITE_TILES]); // Load tiles from the new address ("??" = the current imagery if none is given)
   baseTiles = tiles ?? null; // Remember what the map shows now
 } // End of setBaseImagery
-let baseTiles = null; // The archive tile address the map shows now, or null for Esri's current imagery
-
-// Wait until the map's imagery has loaded and been drawn (at most MAX_WAIT_MS), e.g. after setBaseImagery
-export function waitForImagery() {
-  map.triggerRepaint(); // Ask for one more drawing, so "idle" comes even if nothing changed (otherwise we'd wait the full MAX_WAIT_MS)
-  return waitForIdle(); // Then wait for "idle": every tile loaded and drawn
-} // End of waitForImagery
+let baseTiles = null; // The archive tile address the map shows now, or null for Esri's current imagery (since speed-up phase 4 always null: the "after" photo is the current imagery)
 
 // Swap the change picture for another comparison of the same place (the year slider), without rebuilding anything:
 // the image source just gets a new picture at the same corners, so there's no flicker and the map doesn't move.

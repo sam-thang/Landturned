@@ -13,7 +13,7 @@ import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange, swapChange, setBaseImagery, waitForImagery, showSwipe, playOpening, resetSwipe, setShownChanges, getMapCenter, setAnalysing, onOfferSettled } from './map.js';
+import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges, getMapCenter, setAnalysing, onOfferSettled, showFindingTag, hideFindingTag } from './map.js';
 // Bring in the function that builds the 2017 picture for the before/after swipe, from swipe.js
 import { buildBeforeImage, tagText } from './swipe.js';
 
@@ -125,8 +125,8 @@ const MIN_CALLOUT_MS = 1200;
 const CROSSFADE_MS = 900;
 // A short pause after the last step finishes, so people see everything completed before the crossfade
 const HOLD_MS = 500;
-// The longest the reveal waits for the archive imagery (the before/after photos), counted from when the land-cover change
-// is here. A new place usually takes 10-20 s; if Esri's archive is slower than this, the result shows without the swipe.
+// The longest the swipe's earlier photo may take, counted from when the place is chosen. Nothing waits for it (the result is
+// shown first); a new place usually takes 10-15 s. If Esri's archive is slower than this, the result simply has no swipe.
 const IMAGERY_LIMIT_MS = 40000;
 
 // Which state the app is in: 'landing' (choosing a place), 'locating' (zooming in and loading),
@@ -143,34 +143,20 @@ const mapContainer = document.getElementById('map'); // The element MapLibre dra
 
 // ---------- The analysis: shared by choosing a place (from the globe) and by "Analyse this area" ----------
 
-// The "after" photo should match the last land-cover year, so the colours describe what the imagery shows. The archive
-// offers the photo closest to that year it could find, but sometimes Esri's current imagery is closer (e.g. archive
-// January 2021, current February 2025, land cover 2023). Then switching would make things worse, so the "after" photo
-// becomes the current imagery (tiles: null), with its own date. Hands back the archive answer, possibly with that new "after".
-function closerAfter(archive, currentDate) {
-  if (archive?.before && !archive.after) return { ...archive, after: { date: currentDate, tiles: null } }; // An earlier photo but no later one: the current imagery is the "after" (its date may be unknown: null)
-  if (!archive?.after || !currentDate) return archive; // Nothing to compare (an answer or a date is missing): keep it as it is
-  const middle = new Date(`${archive.years.to}-07-01`); // The middle of the last land-cover year, e.g. 1 July 2023
-  const distance = (isoDate) => Math.abs(new Date(isoDate) - middle); // How far a date is from it (subtracting dates gives milliseconds; abs = ignore before/after)
-  if (distance(archive.after.date) < distance(currentDate)) return archive; // The archive photo is closer: switch to it, as before
-  return { ...archive, after: { date: currentDate, tiles: null } }; // The current imagery is as close or closer: keep it ("..." copies the rest of the answer)
-} // End of closerAfter
 
 // Send the requests for a place at once, so they run side by side: the land-cover change (a few seconds), when Esri's
 // current imagery was taken (quick), and the sharp archive imagery (instant for places seen before, up to a minute otherwise).
 // Nothing is shown yet: showFinishedResult uses the answers once they're all here, so the result appears in one go.
-// Hands back what is still to come: { changeReady, archiveReady, photoDate }.
+// Hands back what is still to come: { changeReady, swipe, photoDate }.
 function startRequests(place) {
   let currentDate = null; // When Esri's current imagery was taken, once its answer is in (stays null if it fails or times out)
   const photoDateReady = fetchPhotoDate(place.lat, place.lon) // Ask Esri (gives up after 3 s, see api.js)...
     .catch(() => null) // ...a failure counts as "no date"...
     .then((date) => { currentDate = date; return date; }); // ...and remember the answer, so it can be read at any moment below
   const photoDate = { ready: photoDateReady, now: () => currentDate }; // Both ways to get it: wait for it ("ready"), or take what's there right now ("now")
-  // The archive answer never waits for the photo date: it uses the date if it's already in, and otherwise goes on without it
-  // (a slow photo date once held the whole imagery step up for about 10 s).
-  const archiveReady = fetchWayback(place.lat, place.lon) // The archive answer ({ before, after, ... })...
-    .catch(() => null) // ...or null if it fails...
-    .then((archive) => closerAfter(archive, currentDate)); // ...then keep whichever "after" photo is closer to the last land-cover year
+  // The archive answer, only for the earlier ("before", e.g. 2017) photo: the "after" photo is always Esri's current imagery,
+  // the newest photo Esri has (it must be from the last land-cover year or later, and the archive only holds older versions)
+  const archiveReady = fetchWayback(place.lat, place.lon).catch(() => null); // { before, ... }, or null if it fails
 
   // The land-cover analysis: one answer with the main result and every year slider stop. The main result ("change") is the
   // last comparison; it also carries the whole list ("steps"), so the slider can be filled straight away.
@@ -181,54 +167,66 @@ function startRequests(place) {
       return null; // and carry on with "no change data"
     }); // End of changeReady
 
-  return { changeReady, archiveReady, photoDate }; // The answers still to come (Promises), and the photo date ({ ready, now })
+  // The swipe's earlier photo starts loading as soon as the archive answer and the square are known, while the globe is
+  // still turning, so for places seen before it's usually ready by the reveal and the opening sweep can play
+  let archiveIn = false; // Becomes true once the archive answer has arrived
+  archiveReady.then(() => { archiveIn = true; }); // Note its arrival
+  const swipe = { ready: startSwipe(changeReady, archiveReady, photoDate), archiveIn: () => archiveIn }; // The earlier photo (a Promise), and "is the archive answer in yet?"
+
+  return { changeReady, swipe, photoDate }; // The answers still to come (Promises), and the photo date ({ ready, now })
 } // End of startRequests
 
-// The imagery for the reveal: wait for the archive answer, switch the map to its "after" photo, load the 2017 photo for
-// the swipe, and wait until it's all drawn, so the result appears once, complete, and the imagery never swaps afterwards.
-// Everything races one deadline (IMAGERY_LIMIT_MS): if the archive is slower, the result shows on Esri's current imagery
-// without the swipe. "progress" can hold two functions, found() and loaded(), called at those real moments (for the steps).
-// Hands back { archive, swipe } (either can be null), or null if the visitor left meanwhile.
-async function getImagery(change, archiveReady, cancelled, progress = {}) {
-  if (!change) { // No change data (the analysis failed): nothing to compare, so don't wait for imagery
-    setBaseImagery(null); // Esri's current imagery (a previous place's archive imagery must never show under the wrong date)
-    return { archive: null, swipe: null }; // No archive, no swipe
-  } // End of the no-change case
+// Get the swipe's earlier photo ready: wait for the archive answer, then load its tiles and cut them to the square. Races
+// one deadline (IMAGERY_LIMIT_MS) and never stops anything else. Hands back a Promise with { before, tags }, or null when
+// there's no earlier photo, it fails, or the time runs out. Started by startRequests, so it runs while the globe turns.
+function startSwipe(changeReady, archiveReady, photoDate) {
   const deadline = wait(IMAGERY_LIMIT_MS).then(() => null); // Finishes with null when the time is up
-  const archive = await Promise.race([archiveReady, deadline]); // The archive answer, or null if it fails or the time runs out ("race" = whichever finishes first)
-  if (cancelled()) return null; // The visitor left meanwhile: stop
-  progress.found?.(archive); // Tell the caller, with the answer (null = none found in time) ("?.()" = call it only if it was given)
-  setBaseImagery(archive?.after?.tiles ?? null); // The "after" photo's archive version, or Esri's current imagery (no archive, or the current imagery is closer)
-  const swipeReady = prepareSwipe(change, archive).catch(() => null); // The 2017 photo, cut to the square (or null, also if its tiles fail to load)
-  const swipe = archive ? await Promise.race([swipeReady, deadline]) : null; // ...unless the time runs out first
-  await waitForImagery(); // And the map's new imagery, loaded and drawn
-  if (cancelled()) return null; // The visitor left meanwhile: stop
-  progress.loaded?.(); // Tell the caller
-  return { archive, swipe }; // Ready
-} // End of getImagery
+  const swipeReady = Promise.all([changeReady, archiveReady]) // When the land-cover result (for the square's corners) and the archive answer are in...
+    .then(([change, archive]) => prepareSwipe(change, archive, photoDate)) // ...load the earlier photo's tiles (null if there's no square or no photo)
+    .catch(() => null); // A failure (e.g. tiles that won't load) means no swipe, never an error
+  return Promise.race([swipeReady, deadline]); // Whichever comes first
+} // End of startSwipe
 
-// Show a finished analysis, all at once: first wait for the imagery (getImagery), then draw the change on the map (turning
-// it grid-up), add the before/after swipe, and fill in the result panel and the year slider. "change" is the backend's
-// answer (or null), "holdMs" a short pause before the reveal (the globe uses it so people see the loading steps completed),
-// "progress" the optional found()/loaded() functions for the steps. Hands back the swipe if there is one (the map then shows
-// all 2017 and the caller starts playOpening), otherwise null.
-async function showFinishedResult(place, change, archiveReady, photoDate, cancelled, holdMs, progress) {
-  const imagery = await getImagery(change, archiveReady, cancelled, progress); // First the imagery: the "after" photo on the map, the 2017 photo ready
-  if (!imagery) return null; // The visitor left meanwhile: stop before showing anything
-  const { archive, swipe } = imagery; // The archive answer and the swipe (either can be null)
-  const archiveDate = archive?.after?.tiles ? archive.after.date : null; // The archive photo's date, when the map shows an archive photo
-  showImageryDate(archiveDate ?? photoDate.now()); // The imagery line: the date of the photo now on the map, if known yet (without one, it uses its dateless wording)
-  if (!archiveDate) photoDate.ready.then((date) => { // The map shows the current imagery: when its date comes in (or right away, if it's in)...
-    if (date && !cancelled()) showImageryDate(date); // ...fill it in, unless the visitor has left (nothing ever waits for this)
+// How long the reveal may wait for the earlier photo's tiles when the archive answer is already in (places seen before):
+// about a second usually, and worth it, because then the opening sweep (earlier year -> latest) can play.
+const SWIPE_GRACE_MS = 1500;
+
+// Show a finished analysis as soon as the colours and the map's photo are ready: draw the change on the map (turning it
+// grid-up), fill in the result panel and the year slider. The photo is always Esri's current imagery, so it never changes
+// afterwards. The before/after swipe joins when its earlier photo is ready: at once if it's ready (the caller then plays the
+// opening sequence), or later, with a "Finding 2017 imagery…" tag on the map meanwhile and a glide to the middle when it
+// arrives. "change" is the backend's answer (or null), "holdMs" a short pause before the reveal (the globe uses it so people
+// see the loading steps completed). Hands back the swipe if it's ready for the opening, otherwise null.
+async function showFinishedResult(place, change, swipeJob, photoDate, cancelled, holdMs) {
+  setBaseImagery(null); // Esri's current imagery: the "after" photo (and never an earlier place's archive imagery)
+  const swipeReady = swipeJob.ready; // The earlier photo, loading since the answers came in (see startRequests)
+  showImageryDate(photoDate.now()); // The imagery line: the current photo's date if it's in already (otherwise its dateless wording)...
+  photoDate.ready.then((date) => { // ...and when the date comes in (or right away, if it's in):
+    if (date && !cancelled()) showImageryDate(date); // fill it in, unless the visitor has left (nothing ever waits for this)
   }); // End of the late date
-  await showChange(change); // Draw the change layer, turn the map grid-up, and wait for any new imagery; with no data, just clear the old drawing
+  await showChange(change); // Draw the change layer, turn the map grid-up, and wait for its imagery; with no data, just clear the old drawing
   if (cancelled()) return null; // Went back while the change layer was drawn: stop before showing anything
   await wait(holdMs); // A short pause, if the caller wants one
   if (cancelled()) return null; // Went back during that pause
-  if (swipe) showSwipe(swipe.before, change.image.corners, swipe.tags, 1); // The swipe, with the handle at the right edge (all 2017), ready for the opening
+
+  // The swipe: ready now (or nearly, for places seen before) -> with the opening; otherwise it joins later
+  const swipe = swipeJob.archiveIn() ? await Promise.race([swipeReady, wait(SWIPE_GRACE_MS).then(() => null)]) : null; // Ready in time?
+  if (cancelled()) return null; // Went back while we waited
+  if (swipe) showSwipe(swipe.before, change.image.corners, swipe.tags, 1); // Ready: handle at the right edge (all earlier photo), for the opening
+  else if (change) { // Not ready yet (and there is a square):
+    showFindingTag(change.image.corners, change.years.from); // "FINDING 2017 IMAGERY…" in the square's corner, so the wait is visible
+    swipeReady.then((late) => { // When the earlier photo is ready (or isn't coming):
+      if (cancelled()) return; // The visitor left or chose another place: that place's map is gone, nothing to do
+      hideFindingTag(); // The search is over either way
+      if (!late) return; // No earlier photo (none found in time): the result stays as it is
+      showSwipe(late.before, change.image.corners, late.tags); // Add the swipe with the handle at the left edge (the colours stay)...
+      glideToMiddle(); // ...and glide gently to the middle, for the comparison
+      announce(change.years.from + ' imagery added: drag the handle on the map to compare.'); // Tell screen-reader users (e.g. "2017 imagery added: …")
+    }); // End of the late swipe
+  } // End of the swipe check
   showResults(place, change, formatCoords(place.lon, place.lat)); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
   setUpTimeline(place, change, formatCoords(place.lon, place.lat)); // The year slider, ready at once (every year came with the analysis)
-  return swipe; // The swipe, so the caller can play the opening (or null: no swipe for this place)
+  return swipe; // The swipe, so the caller can play the opening (or null: none yet)
 } // End of showFinishedResult
 
 // What happens when a place is chosen (button, hotspot, or search).
@@ -249,8 +247,6 @@ async function selectPlace(place) {
   resetSteps(); // Empty the progress bar and un-tick the steps (in case of an earlier visit)
   document.getElementById('step-map').textContent = 'Loading detailed map'; // Reset the text too, in case it showed an error before
   document.getElementById('step-compare').textContent = 'Comparing land cover'; // Same for the compare step
-  document.getElementById('step-find').textContent = 'Finding the imagery'; // ...the find step (it gets the real years once the comparison is in)
-  document.getElementById('step-imagery').textContent = 'Loading imagery'; // ...and the imagery step
   showPanel('panel-locating'); // Swap the landing panel for the locating panel
 
   setBaseImagery(null); // Back to Esri's current imagery first: a previous place's archive imagery must never show here, under the wrong date
@@ -270,7 +266,7 @@ async function selectPlace(place) {
   ); // End of mapReady
 
   // Send the requests (the change, the imagery date, the archive imagery) right away, so they run while the globe turns
-  const { changeReady, archiveReady, photoDate } = startRequests(place); // The answers still to come (see startRequests)
+  const { changeReady, swipe, photoDate } = startRequests(place); // The answers still to come (see startRequests)
 
   // Stage 1: lock the globe, then turn and zoom to a regional view
   globe.setInteractive(false); // No dragging or clicking while we zoom
@@ -290,13 +286,9 @@ async function selectPlace(place) {
     const change = await changeReady; // Wait for the backend's answer (or null if it failed)
     if (cancelled()) return null; // Cancelled while waiting: don't touch the steps (they may belong to a newer place by now)
     if (change) { // Got it:
-      finishStep('compare'); // Tick off step 3
-      document.getElementById('step-find').textContent = `Finding ${change.years.from} and ${change.years.to} imagery`; // The real years, e.g. "Finding 2017 and 2023 imagery"
-      startStep('find'); // Step 4 is running (the archive request has been working all along; getImagery ticks it off)
+      finishStep('compare'); // Tick off step 3 (the last one: the earlier photo for the swipe no longer holds up the result)
     } else { // No answer: say so honestly, but carry on with the map
       failStep('compare', "Change data isn't available for this place right now"); // Step 3 failed
-      failStep('find', 'No before and after imagery without it'); // Steps 4 and 5 can't happen without a comparison
-      failStep('imagery', 'Showing the current imagery'); // ...so they end too, saying what people will see instead
     } // End of the answer check
     return change; // Hand the answer on (or null)
   }); // End of the map-ready handler
@@ -316,15 +308,7 @@ async function selectPlace(place) {
     document.getElementById('locating-back').focus(); // Move keyboard focus to "← Back to globe", the way out, so keyboard and screen-reader users find it at once
     return; // Stop here; the button takes it from there
   } // End of the failure check
-  const imagerySteps = { // What getImagery reports, shown as steps 4 and 5:
-    found: (archive) => { // The archive answer is here (or the time ran out):
-      if (archive?.before) finishStep('find'); // A 2017 photo was found: tick off step 4
-      else failStep('find', 'No earlier imagery found in time'); // None: say so (the result shows without the swipe)
-      startStep('imagery'); // Step 5 is running
-    }, // End of found
-    loaded: () => finishStep('imagery'), // The imagery is drawn: tick off step 5
-  }; // End of the imagery steps
-  const early = await showFinishedResult(place, change, archiveReady, photoDate, cancelled, HOLD_MS, imagerySteps); // Wait for the imagery, then draw the change, add the swipe, fill in the panel
+  const early = await showFinishedResult(place, change, swipe, photoDate, cancelled, HOLD_MS); // Draw the change, fill in the panel; the swipe comes now or joins later
   if (cancelled()) return; // Went back meanwhile: stop before the crossfade
 
   // Stage 2: crossfade from the globe to the map, and switch the panel at the same time
@@ -381,14 +365,13 @@ async function analyseArea() {
   const place = { name: null, lon: Number(center.lon.toFixed(5)), lat: Number(center.lat.toFixed(5)), source: 'area' }; // Rounded to about 1 m, like places in the address
   setAnalysing([place.lon, place.lat]); // The dashed square stays on this spot, and the button says "Analysing…"
   setResultBusy(true); // Dim the old result
-  for (const step of ['compare', 'find', 'imagery']) setAreaStep(step, null); // The square's steps: none started yet (an earlier run may have ticked them)
-  areaSteps.querySelector('[data-step="find"]').textContent = 'Finding the imagery'; // Reset this one's text (it gets the real years below)
+  for (const step of ['compare', 'imagery']) setAreaStep(step, null); // The square's steps: none started yet (an earlier run may have ticked them)
   areaSteps.hidden = false; // Show the steps in the dashed square
   setAreaStep('compare', 'running'); // The comparison starts at once
   announce('Analysing this area: comparing land cover.'); // Say so to screen-reader users
 
   const nameReady = reverseGeocode(place.lat, place.lon).catch(() => null); // Ask which town this is (e.g. "Fontana"); null if unknown or it fails
-  const { changeReady, archiveReady, photoDate } = startRequests(place); // The same requests as for a chosen place
+  const { changeReady, swipe, photoDate } = startRequests(place); // The same requests as for a chosen place
   const [change, name] = await Promise.all([changeReady, nameReady]); // Wait for the change and the name
   if (cancelled()) return; // The visitor left meanwhile ("← New place" cleans up)
 
@@ -405,24 +388,10 @@ async function analyseArea() {
   resetColourSwitches(); // A new area starts with all four colours on...
   setShownChanges(shownChanges()); // ...and the map follows
   setUrlPlace(place); // The new spot in the address bar, so a reload or a shared link opens it
-  const imageryText = `Finding ${change.years.from} and ${change.years.to} imagery`; // The real years, e.g. "Finding 2017 and 2023 imagery"
   setAreaStep('compare', 'done'); // Tick off the comparison
-  areaSteps.querySelector('[data-step="find"]').textContent = imageryText; // Put the years in
-  setAreaStep('find', 'running'); // The imagery lookup is running (it started with the press, or even before: the head start)
-  announce(`Land cover compared. ${imageryText}.`); // Say so to screen-reader users
-  const imagerySteps = { // What getImagery reports, shown as the square's last two steps:
-    found: (archive) => { // The archive answer is here (or the time ran out):
-      if (archive?.before) setAreaStep('find', 'done'); // A 2017 photo was found: tick it off
-      else { // None found in time:
-        areaSteps.querySelector('[data-step="find"]').textContent = 'No earlier imagery found in time'; // Say so (the result shows without the swipe)
-        setAreaStep('find', 'failed'); // With the dash
-      } // End of the found check
-      setAreaStep('imagery', 'running'); // Loading the imagery is running
-      announce('Loading imagery.'); // Say so to screen-reader users
-    }, // End of found
-    loaded: () => setAreaStep('imagery', 'done'), // The imagery is drawn: tick it off
-  }; // End of the imagery steps
-  const early = await showFinishedResult(place, change, archiveReady, photoDate, cancelled, 0, imagerySteps); // Wait for the imagery, then draw the change, add the swipe, fill in the panel (no pause needed here)
+  setAreaStep('imagery', 'running'); // Now the map's photo at the new spot loads (the earlier photo for the swipe no longer holds anything up)
+  announce('Land cover compared. Loading imagery.'); // Say so to screen-reader users
+  const early = await showFinishedResult(place, change, swipe, photoDate, cancelled, 0); // Draw the change, fill in the panel (no pause needed here); the swipe comes now or joins later
   if (cancelled()) return; // The visitor left meanwhile
   areaSteps.hidden = true; // The steps are done
   announce('Result ready.'); // Say it's done (the sentence itself is read out when focus moves to it, below)
@@ -451,14 +420,16 @@ const timelineLabel = document.getElementById('timeline-label'); // e.g. "Since 
 const timelineYear = document.getElementById('timeline-year'); // The chosen end year, large
 const timelineRange = document.getElementById('timeline-range'); // The slider itself
 const timelineTicks = document.getElementById('timeline-ticks'); // The tick marks and year labels under it
-// Prepare the before/after swipe from the archive answer: load the 2017 photo's tiles and cut them to the square.
+// Prepare the before/after swipe from the archive answer: load the earlier (e.g. 2017) photo's tiles and cut them to the square.
+// The right-hand side is the map's own photo, Esri's current imagery, so only its date is needed ("photoDate").
 // Gives { before, tags } when it's ready, or null when there can be no swipe (no square, or a photo without a date).
-async function prepareSwipe(change, archive) {
-  if (!change || !archive?.before || !archive?.after) return null; // No square, or no earlier photo: no swipe
+async function prepareSwipe(change, archive, photoDate) {
+  if (!change || !archive?.before) return null; // No square, or no earlier photo: no swipe
   const before = await buildBeforeImage(archive.before.tiles, change.image.corners); // Load its tiles and cut them to the square
+  const afterDate = await photoDate.ready; // The current imagery's date (in by now, or within 3 s; null if it didn't come)
   const tags = { // The two year tags:
     before: tagText(archive.before.date), // e.g. "2017 · 21 OCT" (an archive photo always has its date)
-    after: archive.after.date ? tagText(archive.after.date) : 'LATEST', // e.g. "2023 · 1 FEB", or "LATEST" when the current imagery's date didn't come in time
+    after: afterDate ? tagText(afterDate) : 'LATEST', // The current imagery, e.g. "2024 · 12 FEB", or "LATEST" when its date didn't come
   }; // End of the tags
   return { before, tags }; // Ready
 } // End of prepareSwipe

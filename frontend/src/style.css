@@ -233,6 +233,19 @@ body {
   pointer-events: none; /* Never block dragging the map */
 } /* End of the area label rule */
 
+/* "FINDING 2017 IMAGERY…" inside the square while the swipe's earlier photo is on its way (map.js). It looks like the
+   area label and pulses gently, like the running loading steps, so it reads as "still working" (honest progress) */
+.finding-tag {
+  animation: finding-pulse 1.6s ease-in-out infinite; /* Fade gently between 60% and full, for ever (while it's shown) */
+} /* End of the finding tag rule */
+@keyframes finding-pulse { /* Softer than the loading steps' pulse, so the tag stays readable over the imagery: */
+  0%, 100% { opacity: 0.6; } /* 60% at the start and end of each cycle */
+  50% { opacity: 1; } /* full in the middle */
+} /* End of the finding pulse */
+@media (prefers-reduced-motion: reduce) { /* People who asked their device for less motion: */
+  .finding-tag { animation: none; } /* it stays still */
+} /* End of the reduced-motion rule */
+
 /* The "HIDE / SHOW LAND COVER" button, pinned just above the square's top-right corner (map.js adds it). The same lettering
    and backing as the label opposite, plus a thin outline so it reads as something to press. */
 .colours-toggle {
