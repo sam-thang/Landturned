@@ -12,6 +12,17 @@
     <div class="app"> <!-- The whole app: the globe area and the text panel side by side (or stacked on phones) -->
       <div class="stage"> <!-- The big picture area where the globe is drawn -->
         <canvas id="globe" class="globe" role="img" aria-label="Globe of the Earth"></canvas> <!-- A drawing surface; globe.js paints the Earth on it. role/aria-label describe it for screen readers -->
+        <!-- The KEY: what the four dot colours on the globe mean, like the legend box on a drawing sheet. Same names as the
+             result's rows. Only on the landing page: style.css fades it out once a place is chosen. -->
+        <div class="globe-key" aria-labelledby="globe-key-title"> <!-- A labelled group: screen readers announce it as "Key" -->
+          <p id="globe-key-title" class="globe-key-title">KEY</p> <!-- Its heading, like "KEY" on a plan -->
+          <ul class="globe-key-list"> <!-- The four colours, as a list (screen readers say "list, 4 items") -->
+            <li><span class="key-dot" style="--dot-color: var(--built)"></span>Newly built</li> <!-- Orange dot: land that became built -->
+            <li><span class="key-dot" style="--dot-color: var(--loss)"></span>Cleared to bare ground</li> <!-- Red dot: green space stripped to bare ground -->
+            <li><span class="key-dot" style="--dot-color: var(--gain)"></span>Green space gained</li> <!-- Green dot: land that became trees or grass -->
+            <li><span class="key-dot" style="--dot-color: var(--water)"></span>New water</li> <!-- Blue dot: land that became water -->
+          </ul> <!-- End of the list -->
+        </div> <!-- End of the key -->
         <div class="map-layer"> <!-- Wrapper for the satellite map: handles position and fading (invisible until the crossfade) -->
           <div id="map" class="map"></div> <!-- MapLibre draws the map in here -->
           <div class="map-marks"> <!-- Bottom-left group of drawing marks: north arrow to the left of the scale bar, on one dark backing -->

@@ -63,6 +63,30 @@ CANDIDATES = [
     ("bogota_west", "Funza and Mosquera, Bogota, Colombia", 4.700, -74.210, "built"),  # Industrial parks on the Bogota savanna's farmland
     ("brumadinho", "Brumadinho, Brazil", -20.120, -44.120, "cleared"),  # Mine tailings dam collapsed in 2019; mud buried forest and fields
     ("carajas", "Carajas S11D iron mine, Brazil", -6.400, -50.350, "cleared"),  # Huge iron mine in the Amazon, opened 2016-2017
+    # --- Fresh clearing (third run, 2026-11-21: a new red place, since Weda Bay's 2017-2024 change is now mostly "built") ---
+    ("kaltim_prima", "Kaltim Prima coal mine, Borneo", 0.560, 117.550, "cleared"),  # Open-pit coal mines spreading over rainforest near Sangatta
+    ("carmichael", "Carmichael coal mine, Australia", -22.030, 146.330, "cleared"),  # Coal mine on grazing land, built 2019-2024
+    ("sangaredi", "Sangaredi bauxite mines, Guinea", 11.100, -13.800, "cleared"),  # Bauxite mines stripping plateaus and woodland since the late 2010s
+    ("simandou", "Simandou iron mine, Guinea", 8.650, -8.900, "cleared"),  # Iron mine and haul roads built 2022-2025 in the Simandou hills
+    # Mines mostly scored ~0 (their pits count as "built", or were already bare in 2017). Red needs land still bare in 2024:
+    # big earthworks graded from farmland or forest in 2022-2024 and not yet built on.
+    ("intel_ohio", "Intel chip plant, Ohio", 40.085, -82.715, "cleared"),  # Farmland graded from 2022; construction slowed, much still bare earth
+    ("vinfast_nc", "VinFast car plant, North Carolina", 35.665, -79.215, "cleared"),  # Forest and farmland graded 2023-2024, then paused
+    ("blueoval_city", "Ford BlueOval City, Tennessee", 35.430, -89.560, "cleared"),  # Farmland graded from 2022 for a car and battery plant
+    ("hyundai_georgia", "Hyundai Metaplant, Georgia", 32.140, -81.440, "cleared"),  # Pine forest graded 2022-2024 for a car plant
+    ("fehmarnbelt", "Fehmarnbelt tunnel works, Denmark", 54.650, 11.350, "cleared"),  # Farmland turned into a tunnel factory and construction site since 2020
+    # Construction sites also scored low: the dataset calls earthworks "built" at once. What does turn green into bare ground
+    # is open mining that leaves raw soil or sand: nickel laterite mines (like Weda Bay's hills) and river gold mining.
+    ("pomalaa", "Pomalaa nickel mines, Sulawesi", -4.200, 121.620, "cleared"),  # Nickel laterite mines spreading over hills and forest
+    ("sorowako", "Sorowako nickel mine, Sulawesi", -2.550, 121.380, "cleared"),  # Large nickel laterite mine, new pits opened since 2017
+    ("obi", "Obi Island nickel, Indonesia", -1.500, 127.630, "cleared"),  # Nickel mining and processing on Obi island since 2019
+    ("konawe_utara", "Konawe Utara nickel, Sulawesi", -3.400, 122.200, "cleared"),  # Many new nickel mines cleared from forest since 2018
+    ("huepetuhe", "Huepetuhe gold mining, Peru", -12.980, -70.530, "cleared"),  # River gold mining stripping Amazon forest to sand and ponds
+    ("dunkwa", "Dunkwa-on-Offin gold mining, Ghana", 5.950, -1.780, "cleared"),  # Illegal river gold mining ("galamsey") along the Offin river
+    # Mines also scored low (their pits and ponds count as "built" or "water"). Lava is different: it buries forest and fields
+    # under bare rock, and nothing is built on it. Both eruptions fall inside 2017-2024.
+    ("kilauea_2018", "Kilauea 2018 lava, Hawaii", 19.480, -154.880, "cleared"),  # The 2018 lower Puna eruption buried forest and homes (Leilani Estates to Kapoho)
+    ("la_palma_2021", "La Palma 2021 lava, Spain", 28.615, -17.905, "cleared"),  # The 2021 Cumbre Vieja eruption buried banana fields, vineyards and villages
     ("atacama", "Salar de Atacama lithium ponds, Chile", -23.650, -68.360, "water"),  # Lithium evaporation ponds on the salt flat
 ]  # End of the candidates
 
