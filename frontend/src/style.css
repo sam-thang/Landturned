@@ -238,6 +238,39 @@ body {
 .finding-tag {
   animation: finding-pulse 1.6s ease-in-out infinite; /* Fade gently between 60% and full, for ever (while it's shown) */
 } /* End of the finding tag rule */
+/* The grip in the middle of the dashed square: drag it (or use the arrow keys) to move the square anywhere on the map.
+   The same solid off-white square as the swipe's grip, with a four-way arrow. Only the grip catches the pointer; the rest of
+   the dashed square lets drags through, so they still pan the map. */
+.proposed-grip {
+  position: absolute; /* Placed inside the dashed square... */
+  top: 50%; /* ...halfway down... */
+  left: 50%; /* ...and across */
+  width: 32px; /* The visible grip, like the swipe's */
+  height: 32px; /* (the touch area is bigger, see ::before) */
+  transform: translate(-50%, -50%); /* Centred on that point */
+  display: grid; /* So the arrow can be centred inside */
+  place-items: center; /* Centred */
+  padding: 0; /* No button padding */
+  border: 0; /* No button border */
+  background: var(--ink); /* Solid off-white */
+  box-shadow: 0 0 0 1px rgba(10, 12, 15, 0.6); /* A thin dark edge, like the swipe's grip */
+  color: var(--bg); /* A dark arrow */
+  cursor: grab; /* An open hand: "you can drag this" */
+  pointer-events: auto; /* Catch the pointer (the dashed square around it doesn't) */
+  touch-action: none; /* On touch screens, dragging moves the square instead of scrolling or zooming */
+  -webkit-tap-highlight-color: transparent; /* No flash box on phones */
+} /* End of the grip rule */
+.proposed-grip::before { /* An invisible, bigger touch area: 44 x 44 px, easy to hit with a finger */
+  content: ''; /* An empty extra box... */
+  position: absolute; /* ...placed over the grip... */
+  inset: -6px; /* ...6 px bigger on every side */
+} /* End of the touch area rule */
+.proposed-grip svg { fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; } /* The arrow, drawn as dark lines */
+.proposed-grip.is-dragging { cursor: grabbing; } /* While held: a closed hand */
+.proposed-grip:focus { outline: none; } /* No outline for mouse and touch... */
+.proposed-grip:focus-visible { outline: 2px solid var(--water); outline-offset: 3px; } /* ...only the blue ring for keyboard users */
+.proposed-grip[hidden] { display: none; } /* Hidden while an analysis runs (the square is pinned then) */
+
 /* "Search another address to explore further.": centred at the top of the map while it touches the edge of the 10 km box
    around the searched address (map.js). The map labels' dark backing, in normal sentence case so it reads as a message */
 .map-edge-note {

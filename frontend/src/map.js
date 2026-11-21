@@ -153,7 +153,8 @@ async function createMap(container, bounds) {
   map.on('resize', () => updateScaleBar(map.getCenter().lat, map.getZoom())); // ...and when the map changes size (e.g. a phone turned sideways), since the maximum bar length depends on the width
   updateScaleBar(map.getCenter().lat, map.getZoom()); // Draw the scale bar for the starting view
   map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
-  map.on('move', updateAnalyseOffer); // Whenever the map moves or zooms, check whether to offer "Analyse this area"
+  map.on('move', updateAnalyseOffer); // Whenever the map moves or zooms, check whether to offer "Analyse this area" (and where)
+  setUpProposedGrip(); // The dashed square's grip: drag it (or use the arrow keys) to choose the spot to analyse
   map.on('move', placeColoursButton); // ...and whether the "Hide land cover" button still fits beside the label
   map.on('move', updateEdgeNote); // ...and whether the map has reached the edge of the place's 10 km box
   map.on('movestart', () => clearTimeout(settleTimer)); // Moving again: cancel a waiting head start (clearTimeout stops a setTimeout before it runs)
@@ -224,11 +225,145 @@ let analysingCenter = null; // While "Analyse this area" runs: the spot being an
 const EARTH_CIRCUMFERENCE_M = 40075016.686; // The Earth's circumference at the equator, in metres
 const ANALYSE_LABEL = 'Analyse this area'; // The button's normal text (CSS shows it in capitals)
 
-// The map's centre right now, as { lon, lat }: the spot "Analyse this area" analyses
-export function getMapCenter() {
-  const { lng, lat } = map.getCenter(); // MapLibre calls longitude "lng"
-  return { lon: lng, lat }; // Our name for it is "lon"
-} // End of getMapCenter
+// ---------- The dashed square: where "Analyse this area" will analyse ----------
+// While panning, the dashed square follows the map's centre (like "Search this area" on other maps). Once it's "pinned" it
+// stays on its spot on the ground instead: after a zoom, after people drag it by its grip, or when it's placed next to the
+// result because the map was zoomed out. Zoomed out, people can drag it onto anything they can see (all within the 10 km box).
+let proposedSpot = null; // The dashed square's centre as [lon, lat] while it's offered, or null when it isn't
+let proposedPinned = false; // true: it stays on its ground spot; false: it follows the map's centre
+let proposedBeside = false; // true: placed next to the result automatically (zoomed out); re-placed on every move until someone grabs it
+let lastZoom = null; // The map's zoom at the last move, to tell zooming from panning
+const ZOOMED_OUT_SHARE = 0.4; // The result's square counts as "zoomed out" when it's narrower than 40% of the map
+
+// The spot "Analyse this area" analyses, as { lon, lat }: the dashed square's centre (or the map's centre if there's none)
+export function getAnalyseSpot() {
+  const [lon, lat] = proposedSpot ?? map.getCenter().toArray(); // toArray() gives [lng, lat]
+  return { lon, lat }; // Our names
+} // End of getAnalyseSpot
+
+// Is a [lon, lat] point on screen, at least "margin" pixels inside the map's edges?
+function onScreen(lngLat, margin = 0) {
+  const p = map.project(lngLat); // Where it is on screen, in pixels
+  const box = map.getContainer(); // The map's box
+  return p.x >= margin && p.y >= margin && p.x <= box.clientWidth - margin && p.y <= box.clientHeight - margin; // Inside all four edges?
+} // End of onScreen
+
+// Is a [lon, lat] point inside the 10 km box around the searched address (or is there no box)?
+function insideExploreBox(lngLat) {
+  const bounds = map.getMaxBounds(); // The box (MapLibre's LngLatBounds), or null
+  return !bounds || bounds.contains(lngLat); // Inside it?
+} // End of insideExploreBox
+
+// Is a [lon, lat] point inside the result's analysis square?
+function insideAnalysed(lngLat) {
+  const box = screenBox(analysedCorners); // The square's edges on screen
+  const p = map.project(lngLat); // The point on screen
+  return p.x >= box.left && p.x <= box.right && p.y >= box.top && p.y <= box.bottom; // Within all four edges?
+} // End of insideAnalysed
+
+// A spot for the dashed square right next to the result's square, on screen and inside the 10 km box: where it appears
+// when people zoom out. Worked out on screen, because zoomed out the result's label is wider than its square: to the right of
+// the square or its label (whichever ends further right), else below (leaving room for "Hide land cover"), to the left,
+// or above (leaving room for the label). Hands back [lon, lat], or null if there's no room anywhere.
+function spotBesideResult() {
+  const box = screenBox(analysedCorners); // The result's square on screen
+  const side = squareSidePixels(); // The dashed square's size on screen
+  const mapLeft = map.getContainer().getBoundingClientRect().left; // Where the map starts on the page (labels are measured on the page)
+  const labelRight = areaLabel ? areaLabel.getElement().getBoundingClientRect().right - mapLeft : box.right; // The result label's right end, in map pixels
+  const gap = 16; // Space between the result (or its label) and the dashed square, in pixels
+  const middleX = (box.left + box.right) / 2; // The result's middle, across...
+  const middleY = (box.top + box.bottom) / 2; // ...and down
+  const candidates = [ // Screen points for the dashed square's centre, in order of preference:
+    [Math.max(box.right, labelRight) + gap + side / 2, middleY], // right of the square and its label
+    [middleX, box.bottom + 36 + side / 2], // below, past the "Hide land cover" button (about 27 px tall with its gap)
+    [box.left - gap - side / 2, middleY], // left
+    [middleX, box.top - 40 - side / 2], // above, past the result's label (about 25 px tall with its gap)
+  ]; // End of the candidates
+  for (const [x, y] of candidates) { // Try each in turn
+    const spot = map.unproject([x, y]).toArray(); // That screen point on the ground, as [lon, lat]
+    if (onScreen(spot, side / 2) && insideExploreBox(spot)) return spot; // Fully on screen and inside the box: use it
+  } // End of the candidates loop
+  return null; // No room
+} // End of spotBesideResult
+
+// The 2 x 2 km square's side on screen, in pixels, at the current zoom
+function squareSidePixels() {
+  // How many metres one screen pixel covers here. MapLibre's world is 512 pixels wide at zoom 0 and doubles with each zoom
+  // level; a degree of longitude shrinks towards the poles by cos(latitude), and the Mercator map stretches by the same amount.
+  const latitude = (map.getCenter().lat * Math.PI) / 180; // The centre's latitude, in radians
+  const metresPerPixel = (EARTH_CIRCUMFERENCE_M * Math.cos(latitude)) / (512 * 2 ** map.getZoom()); // Metres per screen pixel
+  return (2 * RADIUS_METERS) / metresPerPixel; // 2 km in screen pixels
+} // End of squareSidePixels
+
+// Decide where the dashed square is (or that it isn't offered): runs on every map move, before it's drawn
+function placeProposedSpot() {
+  const zoomed = lastZoom !== null && map.getZoom() !== lastZoom; // Did this move change the zoom?
+  lastZoom = map.getZoom(); // Remember for next time
+  if (!analysedCorners) { proposedSpot = null; return; } // No result on the map: nothing to offer
+  if (proposedSpot && zoomed && !proposedBeside) proposedPinned = true; // Zooming keeps a square on its ground spot (it doesn't jump back to the middle)
+  if (proposedBeside) { proposedSpot = null; proposedPinned = false; proposedBeside = false; } // Placed beside the result automatically: work it out afresh below (labels keep their pixel size while the map zooms)
+  if (proposedSpot && proposedPinned && !onScreen(proposedSpot)) { proposedSpot = null; proposedPinned = false; proposedBeside = false; } // Pinned but panned off-screen: start over at the centre
+  const centre = map.getCenter().toArray(); // The map's centre as [lon, lat]
+  if (!proposedPinned) proposedSpot = insideAnalysed(centre) ? null : centre; // Not pinned: follow the centre (offered once it leaves the result's square)
+  const box = screenBox(analysedCorners); // The result's square on screen
+  if (!proposedSpot && box.right - box.left < ZOOMED_OUT_SHARE * map.getContainer().clientWidth) { // Nothing offered, but zoomed out:
+    proposedSpot = spotBesideResult(); // offer a square right next to the result (re-placed on every move until someone grabs it)...
+    proposedPinned = proposedSpot !== null; // ...staying put meanwhile...
+    proposedBeside = proposedSpot !== null; // ...and marked as placed automatically
+  } // End of the zoomed-out check
+} // End of placeProposedSpot
+
+// Move the dashed square to a screen point (dragging, or the arrow keys), kept on screen and inside the 10 km box
+function moveProposedTo(x, y) {
+  const box = map.getContainer(); // The map's box
+  const half = Math.min(squareSidePixels() / 2, box.clientWidth / 2, box.clientHeight / 2); // Keep the whole square visible (when it fits)
+  const cx = Math.min(Math.max(x, half), box.clientWidth - half); // Clamp across...
+  const cy = Math.min(Math.max(y, half), box.clientHeight - half); // ...and down
+  const lngLat = map.unproject([cx, cy]).toArray(); // That screen point on the ground, as [lon, lat]
+  if (!insideExploreBox(lngLat)) return; // Outside the 10 km box: don't move there
+  proposedSpot = lngLat; // The new spot...
+  proposedPinned = true; // ...stays put on the ground from now on...
+  proposedBeside = false; // ...because the person chose it (it's no longer re-placed automatically)
+  updateAnalyseOffer(); // Redraw the dashed square and the button there
+} // End of moveProposedTo
+
+// The grip: drag the dashed square with a finger, pen or mouse, or move it with the arrow keys. Set up once, with the map.
+function setUpProposedGrip() {
+  const grip = document.getElementById('proposed-grip'); // The grip in the middle of the dashed square
+  grip.addEventListener('pointerdown', (event) => { // Pressed on the grip:
+    grip.setPointerCapture(event.pointerId); // Keep receiving its moves even if it slides off the small grip
+    grip.classList.add('is-dragging'); // The closed-hand look
+    event.stopPropagation(); // The map mustn't start panning
+  }); // End of pointerdown
+  grip.addEventListener('pointermove', (event) => { // It moves:
+    if (!grip.hasPointerCapture(event.pointerId)) return; // Only while pressed (a mouse just hovering doesn't count)
+    const rect = map.getContainer().getBoundingClientRect(); // Where the map is on the page
+    moveProposedTo(event.clientX - rect.left, event.clientY - rect.top); // Move the square's centre under the pointer
+  }); // End of pointermove
+  const release = () => { // Let go:
+    grip.classList.remove('is-dragging'); // Back to the open hand
+    afterProposedMove(); // Check where it landed
+  }; // End of release
+  grip.addEventListener('pointerup', release); // Released
+  grip.addEventListener('pointercancel', release); // Or interrupted
+  grip.addEventListener('keydown', (event) => { // A key on the focused grip:
+    const step = squareSidePixels() / 5; // 400 m per press
+    const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }; // Each arrow's direction
+    if (!(event.key in moves) || !proposedSpot) return; // Another key (or nothing to move): leave it alone
+    event.preventDefault(); // Stop the page or map from also reacting
+    const p = map.project(proposedSpot); // Where the square is now, on screen
+    moveProposedTo(p.x + moves[event.key][0], p.y + moves[event.key][1]); // Move it one step
+    afterProposedMove(); // Check where it landed
+  }); // End of the keyboard listener
+} // End of setUpProposedGrip
+
+// After a drag or key move: back on the result's square -> no offer (there's nothing new to analyse); otherwise start the
+// head start for the new spot (the archive lookup, see waitForSettledOffer)
+function afterProposedMove() {
+  if (proposedSpot && insideAnalysed(proposedSpot)) { proposedSpot = null; proposedPinned = false; proposedBeside = false; } // Dropped back on the result: the offer goes (zoomed out, it comes back beside the result)
+  updateAnalyseOffer(); // Redraw (or hide)
+  waitForSettledOffer(); // A new spot: start the head start shortly
+} // End of afterProposedMove
 
 // The head start: once "Analyse this area" is offered and the map has stayed still for a moment, main.js can start the
 // slow archive-imagery lookup for that spot in the background, so less of the wait comes after the press.
@@ -246,7 +381,7 @@ function waitForSettledOffer() {
   clearTimeout(settleTimer); // Forget any earlier wait
   settleTimer = setTimeout(() => { // After the wait:
     const offered = !document.getElementById('analyse-area').hidden; // Is "Analyse this area" showing?
-    if (offered && analysingCenter === null && onSettled) onSettled(getMapCenter()); // Yes, and no analysis running: hand over the centre
+    if (offered && analysingCenter === null && onSettled) onSettled(getAnalyseSpot()); // Yes, and no analysis running: hand over the dashed square's spot
   }, SETTLE_MS); // ...SETTLE_MS from now
 } // End of waitForSettledOffer
 
@@ -267,23 +402,16 @@ function updateAnalyseOffer() {
   if (!map) return; // No map yet (e.g. the first place was cancelled before it loaded): nothing to update
   const button = document.getElementById('analyse-area'); // The button
   const proposed = document.getElementById('proposed-square'); // The dashed square
-  const box = analysedCorners && screenBox(analysedCorners); // The analysis square on screen (if there is one)
-  const container = map.getContainer(); // The map's box
-  const x = container.clientWidth / 2; // The centre of the map's box: across...
-  const y = container.clientHeight / 2; // ...and down
-  const outside = box !== null && (x < box.left || x > box.right || y < box.top || y > box.bottom); // Is the centre outside the square?
-  const shown = outside || analysingCenter !== null; // Offer it then, and always while an analysis runs
+  if (analysingCenter === null) placeProposedSpot(); // Not analysing: decide where the dashed square is (follow the centre, stay pinned, or none)
+  const shown = analysingCenter !== null || proposedSpot !== null; // Offer it when there's a spot, and always while an analysis runs
   button.hidden = !shown; // The button
   proposed.hidden = !shown; // ...and the dashed square
+  document.getElementById('proposed-grip').hidden = analysingCenter !== null; // No grip while analysing (that spot is fixed)
   if (!shown) return; // Nothing more to do
-  const spot = analysingCenter ? map.project(analysingCenter) : { x, y }; // Where the dashed square's centre goes: the spot being analysed, or else the map's centre
+  const spot = map.project(analysingCenter ?? proposedSpot); // Where the dashed square's centre goes on screen: the spot being analysed, or else the offered spot
   proposed.style.left = `${spot.x}px`; // Its centre across...
   proposed.style.top = `${spot.y}px`; // ...and down (CSS moves it back by half its size)
-  // How many metres one screen pixel covers here. MapLibre's world is 512 pixels wide at zoom 0 and doubles with each zoom
-  // level; a degree of longitude shrinks towards the poles by cos(latitude), and the Mercator map stretches by the same amount.
-  const latitude = (map.getCenter().lat * Math.PI) / 180; // The centre's latitude, in radians
-  const metresPerPixel = (EARTH_CIRCUMFERENCE_M * Math.cos(latitude)) / (512 * 2 ** map.getZoom()); // Metres per screen pixel
-  const side = (2 * RADIUS_METERS) / metresPerPixel; // 2 km in screen pixels
+  const side = squareSidePixels(); // 2 km in screen pixels
   proposed.style.width = `${side}px`; // The dashed square's width...
   proposed.style.height = `${side}px`; // ...and height
 
@@ -309,6 +437,10 @@ function placeHandle() {
   // width would read 0 while hidden: it would always "fit", show again, not fit, hide again... and flicker near the edges.)
   beforeTag.style.visibility = x - box.left < beforeTag.offsetWidth + room ? 'hidden' : 'visible'; // Hide the 2017 tag when it wouldn't fit left of the line (e.g. the handle near the left edge)
   afterTag.style.visibility = box.right - x < afterTag.offsetWidth + room ? 'hidden' : 'visible'; // Hide the 2023 tag when it wouldn't fit right of the line
+  if (swipeHint) { // The "drag left" hint, when it's showing: hide it while it's wider than the square (zoomed far out), so it doesn't spill over the map
+    const hint = swipeHint.getElement(); // The hint itself
+    hint.style.visibility = hint.offsetWidth + 16 > box.right - box.left ? 'hidden' : 'visible'; // "visibility" keeps its width measurable while hidden
+  } // End of the hint check
 } // End of placeHandle
 
 // Whether people asked their device for less motion ("reduce motion" in the accessibility settings)
@@ -757,6 +889,9 @@ export async function showChange(change) {
   updateColoursButton(); // Fill in its words and state, and place it
 
   analysedCorners = corners; // Remember the square, for the "Analyse this area" check
+  proposedSpot = null; // A new result: the dashed square starts over...
+  proposedPinned = false; // ...following the map's centre
+  proposedBeside = false; // (not placed beside anything yet)
   updateAnalyseOffer(); // Check it once now (the centre is inside the new square, so nothing is offered)
 
   await waitForIdle(); // Turning the map can reveal a little new ground at the edges: wait until its imagery has loaded too

@@ -13,7 +13,7 @@ import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges, getMapCenter, setAnalysing, onOfferSettled, showFindingTag, hideFindingTag } from './map.js';
+import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges, getAnalyseSpot, setAnalysing, onOfferSettled, showFindingTag, hideFindingTag } from './map.js';
 // Bring in the function that builds the 2017 picture for the before/after swipe, from swipe.js
 import { buildBeforeImage, tagText } from './swipe.js';
 
@@ -338,7 +338,7 @@ async function selectPlace(place) {
   if (early && !cancelled()) playOpening(); // The opening: sweep from 2017 to 2023, show the colours, then glide to the middle
 } // End of selectPlace
 
-// ---------- "Analyse this area": analyse the map's centre, without going back to the globe ----------
+// ---------- "Analyse this area": analyse the dashed square's spot, without going back to the globe ----------
 
 const resultPanel = document.getElementById('panel-result'); // The result panel (dimmed while busy)
 const areaSteps = document.getElementById('area-steps'); // The steps in the middle of the dashed square
@@ -368,7 +368,7 @@ function setResultBusy(busy) {
   } // End of the parts loop
 } // End of setResultBusy
 
-// Run the analysis for the 2 x 2 km square at the map's centre. The old result stays, dimmed, until the new one is ready;
+// Run the analysis for the 2 x 2 km square at the dashed square's spot. The old result stays, dimmed, until the new one is ready;
 // then everything switches at once. Uses the same two steps as choosing a place (startRequests, showFinishedResult).
 async function analyseArea() {
   if (mode !== 'result') return; // Only from a finished result (this also ignores presses while an analysis runs)
@@ -377,7 +377,7 @@ async function analyseArea() {
   const myTicket = placeTicket; // ...which this run remembers
   const cancelled = () => myTicket !== placeTicket; // True once a newer ticket exists (the visitor left)
 
-  const center = getMapCenter(); // The spot to analyse: the map's centre
+  const center = getAnalyseSpot(); // The spot to analyse: the dashed square's centre (dragged there, or the map's centre)
   const place = { name: null, lon: Number(center.lon.toFixed(5)), lat: Number(center.lat.toFixed(5)), source: 'area' }; // Rounded to about 1 m, like places in the address
   setAnalysing([place.lon, place.lat]); // The dashed square stays on this spot, and the button says "Analysing…"
   setResultBusy(true); // Dim the old result
@@ -423,7 +423,7 @@ document.getElementById('analyse-area').addEventListener('click', analyseArea); 
 // The head start: once "Analyse this area" has been offered for a moment, quietly ask for that spot's archive imagery.
 // The answer is thrown away here: the backend saves it (or, if it's still looking when the button is pressed, the real
 // request waits for this same lookup), so after the press the before/after swipe arrives sooner. Nothing on screen changes.
-onOfferSettled((center) => { // When the offer has settled (map.js), with the map's centre:
+onOfferSettled((center) => { // When the offer has settled (map.js), with the dashed square's spot:
   if (mode !== 'result') return; // Only while a finished result is shown (not while analysing or on the globe)
   fetchWayback(Number(center.lat.toFixed(5)), Number(center.lon.toFixed(5))) // Rounded like analyseArea rounds it, so it's the same spot
     .catch(() => {}); // A failure doesn't matter here: the real request after the press tries again

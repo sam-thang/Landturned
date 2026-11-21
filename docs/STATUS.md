@@ -395,6 +395,20 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 
 **Fontana and Stavanger runs:** the analysis, archive and reveal paths didn't change in Phase 6, so the Phase 5 timings still apply.
 
+**After Phase 6 (user feedback):**
+- **Outside the square:** dimmed a bit more (`OUTSIDE_DIM` 0.55 → 0.65).
+- **Map labels:** solid near-black backings instead of 70–85% see-through (area label, year tags, "Hide land cover", "Analyse this area", hint, edge message). The scale bar and credit stay see-through.
+- **The draggable dashed square.**
+  - **The problem:** zoomed out, the 10 km box holds the whole view, so the screen centre (where the dashed square sat) could only move about 2 km sideways. Spots visible to the left or right of the result couldn't be analysed.
+  - **Now, while panning:** the dashed square follows the centre, as before.
+  - **While zooming:** it stays on its ground spot.
+  - **Zoomed out** (result square under 40% of the map's width): it appears next to the result on its own, measured on screen so it clears the result's label (right, else below, left, above). It's re-placed on every move until grabbed.
+  - **Dragging:** an off-white grip with a four-way arrow (44 px touch area; arrow keys move it 400 m). It can't leave the screen or the 10 km box. Dropped on the result, the offer goes (zoomed out, it comes back beside the result). Panned off-screen, it returns to the centre.
+  - **"Analyse this area"** analyses the dashed square's spot (`getAnalyseSpot`). The head start begins on release.
+  - **Tested:** desktop, zoomed fully out, dragged to the top-left of the view and analysed → 34.0195° N, 117.6462° W (about 5 km north-west of Ontario Ranch). Arrow keys moved it 50 px. No overlaps with the result's label on desktop or phone. No page errors.
+  - **Known, phone at zoom 12:** the dashed square appears below the result. Its "Analyse this area" button can overlap the result's "Hide land cover" button when that shows, and its corner touches the scale bar box. Not fixed.
+- **The "drag left for land cover" hint** hides while it's wider than the result's square (zoomed far out).
+
 ## 5. Loading and caching
 
 **Preloaded:**

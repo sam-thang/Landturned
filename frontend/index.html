@@ -35,6 +35,9 @@
               <rect class="marquee-track" width="100%" height="100%" /> <!-- A dark line all the way round: it shows in the gaps between the dashes -->
               <rect class="marquee-ants" width="100%" height="100%" /> <!-- Off-white dashes on top: together, a two-tone "marching ants" line -->
             </svg> <!-- End of the drawing -->
+            <button id="proposed-grip" class="proposed-grip" type="button" aria-label="Move the area to analyse (arrow keys)"> <!-- The grip: drag it (or use the arrow keys) to move the dashed square anywhere on the map; map.js does the moving -->
+              <svg viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d="M10 2 V18 M2 10 H18 M10 2 L7.5 4.5 M10 2 L12.5 4.5 M10 18 L7.5 15.5 M10 18 L12.5 15.5 M2 10 L4.5 7.5 M2 10 L4.5 12.5 M18 10 L15.5 7.5 M18 10 L15.5 12.5" /></svg> <!-- A four-way "move" arrow: a cross with an arrowhead on each end -->
+            </button> <!-- End of the grip -->
             <ol id="area-steps" class="steps area-steps mono" hidden> <!-- While analysing: the real steps, in the middle of the square (main.js marks them running and done, like the loading panel's) -->
               <li data-step="compare">Comparing land cover</li> <!-- The backend compares the two years -->
               <li data-step="imagery">Loading imagery</li> <!-- The map's photo at the new spot loads (the swipe's earlier photo joins later, without holding this up) -->
