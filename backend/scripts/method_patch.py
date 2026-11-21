@@ -47,7 +47,7 @@ BACKGROUND = (26, 29, 34)  # Dark backdrop for "no change" pixels in the change 
 
 def read_all_years():
     """Read the place's 2 x 2 km square for every available year. Returns (list of years, {year: category grid}, corners)."""
-    items_by_year = landcover.find_items_by_year(LON, LAT)  # All yearly maps covering the point
+    items_by_year = landcover.find_files_by_year(LON, LAT)  # All yearly maps covering the point
     grids = {}  # year -> 200 x 200 grid of our categories
     corners = None  # The square's corners (the same for every year)
     for year, item in items_by_year.items():  # Each year in turn
@@ -146,7 +146,7 @@ def main():
             "years": years,  # Every year included
             "categories": {str(y): "".join(str(int(v)) for v in grids[y][window].ravel()) for y in years},  # Each year as one string of 1,600 digits (0-5), row by row
             "category_names": {str(k): v for k, v in landcover.CATEGORY_NAMES.items()},  # What each digit means
-            "source": "Impact Observatory annual land cover, 10 m (Microsoft Planetary Computer)",  # Credit
+            "source": "Impact Observatory annual land cover, 10 m (AWS Open Data, CC BY 4.0)",  # Credit
         }  # End of the data
         OUT_FILE.parent.mkdir(parents=True, exist_ok=True)  # Make the data folder if it doesn't exist yet
         OUT_FILE.write_text(json.dumps(data, indent=1), encoding="utf-8")  # Write the file

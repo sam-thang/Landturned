@@ -129,7 +129,7 @@ def square_photo(lat, lon, year):
 def make_photo(lat, lon, year):
     """Find, read and colour the photo (the slow part: about 6-10 seconds over the internet)."""
     with ThreadPoolExecutor(max_workers=2) as pool:  # Two helpers: the two catalog searches don't depend on each other, so they run at the same time
-        maps_job = pool.submit(landcover.find_items_by_year, lon, lat)  # The land-cover maps for the point (any year gives the same grid)
+        maps_job = pool.submit(landcover.find_files_by_year, lon, lat)  # The land-cover maps for the point (any year gives the same grid)
         items_job = pool.submit(candidates, lon, lat, year)  # The Sentinel-2 images worth checking, summer first
         maps, items = maps_job.result(), items_job.result()  # Wait for both answers
     if not maps:  # No land-cover data here (e.g. far out at sea):

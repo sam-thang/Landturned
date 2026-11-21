@@ -29,7 +29,7 @@ def main():
     print(f"Place: {PLACE_NAME} ({LAT}, {LON})")  # Say which place we're looking at
     print("Searching the catalog...")  # Let the user know something is happening
 
-    items_by_year = landcover.find_items_by_year(LON, LAT)  # Find all available years
+    items_by_year = landcover.find_files_by_year(LON, LAT)  # Find all available years
     years = list(items_by_year)  # Just the years, e.g. [2017, 2018, ...]
     print(f"Years available: {', '.join(str(y) for y in years)}")  # Print them on one line
     first, latest = years[0], years[-1]  # The oldest and newest year

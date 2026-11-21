@@ -1,6 +1,7 @@
 # The Landturn backend: a small web API built with FastAPI.
 
 from concurrent.futures import ThreadPoolExecutor  # Built into Python; runs several downloads at the same time
+import threading  # Built into Python; runs the land-cover year check in the background when the server starts
 from typing import Annotated  # Lets us attach extra rules to a function input (like "must be between -90 and 90")
 
 # Bring in FastAPI, the library that turns Python functions into web addresses,
@@ -11,6 +12,10 @@ from app import change_image, imagery, landcover, wayback  # Our own code: the c
 
 # Create the app. The title is shown on FastAPI's automatic documentation page (at /docs).
 app = FastAPI(title="Landturn backend")
+
+# Check which land-cover years exist (is a newer year than the newest known one published yet?) as soon as the server starts,
+# in the background, so the first visitor doesn't wait for it. "daemon=True": this helper never keeps the server from stopping.
+threading.Thread(target=landcover.newest_year, daemon=True).start()
 
 
 # The line starting with "@" is a "decorator": it tells FastAPI to run the function below
@@ -29,14 +34,14 @@ def change(
     lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90 (ge = greater or equal, le = less or equal); FastAPI rejects anything else with a clear error
     lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
 ) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
-    items_by_year = landcover.find_items_by_year(lon, lat)  # Find all available land-cover maps for this point
-    if not items_by_year:  # No maps found (e.g. far out at sea)?
+    files_by_year = landcover.find_files_by_year(lon, lat)  # The land-cover map files for this point, by year (worked out from its coordinates; no catalog search)
+    if not files_by_year:  # No maps found (e.g. far out at sea)?
         raise HTTPException(status_code=404, detail="No land-cover data for this location.")  # Answer with error 404 ("not found") and a message
-    years = list(items_by_year)  # The available years, oldest first
+    years = list(files_by_year)  # The available years, oldest first
     first, latest = years[0], years[-1]  # Compare the oldest with the newest
 
-    data_before, _ = landcover.read_square(items_by_year[first], lon, lat)  # Read the first year's square ("_" = we don't need its corners)
-    data_after, corners = landcover.read_square(items_by_year[latest], lon, lat)  # Read the latest year's square, and keep its corners
+    data_before, _ = landcover.read_square(files_by_year[first], lon, lat)  # Read the first year's square ("_" = we don't need its corners)
+    data_after, corners = landcover.read_square(files_by_year[latest], lon, lat)  # Read the latest year's square, and keep its corners
     before = landcover.to_categories(data_before)  # Translate into our six categories
     after = landcover.to_categories(data_after)  # Same for the latest year
     return change_answer(lat, lon, years, first, latest, before, after, corners)  # Build the answer (shared with /api/timeline)
@@ -54,7 +59,7 @@ def change_answer(lat, lon, years, first, last, before, after, corners):
             "url": change_image.to_data_url(change_image.make_png(change_grid)),  # The PNG, written as a data URL
             "corners": corners,  # Its four corners as [longitude, latitude]: top-left, top-right, bottom-right, bottom-left
         },  # End of the image
-        "source": "Impact Observatory annual land cover, 10 m (Microsoft Planetary Computer)",  # Where the data comes from, for the title block
+        "source": "Impact Observatory annual land cover, 10 m (AWS Open Data, CC BY 4.0)",  # Where the data comes from, for the title block
     }  # End of the answer
 
 
@@ -66,15 +71,15 @@ def timeline(
     lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90
     lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
 ) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
-    items_by_year = landcover.find_items_by_year(lon, lat)  # Find all available land-cover maps for this point
-    if not items_by_year:  # No maps found (e.g. far out at sea)?
+    files_by_year = landcover.find_files_by_year(lon, lat)  # The land-cover map files for this point, by year (worked out from its coordinates; no catalog search)
+    if not files_by_year:  # No maps found (e.g. far out at sea)?
         raise HTTPException(status_code=404, detail="No land-cover data for this location.")  # Answer with error 404 and a message
-    years = list(items_by_year)  # The available years, oldest first
+    years = list(files_by_year)  # The available years, oldest first
     if len(years) < 2:  # Only one year: nothing to compare
         raise HTTPException(status_code=404, detail="Only one year of land-cover data for this location.")  # Say so
 
     with ThreadPoolExecutor(max_workers=len(years)) as pool:  # One helper per year, so all the reads happen at the same time
-        reads = list(pool.map(lambda year: landcover.read_square(items_by_year[year], lon, lat), years))  # (data, corners) for each year, oldest first
+        reads = list(pool.map(lambda year: landcover.read_square(files_by_year[year], lon, lat), years))  # (data, corners) for each year, oldest first
     grids = {year: landcover.to_categories(data) for year, (data, _) in zip(years, reads)}  # Each year's square in our six categories
     corners = reads[-1][1]  # The square's corners (the same in every year: same grid)
     first = years[0]  # The start of every comparison
@@ -99,10 +104,10 @@ def wayback_imagery(
     last: Annotated[int | None, Query(alias="to", ge=2015, le=2100, description="The last land-cover year, if known")] = None,  # Optional, likewise
 ) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
     if first is None or last is None:  # The years weren't given:
-        items_by_year = landcover.find_items_by_year(lon, lat)  # Look them up (about 2 seconds)
-        if not items_by_year:  # None here:
+        files_by_year = landcover.find_files_by_year(lon, lat)  # Work them out (instant once the grid zone has been checked)
+        if not files_by_year:  # None here:
             raise HTTPException(status_code=404, detail="No land-cover data for this location.")  # Nothing to match
-        years = list(items_by_year)  # Oldest first
+        years = list(files_by_year)  # Oldest first
         first, last = years[0], years[-1]  # The first and the last year
     photos = wayback.before_after(lat, lon, first, last)  # The two photos (or None for each); saved per map tile, so neighbours share
     return {"years": {"from": first, "to": last}, **photos}  # e.g. {"years": {...}, "before": {...}, "after": {...}}
@@ -119,7 +124,7 @@ def imagery_photo(
 ) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
     try:  # Try to make the photo...
         if year is None:  # No year given (the app's first request, before it knows the years):
-            maps = landcover.find_items_by_year(lon, lat)  # The land-cover maps for the point
+            maps = landcover.find_files_by_year(lon, lat)  # The land-cover maps for the point
             if not maps:  # None here:
                 raise LookupError("No land-cover data for this location.")  # Nothing to match
             year = max(maps)  # The latest year with a land-cover map, so the photo matches the "after" year of the change

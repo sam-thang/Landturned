@@ -36,7 +36,7 @@ Landturn shows how the land around any address in the world has changed over tim
 
 ## Capabilities and Constraints
 
-- **Data:** Impact Observatory annual land cover (10 m, 2017 to the latest year) via Microsoft Planetary Computer. Planned later: GLC_FCS30D (30 m, 1985–2022), which must be labelled as coarser.
+- **Data:** Impact Observatory annual land cover (10 m, 2017 to the latest year, currently 2024) via its public AWS Open Data copy (CC BY 4.0). Planned later: GLC_FCS30D (30 m, 1985–2022), which must be labelled as coarser.
 - **Categories:** trees, grass/farmland, built, water, bare, and no data (no data includes clouds).
 - **Change colors:** red = green space cleared, green = green space gained, orange = newly built, blue = new water. One color per pixel. Green ↔ green changes and no-data pixels get no color, and the no-data area is reported separately.
 - **Analysis area:** the 2 × 2 km UTM-grid square shown on the map. The map is turned grid-up, and people can't rotate or tilt it.

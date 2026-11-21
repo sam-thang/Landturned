@@ -98,7 +98,7 @@ def analyse(items_by_year, lat, lon):
 def best_square(name, lat, lon, kind):
     """Try the 9 nudged squares around a candidate and return the one with the most change of the expected kind.
     Returns a dictionary with the best square's center, its stats, its change grid, and the years compared."""
-    items_by_year = landcover.find_items_by_year(lon, lat)  # Find the maps once; nearby squares are on the same maps
+    items_by_year = landcover.find_files_by_year(lon, lat)  # Find the maps once; nearby squares are on the same maps
     if not items_by_year:  # No maps at all (e.g. a point in the sea):
         print(f"  {name}: no data here")  # say so
         return None  # and give up on this candidate

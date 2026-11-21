@@ -26,7 +26,7 @@ def warm(place):
     """Find and save one place's before/after imagery. Returns a line for the table."""
     pid, name, lat, lon = place  # Take the place apart
     start = time.perf_counter()  # Note the start time
-    years = list(landcover.find_items_by_year(lon, lat))  # Its land-cover years, oldest first (the app's request uses the same years)
+    years = list(landcover.find_files_by_year(lon, lat))  # Its land-cover years, oldest first (the app's request uses the same years)
     if not years:  # No land-cover data (shouldn't happen for a hotspot):
         return f"{pid:<15} no land-cover data"  # Say so
     photos = wayback.before_after(round(lat, 5), round(lon, 5), years[0], years[-1], quick=False)  # Find and save (or read back) the two photos (the full answer: this fills the cache)

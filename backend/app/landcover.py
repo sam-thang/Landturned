@@ -1,19 +1,24 @@
 # Land-cover data: find the yearly maps for a place, read our 2 x 2 km square, and translate the
-# dataset's classes into Landturn's own six categories. Used by the exploration script now, and by the API later.
+# dataset's classes into Landturn's own six categories.
+# The maps are Impact Observatory's 10 m annual land cover, read from its public AWS Open Data bucket (CC BY 4.0):
+# one file per UTM grid zone per year, so the file for a place can be worked out from its coordinates (no catalog search).
 
 import os  # Built into Python; os.environ holds settings that GDAL reads
 
 # Settings for GDAL, the library rasterio uses to read files over the internet. They must be set before any file is opened.
 # Without them, every file opening first lists the whole online folder and makes many small requests: about 2 seconds
-# each time. With them, an opening takes about 0.4 seconds (measured on Planetary Computer, 2026-11-19).
+# each time. With them, an opening takes about 0.4 seconds (measured 2026-11-19).
 os.environ.setdefault("GDAL_DISABLE_READDIR_ON_OPEN", "EMPTY_DIR")  # Don't list the online folder before opening a file in it
 os.environ.setdefault("GDAL_HTTP_MERGE_CONSECUTIVE_RANGES", "YES")  # Combine neighbouring small reads into one request
 os.environ.setdefault("GDAL_HTTP_MULTIPLEX", "YES")  # Send several requests over one connection at the same time
 os.environ.setdefault("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", ".tif")  # Only treat .tif links as files (no guessing about other kinds)
 
+import urllib.error  # Built into Python; the error raised when a web address answers "not found"
+import urllib.request  # Built into Python; asks a web server whether a file exists (a HEAD request)
+
 import numpy as np  # numpy: fast math on big grids of numbers
 import planetary_computer  # Signs Planetary Computer file links so we're allowed to download them
-import pystac_client  # Searches the STAC catalog (the index of available maps)
+import pystac_client  # Searches the STAC catalog (only for the Sentinel-2 photo in imagery.py now)
 import rasterio  # Reads raster files, including just a small window of a big file
 from rasterio.warp import transform  # Converts coordinates from one projection to another
 from rasterio.windows import Window, from_bounds  # Window: a block of rows and columns; from_bounds: turns a box in meters into a window
@@ -22,8 +27,13 @@ from rasterio.windows import Window, from_bounds  # Window: a block of rows and 
 
 HALF_SIZE_M = 1000  # Half the square's width in meters: 1 km in each direction gives the 2 x 2 km square the map shows
 PIXEL_AREA_M2 = 10 * 10  # Each pixel is 10 m x 10 m = 100 square meters
-CATALOG_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"  # The address of Planetary Computer's catalog
-COLLECTION = "io-lulc-annual-v02"  # The dataset: Impact Observatory 10 m annual land use / land cover, version 2
+CATALOG_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"  # The address of Planetary Computer's catalog (only imagery.py uses it now)
+# Where the land-cover files are: Impact Observatory's public bucket on AWS (region us-west-2), named "{zone}_{year}.tif",
+# e.g. "11S_2024.tif" for Fontana. The same files as Planetary Computer's "io-lulc-annual-v02" (checked: identical
+# for 2023), plus newer years (2024 was added in June 2025; Planetary Computer stops at 2023).
+LULC_URL = "https://io-10m-annual-lulc.s3.amazonaws.com/{zone}_{year}.tif"
+FIRST_YEAR = 2017  # The first year of the dataset
+NEWEST_KNOWN_YEAR = 2024  # The newest year known to exist (2026-11-21); newer years are found automatically (see years_in_zone)
 
 # ---------- Our six categories ----------
 
@@ -171,25 +181,78 @@ def summarize(before, after, change):
 # ---------- Finding the maps ----------
 
 def open_catalog():
-    """Connect to Planetary Computer's catalog, with every file link signed automatically. Also used by imagery.py."""
+    """Connect to Planetary Computer's catalog, with every file link signed automatically. Only imagery.py uses it now."""
     return pystac_client.Client.open(  # Connect to the catalog...
         CATALOG_URL,  # ...at this address...
         modifier=planetary_computer.sign_inplace,  # ...and sign every file link we get back, automatically
     )  # End of the connection
 
 
-def find_items_by_year(lon, lat):
-    """Search the catalog for all maps covering the point, and return them as {year: item}, oldest year first."""
-    catalog = open_catalog()  # Connect to the catalog (see open_catalog above)
-    search = catalog.search(  # Ask the catalog a question:
-        collections=[COLLECTION],  # look only in this dataset,
-        intersects={"type": "Point", "coordinates": [lon, lat]},  # for maps that cover the point (GeoJSON: longitude first)
-    )  # End of the search
-    items_by_year = {}  # An empty dictionary: year -> map item
-    for item in search.items():  # Go through every map the catalog found
-        year = int(item.properties["start_datetime"][:4])  # Each map covers one year; the first 4 characters of its start date are the year
-        items_by_year[year] = item  # Remember the item under its year
-    return dict(sorted(items_by_year.items()))  # Hand back the dictionary sorted from oldest to newest year
+# The latitude bands of the UTM grid, 8 degrees each, from 80°S upwards ("I" and "O" are skipped, as they look like 1 and 0)
+BAND_LETTERS = "CDEFGHJKLMNPQRSTUVWX"
+
+
+def grid_zone(lat, lon):
+    """The grid-zone name of the file that covers a point, e.g. "11S" (Fontana) or "32V" (Stavanger), or None outside it.
+    It is the military grid's zone: a UTM zone number (6° of longitude each) plus a latitude band letter (8° each)."""
+    if not -80 <= lat < 84:  # The grid only covers 80°S to 84°N
+        return None  # No file
+    zone = int((lon + 180) // 6) + 1  # Zones 1 to 60, numbered eastwards from 180°W
+    zone = min(zone, 60)  # Longitude exactly 180 would give 61: that's zone 60
+    band = BAND_LETTERS[min(int((lat + 80) // 8), 19)]  # The band letter; the last band, X, is 12° tall (72-84°N), so cap at the 20th letter
+    if band == "V" and zone == 31 and lon >= 3:  # Exception: south-west Norway (around Stavanger) is drawn into zone 32
+        zone = 32  # 32V covers 3-12°E
+    if band == "X" and zone in (32, 34, 36):  # Exception: Svalbard has wider zones; 32X, 34X and 36X don't exist
+        if zone == 32:  # 32X is split between its neighbours
+            zone = 31 if lon < 9 else 33  # 0-9°E -> 31X, 9-21°E -> 33X
+        elif zone == 34:  # 34X likewise
+            zone = 33 if lon < 21 else 35  # 9-21°E -> 33X, 21-33°E -> 35X
+        else:  # 36X likewise
+            zone = 35 if lon < 33 else 37  # 21-33°E -> 35X, 33-42°E -> 37X
+    return f"{zone:02d}{band}"  # e.g. "11S", or "01C" (zone numbers below 10 get a leading zero, like the file names)
+
+
+def file_exists(url):
+    """Ask the web server whether a file exists, without downloading it (a "HEAD" request)."""
+    try:  # The server answers "not found" with an error
+        with urllib.request.urlopen(urllib.request.Request(url, method="HEAD"), timeout=10):  # Ask for the file's details only
+            return True  # It answered: the file is there
+    except urllib.error.HTTPError:  # 404 (not found) or 403 (the bucket answers 403 for missing files to anonymous visitors)
+        return False  # No such file
+
+
+_newest_year = None  # The newest year with files, once checked (None = not yet): checked once per server run, see newest_year
+_zone_has_data = {}  # Per grid zone: whether it has files at all, e.g. {"11S": True, "06N": False}, remembered while the server runs
+REFERENCE_ZONE = "11S"  # A zone that certainly has data (southern California), used to look for newly published years
+
+
+def newest_year():
+    """The newest year with land-cover files. Impact Observatory publishes a new year for every zone at once (2024 came in
+    June 2025), so one zone is enough to check, once per server run: is the year after the newest known one there yet?"""
+    global _newest_year  # We change the module-level value (not a new local one)
+    if _newest_year is None:  # Not checked yet in this server run:
+        year = NEWEST_KNOWN_YEAR  # Start from the newest known year...
+        while file_exists(LULC_URL.format(zone=REFERENCE_ZONE, year=year + 1)):  # ...and step forward while the next year exists
+            year += 1  # It does: that's the newest so far
+        _newest_year = year  # Remember it
+    return _newest_year  # Hand it back
+
+
+def years_in_zone(zone):
+    """The years that have a file for this grid zone, oldest first (an empty list if the zone has none, e.g. open ocean).
+    One quick check per zone while the server runs: is there a file for the newest year? (Every year has the same zones.)"""
+    last = newest_year()  # The newest year (checked once per server run)
+    if zone not in _zone_has_data:  # This zone not checked yet:
+        _zone_has_data[zone] = file_exists(LULC_URL.format(zone=zone, year=last))  # Does it have a file for that year?
+    return list(range(FIRST_YEAR, last + 1)) if _zone_has_data[zone] else []  # Every year from 2017 to the newest, or none
+
+
+def find_files_by_year(lon, lat):
+    """All the yearly map files covering the point, as {year: web address}, oldest year first (empty if there are none)."""
+    zone = grid_zone(lat, lon)  # Which grid zone the point is in, e.g. "11S"
+    if zone is None:  # Outside the grid (near the poles):
+        return {}  # No files
+    return {year: LULC_URL.format(zone=zone, year=year) for year in years_in_zone(zone)}  # e.g. {2017: ".../11S_2017.tif", ...}
 
 
 # ---------- Reading our square ----------
@@ -209,27 +272,18 @@ def square_window(crs, file_transform, lon, lat):
     return Window(round(exact.col_off), round(exact.row_off), size, size)  # Snap to whole pixels: round the starting column and row, keep 200 x 200
 
 
-def square_grid(item, lon, lat):
-    """The square's pixel grid in one land-cover map: (its projection, its "transform", its size in pixels).
-    The satellite photo is drawn onto this grid, so every photo pixel sits exactly on one land-cover pixel.
-    The catalog records each map's projection and grid ("proj:code", "proj:transform"), so normally no file is opened;
-    only if those records are missing do we open the file and read them from its header (about 1.5 s slower)."""
-    code = item.properties.get("proj:code")  # The projection's name in the catalog, e.g. "EPSG:32611" (UTM zone 11 north)
-    numbers = item.properties.get("proj:transform")  # The file's transform in the catalog: [pixel width, 0, left edge, 0, -pixel height, top edge]
-    if code and numbers:  # Both recorded:
-        crs = rasterio.crs.CRS.from_string(code)  # Turn the name into a projection object
-        file_transform = rasterio.Affine(*numbers[:6])  # Turn the six numbers into a transform ("*" spreads the list into separate inputs)
-    else:  # Not recorded (shouldn't happen, but just in case):
-        with rasterio.open(item.assets["data"].href) as src:  # Open the map file over the internet (only its header is read)
-            crs, file_transform = src.crs, src.transform  # Take them from the file
+def square_grid(url, lon, lat):
+    """The square's pixel grid in one land-cover map file: (its projection, its "transform", its size in pixels).
+    The satellite photo (imagery.py) is drawn onto this grid, so every photo pixel sits exactly on one land-cover pixel."""
+    with rasterio.open(url) as src:  # Open the map file over the internet (only its header is read)
+        crs, file_transform = src.crs, src.transform  # Its projection and grid
     window = square_window(crs, file_transform, lon, lat)  # Our square's rows and columns
     return crs, rasterio.windows.transform(window, file_transform), window.width  # The projection, the square's own transform, and 200
 
 
-def read_square(item, lon, lat):
-    """Read only the 2 x 2 km square around the point from one map.
+def read_square(url, lon, lat):
+    """Read only the 2 x 2 km square around the point from one map file (its web address, from find_files_by_year).
     Returns (grid of dataset class numbers, the square's four corners as [longitude, latitude])."""
-    url = item.assets["data"].href  # The (signed) web address of the map's GeoTIFF file
     with rasterio.open(url) as src:  # Open the file over the internet; nothing big is downloaded yet
         window = square_window(src.crs, src.transform, lon, lat)  # Our square's rows and columns (see square_window above)
         size = window.width  # How many pixels across: 200

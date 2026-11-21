@@ -2,7 +2,7 @@
 
 A factual snapshot for performance advice. It's based on reading the code and on timings measured on 2026-11-21 (section 4). "Not checked" means I didn't verify it.
 
-**Speed-up phases done:** Phase 1 (quick fixes) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
+**Speed-up phases done:** Phase 1 (quick fixes) and Phase 2 (land cover read from AWS, years to 2024) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
 
 ## 1. Stack and structure
 
@@ -13,7 +13,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 - **Fonts:** Space Grotesk and JetBrains Mono from Google Fonts.
 
 **Backend:** Python 3.13, FastAPI with Uvicorn, managed with uv.
-- **pystac-client** and **planetary-computer:** STAC search and URL signing.
+- **pystac-client** and **planetary-computer:** STAC search and URL signing. Since Phase 2 only the unused Sentinel-2 endpoint uses them.
 - **rasterio** (GDAL): windowed reads of Cloud-Optimized GeoTIFFs.
 - **numpy:** pixel comparison.
 - **Pillow:** writes the change PNG.
@@ -37,7 +37,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `frontend/src/scalebar.js` | Scale bar |
 | `frontend/how/`, `how.js`, `how.css` | "How this works" page, partly built |
 | `backend/app/main.py` | API routes: `/api/health`, `/api/change`, `/api/timeline`, `/api/wayback`, `/api/imagery` |
-| `backend/app/landcover.py` | STAC search, 200 × 200 px square read, class mapping, comparison, edge cleaning, stats |
+| `backend/app/landcover.py` | Works out the land-cover file from the coordinates (grid zone + year), 200 × 200 px square read, class mapping, comparison, edge cleaning, stats |
 | `backend/app/change_image.py` | Change grid → transparent PNG → base64 data URL |
 | `backend/app/wayback.py` | Esri Wayback lookup: which archive versions and photo dates for "before" and "after", with a disk cache |
 | `backend/app/imagery.py` | Sentinel-2 photo of the square. **The frontend no longer calls it.** |
@@ -48,8 +48,8 @@ A factual snapshot for performance advice. It's based on reading the code and on
 
 | Service | Endpoint / pattern | What we request | Called from |
 |---|---|---|---|
-| **Microsoft Planetary Computer STAC** | `https://planetarycomputer.microsoft.com/api/stac/v1`, collection `io-lulc-annual-v02` | Point-intersects search: every annual item covering the point (2017–2023 today) | Backend, `landcover.find_items_by_year` |
-| **Impact Observatory annual LULC** (COGs on Azure Blob, signed URLs) | Item asset `data` (GeoTIFF, UTM, 10 m) | A windowed read of band 1: a **200 × 200 px** (2 × 2 km) square snapped to the file's pixel grid, class codes as uint8 | Backend, `landcover.read_square` |
+| **Impact Observatory annual LULC on AWS Open Data** (since Phase 2; CC BY 4.0, bucket `io-10m-annual-lulc`, us-west-2) | `https://io-10m-annual-lulc.s3.amazonaws.com/{zone}_{year}.tif`, e.g. `11S_2024.tif`; the file name is computed from the coordinates (`landcover.grid_zone`), no catalog search | A windowed read of band 1: a **200 × 200 px** (2 × 2 km) square snapped to the file's pixel grid, class codes as uint8; 2017–2024. HEAD requests: one per server start (is a newer year out?), one per grid zone per server run (does the zone have data?) | Backend, `landcover.find_files_by_year`, `read_square`, `newest_year`, `years_in_zone` |
+| ~~Microsoft Planetary Computer STAC + Azure COGs~~ | collection `io-lulc-annual-v02` | Used until Phase 2 (2017–2023 only). Its 2023 squares are identical to the AWS files | Not used for land cover any more |
 | **Esri World Imagery tiles** (current) | `https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}` | Raster tiles, max zoom 19. `tileSize` 128 on screens with DPR ≥ 2 (sharper, about 4× the tiles), else 256 | Browser, MapLibre (`map.js`) |
 | **Esri World Imagery identify** | `https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/identify` | Capture date of the current photo at the point (layer 0, about 1 km map extent, 400 × 400 display) | Browser, `api.js fetchPhotoDate` |
 | **Esri Wayback config** | `https://s3-us-west-2.amazonaws.com/config.maptiles.arcgis.com/waybackconfig.json` | The list of all archive versions (about 170 since 2016) | Backend, `wayback.versions` |
@@ -68,12 +68,12 @@ A factual snapshot for performance advice. It's based on reading the code and on
 2. **These all start at the same moment, in parallel:**
    - **Browser:** the globe turns and zooms (1.6 s animation). MapLibre is downloaded if not yet loaded (lazy import), and the map is created hidden. **Esri current tiles** load.
    - **Browser → Esri identify:** the current photo date.
-   - **Browser → `/api/change`.** The backend does, **in sequence**: STAC search, then read the first year's square, then read the last year's square, then compare, clean, compute stats and encode the PNG. It returns JSON with the PNG as a data URL.
+   - **Browser → `/api/change`.** The backend does, **in sequence**: work out the file names (instant after the first request in a grid zone; the first costs one HEAD request), then read the first year's square, then read the last year's square, then compare, clean, compute stats and encode the PNG. It returns JSON with the PNG as a data URL.
    - **Browser → `/api/wayback`** (no years passed). The backend does, in sequence:
-     1. STAC search, to learn the years.
+     1. Work out the years (no STAC search since Phase 2).
      2. If the tile is cached: read the JSON file. Otherwise:
         - fetch the version list (memory cache, 24 h)
-        - **two tilemap walks in parallel** (2017 window and 2023 window; each walk is sequential)
+        - **two tilemap walks in parallel** (2017 window and last-year window, 2024 since Phase 2; each walk is sequential)
         - about 15 metadata identify calls **in parallel** (32 workers)
         - a **quick answer after about 5 s** (only if each year has a photo within 365 days of 1 July); the full answer finishes in the background and is saved
 3. **When the Wayback answer arrives,** the frontend picks the "after" photo (`closerAfter`), using the identify date **only if it has already arrived**. Since Phase 1 nothing waits for identify; it gives up after 3 s. Without a date, the imagery line uses its dateless wording, and the swipe's right tag reads "LATEST" if the current imagery is the "after" photo.
@@ -82,7 +82,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
    - builds the 2017 canvas from about 25 zoom-16 Wayback tiles, all requested in parallel
    - waits for the map to be `idle`
 5. **Browser:** draws the change layer, turns the map grid-up, adds the swipe at the right edge, fills the panel, crossfades from the globe, then plays the opening sweep (about 5.5 s of animation).
-6. **Browser → `/api/timeline`.** This starts only after the reveal. The backend runs a STAC search, then reads **all 7 years in parallel** (7 COG windows), compares 2017 with each later year, and returns 6 answers including PNGs. The slider is greyed out until it arrives.
+6. **Browser → `/api/timeline`.** This starts only after the reveal. The backend works out the files, then reads **all 8 years in parallel** (8 COG windows, 2017–2024), compares 2017 with each later year, and returns 7 answers including PNGs. The slider is greyed out until it arrives.
 
 All imagery waits race a single **40 s deadline**. If it's hit, the result shows on current imagery with no swipe.
 
@@ -105,7 +105,7 @@ All imagery waits race a single **40 s deadline**. If it's hit, the result shows
 
 ### d) Before/after swipe imagery
 
-- **"After" (right side):** the map's base raster source is switched to the chosen Wayback version's tile URL. MapLibre loads its tiles. If Esri's current photo is closer to mid-2023, there's no switch.
+- **"After" (right side):** the map's base raster source is switched to the chosen Wayback version's tile URL. MapLibre loads its tiles. If Esri's current photo is closer to the middle of the last land-cover year (1 July 2024 since Phase 2), there's no switch.
 - **"Before" (left side):**
   - the zoom-16 Wayback tiles covering the square, all fetched in parallel (`crossOrigin = anonymous`)
   - drawn into one canvas and clipped to the square
@@ -188,6 +188,49 @@ Same setup and searches. "Cold" = the two saved Wayback answers were deleted fir
   - the new result appeared **15.5 s after the press**; `/api/wayback` took 12.3–13.5 s
   - Unexplained: the button's own `/api/wayback` request finished 1.7 s after the head-start request it should have joined. Not checked further.
 
+### After Phase 2 (land cover from AWS, 2017–2024, no STAC search)
+
+Same setup. Every Wayback answer was cold for the first runs: the saved answers are keyed to the last year, which is now 2024. Single runs.
+
+| Step | Fontana cold | Fontana warm | Stavanger cold | Stavanger warm |
+|---|---|---|---|---|
+| `/api/change` | 3.8 s (Phase 1: 7.0 s) | 1.2 s | 3.8 s (5.6 s) | 0.08 s* |
+| `/api/wayback` | 12.4 s | **0.08 s** (Phase 1: 1.9 s) | 9.8 s | **0.08 s** |
+| Archive tiles | 55, 3.4 s | 55, 3.4 s | 56, 3.3 s | 106, 5.3 s |
+| **Result shown** | **17.8 s** (19.7 s) | **8.5 s** (9.1 s) | **15.5 s** (18.1 s) | **10.3 s** (10.3 s) |
+| `/api/timeline` | 2.2 s | 1.0 s | 1.9 s | 0.15 s* |
+| Year slider usable | 19.7 s (23.7 s) | 8.9 s (11.2 s) | 16.9 s (22.0 s) | 11.1 s (11.8 s) |
+
+* **The server remembers recent reads.** GDAL keeps recently read file blocks in the server process's memory, so repeat reads of the same square are very fast. This lasts until the server restarts; it isn't a deliberate cache.
+
+**Endpoints at places this server hadn't read yet** (curl, 1st / 2nd call):
+
+| Place | `/api/change` | `/api/timeline` |
+|---|---|---|
+| Riverside | 1.73 / 0.46 s | 0.97 / 0.78 s |
+| Bergen | 1.68 / 0.49 s | 1.81 / 0.94 s |
+
+Before Phase 2, `/api/change` took 1.6–2.5 s even on repeat.
+
+**Year lookup cost:** the first request in a new grid zone costs one HEAD request (about 0.6 s). The newest-year check runs once in the background when the server starts.
+
+**Observations from these runs:**
+- **The quick Wayback answer can differ from the saved full one.**
+  - Fontana's first visit showed a "before" photo from **20 Aug 2016**; the saved full answer (warm run) found **6 Aug 2017**.
+  - This is allowed by the rule "within 365 days of 1 July", but the first visitor sees a worse match.
+- **A same-photo switch happens when the photo date arrives late.**
+  - Stavanger warm loaded 106 archive tiles and Stavanger cold only 56.
+  - In the warm run the Wayback answer (0.08 s) arrived before Esri identify (0.9 s). Without the current photo's date, the app switched the base map to the archive version.
+  - That version is the same photo as the current imagery (both 5 Sep 2024), so the extra tiles bring nothing new.
+  - Phase 4 addresses this.
+
+**Hotspot re-warm for 2017–2024** (`warm_wayback.py`, full answers, 3 at a time): **118 s for all 11**, 6–66 s each.
+- **"After" photos:** most hotspots now have one from 2024. Exceptions:
+  - Weda Bay: 9 Jun 2023
+  - New Capital: 26 Jan 2025
+  - Western Sydney: 24 Jul 2025
+- **"Before" photos:** unchanged, e.g. Hasankeyf still 4 Jun 2013, the closest the archive has.
+
 ## 5. Loading and caching
 
 **Preloaded:**
@@ -205,8 +248,8 @@ Same setup and searches. "Cold" = the two saved Wayback answers were deleted fir
 | Wayback lookups in progress | Memory (`Future` per cache path) | Same path | While running; concurrent requests share one lookup |
 | Wayback version list | Memory | — | 24 h |
 | Sentinel-2 photo (unused endpoint) | Disk `cache/imagery` plus `lru_cache` | Lat/lon rounded to 5 decimals, plus year | Forever |
-| **STAC search results** | **Not cached** | — | Repeated by `/api/change`, `/api/wayback` and `/api/timeline` for the same place (3 searches per place) |
-| **Land-cover squares, change answers, timeline** | **Not cached** | — | Recomputed on every request; `/api/timeline` re-reads the 2 years `/api/change` just read |
+| ~~STAC search results~~ | — | — | No STAC search since Phase 2. The grid zone's availability and the newest year are remembered in memory while the server runs |
+| **Land-cover squares, change answers, timeline** | **Not cached** (except GDAL's in-memory block cache, see section 4) | — | Recomputed on every request; `/api/timeline` re-reads the 2 years `/api/change` just read |
 
 **Browser:**
 - `/api/timeline` answers are kept in memory for the current place only.
@@ -236,7 +279,8 @@ Same setup and searches. "Cold" = the two saved Wayback answers were deleted fir
 **Globe zoom:** 1–4.
 
 **Land-cover years:**
-- Every year the STAC search returns for the point: **2017–2023** for both test places (collection `io-lulc-annual-v02` ends at 2023).
+- **2017–2024** (since Phase 2): every year from `FIRST_YEAR` 2017 to the newest year found on AWS (`NEWEST_KNOWN_YEAR` = 2024; a newer year is picked up automatically after a server restart).
+- A grid zone without files (e.g. open ocean) has no years.
 - The main result compares the first and last year. The slider compares the first year with each later year.
 
 **Edge cleaning:** a 3 × 3 morphological opening per change colour (drops changes narrower than about 30 m).
@@ -260,8 +304,9 @@ Same setup and searches. "Cold" = the two saved Wayback answers were deleted fir
 
 **Performance and robustness:**
 - ~~**The Esri identify call has no timeout.**~~ Fixed in Phase 1: a 3 s timeout, and nothing waits for it.
-- **`/api/wayback` is called without `from`/`to`,** so every call runs a STAC search, even when the answer is cached (about 1.5–2.4 s).
-- **The same STAC search runs up to 3 times per place.** Results aren't cached.
+- ~~**`/api/wayback` runs a STAC search on every call.**~~ Fixed in Phase 2: no STAC search; a cached answer now takes 0.08 s.
+- **Weda Bay hotspot, decision pending:** with 2024 data its biggest change is built (93.7 ha), not cleared (now 23.1 ha). Its teaser and red type still show the 2017–2023 figure (30 ha cleared).
+- **Old Wayback cache files:** 70 files keyed `…_2017_2023` in `backend/cache/wayback/` are no longer used.
 - **`/api/change` reads its two years one after the other,** not in parallel. Nothing is cached, so repeat visits recompute.
 - **`/api/timeline` starts only after the reveal** and re-reads all 7 years, including the 2 `/api/change` already read. The slider stays greyed out 3–5 s after the result.
 - **A cold Wayback lookup takes 12–15 s,** mostly sequential tilemap steps and slow Esri metadata services. Only hotspots are pre-warmed.
@@ -341,7 +386,7 @@ AWS needs no URL signing.
 
 **Existing limitation (also true today):** each file covers one grid zone. A square that straddles a zone boundary reads only one file; the rest is filled with 0 and reported as "no data". Not measured how often this happens.
 
-### Plan: switch to AWS and the newest year (not built; waiting for OK)
+### Plan: switch to AWS and the newest year (BUILT 2026-11-21, see section 4 "After Phase 2")
 
 1. **Read from AWS instead of Planetary Computer** (`landcover.py`).
    - Build the file URL from the coordinates (`grid_zone(lat, lon)` plus the year).
