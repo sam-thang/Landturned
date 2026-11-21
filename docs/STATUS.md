@@ -2,7 +2,7 @@
 
 A factual snapshot for performance advice. It's based on reading the code and on timings measured on 2026-11-21 (section 4). "Not checked" means I didn't verify it.
 
-**Speed-up phases done:** Phase 1 (quick fixes), Phase 2 (land cover read from AWS, years to 2024), Phase 3 (one analysis request, land-cover disk cache), Phase 4 (reveal sooner; the "after" photo is always the current imagery) and Phase 5 (faster before-only archive lookup, zoom-14 cache) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
+**Speed-up phases done:** Phase 1 (quick fixes), Phase 2 (land cover read from AWS, years to 2024), Phase 3 (one analysis request, land-cover disk cache), Phase 4 (reveal sooner; the "after" photo is always the current imagery) Phase 5 (faster before-only archive lookup, zoom-14 cache) and Phase 6 (map limits) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
 
 ## 1. Stack and structure
 
@@ -363,6 +363,38 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 - It's hidden while the colours show, and gone for the visit once someone brings the handle to the left edge themselves.
 - It's drawn above the handle's line.
 
+### Phase 6 (map limits)
+
+**Zoom range 12–17** (`MIN_ZOOM`, `MAX_ZOOM` in `map.js`; was 10 to unlimited).
+- MapLibre disables the zoom button that can't go further, and our style fades it (checked at both limits, desktop and phone size). Phones pinch-zoom within the same range.
+- **At zoom 12** the square is 127 px across (Ontario's latitude):
+  - The 44 px handle and its grip fit, and "Hide land cover" sits below the square.
+  - The "ANALYSIS AREA · 2 × 2 KM · 400 HA" label is wider than the square and reaches the screen edge on a 390 px phone; it could be cut off on narrower phones (not checked).
+- **At zoom 17** the square is about 4,000 px across, so its label and "Hide land cover" are off-screen until people pan or zoom out. Nothing breaks.
+
+**Pan box: 10 km around the searched address** (`maxBounds`, `EXPLORE_RADIUS_M = 10000`, a 20 × 20 km box).
+- A new search (or globe pick) moves the box; checked by searching Stavanger after Ontario Ranch in the same visit. "Analyse this area" doesn't move it.
+- **"Search another address to explore further."** appears top-centre while the visible map touches the box (within 0.5% of its width), and hides when panning back. Screen readers announce it (`role="status"`).
+  - At the opening zoom it appeared after about 6 km of panning west (desktop and phone).
+- **Not checked:** on very wide screens near the equator, the zoom-12 view (about 19 m per pixel) can be wider than 20 km. MapLibre then zooms in to keep the view inside the box, so the effective minimum zoom there is a little above 12.
+- This replaces the earlier "no pan limit" rule, at the user's request.
+
+**Tile size on sharp screens (DPR 2), measured, not changed:**
+
+| | 128 (current) | 256 |
+|---|---|---|
+| Desktop 1400 × 900: Esri tiles | 99 (zoom 17) | 30 (zoom 16) |
+| Desktop: data | 1.8 MB | 0.6 MB |
+| Desktop: last tile | 6.9 s | 3.7 s |
+| Desktop: result shown | 8.3 s | 5.5 s (the reveal waits for the map's tiles) |
+| Phone 390 × 844: Esri tiles | 16 | 4 |
+| Phone: result shown | 4.1 s | 4.5 s |
+
+- **Sharpness:** same crops, plain photo, full resolution. At 128 roof vents, trucks and cars are visible; at 256 they're soft.
+- **Kept at 128** pending the user's choice: crisp imagery is a project rule.
+
+**Fontana and Stavanger runs:** the analysis, archive and reveal paths didn't change in Phase 6, so the Phase 5 timings still apply.
+
 ## 5. Loading and caching
 
 **Preloaded:**
@@ -404,8 +436,8 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 - The map is turned "grid-up" so the square sits straight.
 
 **Map:**
-- **Zoom:** `minZoom` 10 (about city level). `maxZoom` isn't set, so MapLibre's default applies (22); the imagery source's `maxzoom` is 19.
-- **Pan:** no limits (no `maxBounds`, on purpose).
+- **Zoom:** 12–17 since Phase 6 (was `minZoom` 10, no `maxZoom`); the imagery source's `maxzoom` is 19.
+- **Pan:** since Phase 6 a 20 × 20 km box (10 km each way) around the searched address (`maxBounds`). A new search moves it; "Analyse this area" doesn't.
 - **Fitting:** 36 px padding.
 - **No rotation or pitch** for users.
 

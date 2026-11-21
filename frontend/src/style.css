@@ -124,7 +124,7 @@ body {
   align-items: center; /* ...vertically centered with each other */
   gap: 12px; /* 12 px between the arrow and the scale bar */
   padding: 4px 8px; /* A little space between the marks and the edge of the backing (top/bottom, left/right) */
-  background: rgba(10, 12, 15, 0.7); /* The page's near-black at 70%: readable over bright imagery, but the map still shows through */
+  background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
   pointer-events: none; /* Never block dragging the map */
 } /* End of the marks group rule */
 
@@ -174,7 +174,7 @@ body {
   transform: translate(-50%, -50%); /* ...moved back by half its own size, so it's centred */
   margin: 0; /* No space above (the panel's list has some) */
   padding: 10px 14px; /* Room around the text */
-  background: rgba(10, 12, 15, 0.85); /* The page's near-black, a little see-through */
+  background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
   font-size: 12px; /* A touch smaller than in the panel */
   white-space: nowrap; /* Each step on one line */
 } /* End of the area steps rule */
@@ -200,7 +200,7 @@ body {
   position: absolute; /* Placed freely over the map */
   padding: 8px 14px; /* The same size as "← New place" */
   border: 1px solid var(--ink); /* An off-white outline: it's the one thing to press here */
-  background: rgba(10, 12, 15, 0.85); /* The map labels' dark backing, a little stronger so it reads over any imagery */
+  background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
   color: var(--ink); /* Off-white text */
   font: 12px / 1 var(--mono); /* Drawing lettering */
   text-transform: uppercase; /* Capitals */
@@ -225,7 +225,7 @@ body {
 /* The "ANALYSIS AREA · 2 × 2 KM" label, pinned just above the square's top-left corner (map.js adds it) */
 .area-label {
   padding: 3px 6px; /* A little space around the text */
-  background: rgba(10, 12, 15, 0.7); /* Same dark backing as the north arrow and scale bar */
+  background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
   color: var(--ink); /* Off-white */
   font: 11px / 1 var(--mono); /* Small mono text, like labels on a technical drawing (11 px: the smallest that reads comfortably over imagery); line height = font size, so the backing hugs the letters */
   letter-spacing: 0.08em; /* Slightly spread out, like the other small capital labels */
@@ -238,6 +238,26 @@ body {
 .finding-tag {
   animation: finding-pulse 1.6s ease-in-out infinite; /* Fade gently between 60% and full, for ever (while it's shown) */
 } /* End of the finding tag rule */
+/* "Search another address to explore further.": centred at the top of the map while it touches the edge of the 10 km box
+   around the searched address (map.js). The map labels' dark backing, in normal sentence case so it reads as a message */
+.map-edge-note {
+  position: absolute; /* Placed freely over the map */
+  top: 14px; /* 14 px from the top, like the zoom buttons */
+  left: 50%; /* From the middle... */
+  transform: translateX(-50%); /* ...moved back by half its own width, so it's centred */
+  z-index: 3; /* Above the map's labels and the swipe handle */
+  margin: 0; /* No paragraph spacing */
+  padding: 7px 12px; /* Room around the text */
+  background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
+  border: 1px solid rgba(230, 233, 238, 0.35); /* A soft outline, like the zoom buttons */
+  color: var(--ink); /* Off-white */
+  font: 13px / 1.3 var(--sans); /* Readable sentence text */
+  max-width: calc(100% - 120px); /* Never under the zoom buttons on the right (and never wider than the map) */
+  text-align: center; /* Centred if it wraps on a narrow phone */
+  pointer-events: none; /* Never blocks dragging the map */
+} /* End of the edge note rule */
+.map-edge-note[hidden] { display: none; } /* Hidden unless the map is at the edge */
+
 /* "◀ DRAG LEFT FOR LAND COVER": drawn above the swipe's handle (z-index 2), so the handle's line passes behind the words
    instead of cutting through them */
 .swipe-hint {
@@ -256,7 +276,7 @@ body {
 .colours-toggle {
   padding: 3px 6px; /* The label's spacing, so both sit at the same height */
   border: 1px solid rgba(230, 233, 238, 0.6); /* A soft off-white outline */
-  background: rgba(10, 12, 15, 0.7); /* The label's dark backing */
+  background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
   color: var(--ink); /* Off-white */
   font: 11px / 1 var(--mono); /* The label's small drawing lettering (11 px, like the label) */
   letter-spacing: 0.08em; /* Spread like the label */
@@ -332,7 +352,7 @@ body {
   position: absolute; /* Placed inside the handle */
   top: 8px; /* Just below the square's top edge */
   padding: 3px 6px; /* A little space around the text */
-  background: rgba(10, 12, 15, 0.7); /* The same dark backing as the area label, scale bar and north arrow */
+  background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
   color: var(--ink); /* Off-white */
   font: 11px / 1 var(--mono); /* Small mono text, like labels on a technical drawing (11 px, like the area label) */
   letter-spacing: 0.08em; /* Slightly spread out, like the other small capital labels */
@@ -418,7 +438,7 @@ body {
   right: 0; /* Against the right edge */
   bottom: 0; /* Against the bottom edge */
   padding: 3px 8px; /* A little space around the text */
-  background: rgba(10, 12, 15, 0.7); /* Same dark backing as the drawing marks */
+  background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
   color: var(--muted); /* Grey: present but quiet */
   font: 11px / 1.3 var(--sans); /* Small text (11 px), 1.3 line spacing */
 } /* End of the credit rule */
@@ -447,7 +467,7 @@ body {
     height: 24px; /* ...24 px across */
     border: 1px solid var(--muted); /* Thin grey ring */
     border-radius: 50%; /* Fully round */
-    background: rgba(10, 12, 15, 0.7); /* Same dark backing as everything else */
+    background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
     color: var(--ink); /* Off-white "i" */
     font: italic 600 12px / 1 Georgia, serif; /* A classic italic "i", the usual information symbol */
     padding: 0; /* No extra space */
@@ -469,7 +489,7 @@ body {
     justify-content: flex-end; /* Pushed to the right */
     gap: 8px; /* Space between the text and the button */
     padding: 3px 8px; /* A little space around everything */
-    background: rgba(10, 12, 15, 0.7); /* The dark strip */
+    background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
   } /* End of the open credit rule */
 
   /* Show the text when open */
@@ -529,7 +549,7 @@ body {
 #map .maplibregl-ctrl-group {
   border: 1px solid rgba(230, 233, 238, 0.35); /* A thin, soft off-white outline */
   border-radius: 0; /* Square corners, like everything else on the drawing */
-  background: rgba(10, 12, 15, 0.7); /* The map marks' dark backing */
+  background: var(--bg); /* Solid near-black (no see-through), so map labels stay readable over any imagery (2026-11-21) */
   box-shadow: none; /* No floating shadow */
 } /* End of the group rule */
 #map .maplibregl-ctrl-group button {

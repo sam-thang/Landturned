@@ -42,6 +42,7 @@
           </div> <!-- End of the dashed square -->
           <p id="area-status" class="sr-only" aria-live="polite"></p> <!-- Invisible, but screen readers read out each new text: the analysis's progress in words -->
           <button id="analyse-area" class="analyse-area" type="button" hidden>Analyse this area</button> <!-- The button, at the top of the map (CSS shows it in capitals) -->
+          <p id="map-edge-note" class="map-edge-note" role="status" hidden>Search another address to explore further.</p> <!-- Shown while the map touches the edge of the 10 km box around the searched address (map.js); role="status": screen readers announce it -->
           <div id="map-credit" class="map-credit"> <!-- The imagery credit the licence requires, in our own small dark style -->
             <button id="credit-toggle" class="credit-toggle" type="button" aria-expanded="false" aria-controls="credit-text" aria-label="Image credits">i</button> <!-- On phones: the small ⓘ that opens and closes the credit (hidden on wide screens); aria-expanded tells screen readers whether it's open -->
             <span id="credit-text" class="credit-text">Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community</span> <!-- The credit text itself -->

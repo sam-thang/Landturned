@@ -30,8 +30,14 @@ const MAX_WAIT_MS = 8000;
 // Space in pixels to leave around the 2 × 2 km square when fitting it on screen (enough room for the "ANALYSIS AREA" label
 // above it). Kept small so the square shows as big as possible; the scale bar sits low enough to stay clear of it (style.css .map-marks).
 const FIT_PADDING = 36;
-// The furthest people can zoom out: zoom 10 shows roughly a whole city, where the 2 × 2 km square is still visible as a small box
-const MIN_ZOOM = 10;
+// The zoom range people can use (speed-up phase 6): zoom 12 shows the neighbourhood around the 2 × 2 km square (the square is
+// then about 125 px across on a phone in California), zoom 17 is close enough to see single buildings. Outside this range the
+// zoom buttons grey out (MapLibre disables them) and pinching stops.
+const MIN_ZOOM = 12;
+const MAX_ZOOM = 17;
+// How far from the searched address people can pan: 10 km each way, a 20 x 20 km box. A new search moves the box;
+// "Analyse this area" doesn't (so people can analyse anywhere near the address, but not hop further and further away).
+const EXPLORE_RADIUS_M = 10000;
 
 let map = null; // The MapLibre map, once it has been created (null until then)
 let maplibre = null; // The MapLibre library itself, once downloaded (we need it again for the label marker)
@@ -48,10 +54,10 @@ let coloursButtonBelow = null; // Where the button is pinned: false = above the 
 // Returns [[west, south], [east, north]] in degrees, the "bounds" format MapLibre expects.
 // (People can pan and zoom freely beyond it, down to city level: they'll want to see what else changed nearby,
 // and a later "Analyse this area" button will analyse wherever they've moved to.)
-function siteBounds(lon, lat) {
-  const latStep = RADIUS_METERS / METERS_PER_DEGREE; // 1 km as degrees of latitude (≈ 0.009°)
+function siteBounds(lon, lat, radius = RADIUS_METERS) {
+  const latStep = radius / METERS_PER_DEGREE; // The radius as degrees of latitude (1 km ≈ 0.009°)
   const latRadians = (lat * Math.PI) / 180; // The latitude converted from degrees to radians, which Math.cos needs
-  const lonStep = RADIUS_METERS / (METERS_PER_DEGREE * Math.cos(latRadians)); // 1 km as degrees of longitude; degrees get shorter toward the poles, so divide by cos(latitude)
+  const lonStep = radius / (METERS_PER_DEGREE * Math.cos(latRadians)); // The radius as degrees of longitude; degrees get shorter toward the poles, so divide by cos(latitude)
   return [ // The square's corners:
     [lon - lonStep, lat - latStep], // south-west corner
     [lon + lonStep, lat + latStep], // north-east corner
@@ -87,9 +93,25 @@ export async function showPlace(container, lon, lat) {
     } // End of the start-creating check
     await mapCreation; // Wait for the creation (ours, or the one already running). If it fails, the error goes to main.js as before
   } // End of the no-map check
+  map.setMaxBounds(null); // Lift the previous place's box first, so the jump below can go anywhere
   map.fitBounds(bounds, { padding: FIT_PADDING, animate: false, bearing: 0 }); // Jump, don't fly, to this square, north-up again (showChange turns it to grid-up later). A brand-new map is already framed, so this changes nothing then; it matters when two calls shared one creation: the later place wins. It also fires "move", which updates the scale bar
+  map.setMaxBounds(siteBounds(lon, lat, EXPLORE_RADIUS_M)); // The new place's box: people can pan up to 10 km from it
   await waitForIdle(); // Wait for the imagery to finish loading
 } // End of showPlace
+
+// Show "Search another address to explore further." while the visible map touches the edge of the place's box (maxBounds),
+// so people know why the map stops moving. Runs on every map move.
+function updateEdgeNote() {
+  const box = map.getMaxBounds(); // The box (MapLibre's LngLatBounds), or null if none is set yet
+  const note = document.getElementById('map-edge-note'); // The message
+  if (!box) { note.hidden = true; return; } // No box: nothing to say
+  const view = map.getBounds(); // What's visible now, as west/south/east/north
+  const margin = (box.getEast() - box.getWest()) * 0.005; // "Touching" = within 0.5% of the box's width (about 100 m)
+  note.hidden = !( // Show it when any side of the view reaches the box's side:
+    view.getWest() <= box.getWest() + margin || view.getEast() >= box.getEast() - margin || // west or east
+    view.getSouth() <= box.getSouth() + margin || view.getNorth() >= box.getNorth() - margin // south or north
+  ); // End of the edge check
+} // End of updateEdgeNote
 
 // Download MapLibre and create the map, framed on "bounds". Only showPlace calls this, and only once at a time.
 async function createMap(container, bounds) {
@@ -100,7 +122,8 @@ async function createMap(container, bounds) {
     container, // Draw inside this element
     bounds, // Start already framed on the square: no flying in from world view
     fitBoundsOptions: { padding: FIT_PADDING }, // Leave a little space around the square
-    minZoom: MIN_ZOOM, // Don't allow zooming out further than city level
+    minZoom: MIN_ZOOM, // Don't allow zooming out further than the neighbourhood (see MIN_ZOOM)
+    maxZoom: MAX_ZOOM, // ...or in further than single buildings
     dragRotate: false, // North-up: no rotating with right-click drag (or Ctrl + drag)
     pitchWithRotate: false, // No tilting the map while dragging
     touchPitch: false, // No tilting with two fingers on touch screens
@@ -132,6 +155,7 @@ async function createMap(container, bounds) {
   map.on('rotate', updateNorthArrow); // Whenever the map's turn (bearing) changes, turn the north arrow to match
   map.on('move', updateAnalyseOffer); // Whenever the map moves or zooms, check whether to offer "Analyse this area"
   map.on('move', placeColoursButton); // ...and whether the "Hide land cover" button still fits beside the label
+  map.on('move', updateEdgeNote); // ...and whether the map has reached the edge of the place's 10 km box
   map.on('movestart', () => clearTimeout(settleTimer)); // Moving again: cancel a waiting head start (clearTimeout stops a setTimeout before it runs)
   map.on('moveend', waitForSettledOffer); // Stopped moving: start counting towards the head start
 } // End of createMap
@@ -141,7 +165,7 @@ async function createMap(container, bounds) {
 // How see-through the change colors are: 0 = invisible, 1 = solid. At 0.75 the ground still shows through a little.
 const CHANGE_OPACITY = 0.75;
 // How much the land outside the analysis square is darkened: 0 = not at all, 1 = black
-const OUTSIDE_DIM = 0.55;
+const OUTSIDE_DIM = 0.65;
 
 // Remove the previous place's change picture, mask, outline, and label, if there are any
 function clearChange() {
