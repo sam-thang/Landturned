@@ -1182,6 +1182,29 @@ h1:focus {
   color: var(--muted); /* Grey: supporting information */
 } /* End of the total rule */
 
+/* "OLDER SATELLITE PHOTO": only where Esri's newest photo is older than the land-cover data. A thin-bordered box, so it
+   stands apart from the grey small print below it and isn't missed */
+.imagery-warning {
+  margin: 0 0 18px; /* Space below, before the small print */
+  padding: 10px 12px; /* Room inside the border */
+  border: 1px solid var(--line); /* A thin border, like the panel's dividers */
+  border-left: 2px solid var(--ink); /* A stronger off-white line on the left: "read this" */
+} /* End of the warning box rule */
+.imagery-warning[hidden] { display: none; } /* Hidden unless main.js shows it */
+.imagery-warning-title {
+  margin: 0 0 6px; /* Space under the heading */
+  font: 11px / 1 var(--mono); /* The drawing voice, like "SHOW ON MAP" */
+  letter-spacing: 0.12em; /* Spread out, like the other small capital labels */
+  text-transform: uppercase; /* Capitals */
+  color: var(--ink); /* Off-white: it matters */
+} /* End of the warning heading rule */
+.imagery-warning-text {
+  margin: 0; /* No extra space */
+  font-size: 13px; /* Like the total line */
+  line-height: 1.45; /* Comfortable line spacing */
+  color: var(--ink); /* Off-white, brighter than the grey small print, so it reads as important */
+} /* End of the warning text rule */
+
 /* Small print, such as the data note */
 .note {
   margin: 0; /* No default paragraph spacing */

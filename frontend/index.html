@@ -126,6 +126,10 @@
             <li style="--swatch: var(--water)"><button class="stat-switch" type="button" aria-pressed="true" data-change="water"><i class="swatch"></i>New water<b id="stat-water"></b></button></li> <!-- Blue -->
           </ul> <!-- End of the stats -->
           <p id="green-lost" class="stat-total"></p> <!-- "In total, … ha of green space was lost: cleared, built on, or flooded." -->
+          <div id="imagery-warning" class="imagery-warning" hidden> <!-- Only where Esri's newest photo is older than the last land-cover year (main.js shows it): says the photo may not show the changes -->
+            <p class="imagery-warning-title">Older satellite photo</p> <!-- A short heading, in the drawing voice (CSS shows it in capitals) -->
+            <p id="imagery-warning-text" class="imagery-warning-text"></p> <!-- The explanation, with the real dates (results.js fills it in) -->
+          </div> <!-- End of the imagery warning -->
           <p id="result-note" class="note"></p> <!-- Small print, line 1: where the land cover comes from, what Landturn does with it, that it's an estimate -->
           <p id="photo-note" class="note"></p> <!-- Small print, line 2: the satellite imagery's source and date, and why the coloured areas may not line up with it -->
           <p class="note"><a class="note-link" href="/how/">How this works →</a></p> <!-- Small print, line 3: the method page -->

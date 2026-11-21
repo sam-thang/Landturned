@@ -59,7 +59,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | **Esri Wayback tiles** | `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/{version}/{z}/{y}/{x}` | (a) the "after" version as the map's base imagery, through MapLibre; (b) "before" tiles at zoom 16 drawn into a canvas for the swipe | Browser, `map.js setBaseImagery`, `swipe.js buildBeforeImage` |
 | **Nominatim (OpenStreetMap)** | `https://nominatim.openstreetmap.org/search` and `/reverse` | Search: `q`, `format=jsonv2`, `limit=1`. Reverse: `zoom=10` (city level) | Browser, `geocode.js` |
 | **Google Fonts** | `fonts.googleapis.com`, `fonts.gstatic.com` | Two font families | Browser, `index.html` |
-| **Sentinel-2 L2A** (Planetary Computer) | collection `sentinel-2-l2a` | Bands B04/B03/B02 and SCL, warped to the square's grid, JPEG | Backend, `imagery.py`. **Unused by the frontend.** |
+| **Sentinel-2 L2A** (Planetary Computer) | collection `sentinel-2-l2a` | Bands B04/B03/B02 and SCL, warped to the square's grid, JPEG; the clearest summer image of the requested year | Backend, `imagery.py`, via `/api/imagery?lat&lon&year`. **Unused by the frontend** (a fallback for old Esri imagery was tried and rejected, see section 4) |
 
 ## 3. What happens step by step
 
@@ -288,6 +288,40 @@ Same setup. "Cold" = both saved answers deleted for the two places. **The server
 - **Right-hand tags now show the current photo's date,** which can be later than the last land-cover year, e.g. Fontana "2026 · 23 MAY". That's by design: the "after" photo must be from 2024 or later.
 - **A first attempt** started loading the 2017 tiles only at the reveal. The Stavanger warm swipe then arrived 0.6 s too late for the opening sweep. Moving the tile loading into `startRequests` (it starts when both answers are in, during the globe turn) fixed it.
 
+### Old-imagery fallback (after Phase 4, 2026-11-21)
+
+**Problem the user found:** at 9.4308° N, 105.3849° E (Mekong Delta) the swipe compared Apr 2016 with Dec 2017.
+- Esri's current photo there is from **18 Dec 2017**, and every archive version up to May 2026 shows the same photo at the square's zoom.
+- So no Esri photo from 2024 or later exists there.
+
+**How common** (60 random land points, 56°S–72°N, uniform on the sphere, 59 with a date; fixed random seed):
+
+| Esri's current photo from… | Share |
+|---|---|
+| 2024 or later | 61% |
+| 2022–2023 | 17% |
+| 2019–2021 | 10% |
+| before 2019 | 12% (oldest 2012) |
+
+Random land over-represents remote areas, so the share for real searches is probably lower; not measured.
+
+**Tried and rejected: a Sentinel-2 fallback.**
+- **What it did:** where Esri was too old, the square showed a 2024 Sentinel-2 photo (10 m) as the "after" photo.
+- **Why it was dropped:** the user rejected it after seeing it; at 10 m the photo is so blurry that the land-cover colours can't be related to anything on it. Not committed.
+
+**Built instead: a disclaimer, plus a swipe rule.**
+- **The disclaimer:** where Esri's photo date is before 1 Jan of the last land-cover year, the panel shows a bordered note under the stats, **"OLDER SATELLITE PHOTO"**. For example: "Esri's newest photo of this place was taken on 18 December 2017, the most recent sharp satellite imagery available here. The colours compare 2017 with 2024, so changes after 2017 may not be visible in the photo."
+  - If the date arrives after the reveal, the note is added then. Only panel text changes, never the photo.
+- **The swipe rule:** the swipe is only shown when its two photos are **at least 2 years apart** (`MIN_SWIPE_YEARS`).
+
+**Tests** (single runs, times from page load, no page errors, no Sentinel-2 request anywhere):
+
+| Place | Esri's newest | Result shown | Disclaimer | Swipe |
+|---|---|---|---|---|
+| Mekong | 18 Dec 2017 | 5.5 s desktop / 4.0 s phone | shown | none (Apr 2016 vs Dec 2017: 1.7 years apart) |
+| Shandong, China (35.5112, 116.9028) | 16 Nov 2019 | 4.2 s | shown ("changes after 2019 …") | 2017 · 22 SEPT \| 2019 · 16 NOV (2.2 years apart) |
+| Stavanger | 5 Sep 2024 | 4.1 s | none | 2018 · 27 MAY \| 2024 · 5 SEPT |
+
 ## 5. Loading and caching
 
 **Preloaded:**
@@ -363,6 +397,7 @@ Same setup. "Cold" = both saved answers deleted for the two places. **The server
 **Performance and robustness:**
 - ~~**The Esri identify call has no timeout.**~~ Fixed in Phase 1: a 3 s timeout, and nothing waits for it.
 - ~~**`/api/wayback` runs a STAC search on every call.**~~ Fixed in Phase 2: no STAC search; a cached answer now takes 0.08 s.
+- **Places with old Esri imagery** (about 4 in 10 random land points): no sharp photo from the last land-cover year exists. The panel shows an "OLDER SATELLITE PHOTO" disclaimer, and the swipe is hidden when its photos are under 2 years apart.
 - **Weda Bay hotspot, decision pending:** with 2024 data its biggest change is built (93.7 ha), not cleared (now 23.1 ha). Its teaser and red type still show the 2017–2023 figure (30 ha cleared).
 - **Old Wayback cache files:** 70 files keyed `…_2017_2023` in `backend/cache/wayback/` are no longer used.
 - ~~**`/api/change` reads its two years one after the other; nothing cached.**~~ Fixed in Phase 3: all years in parallel, saved on disk.

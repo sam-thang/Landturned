@@ -7,7 +7,7 @@ import { resetSteps, startStep, finishStep, failStep } from './loading.js';
 // Bring in the function that asks our backend for the land-cover change, from api.js
 import { fetchAnalysis, fetchPhotoDate, fetchWayback } from './api.js';
 // Bring in the function that fills in the result panel, from results.js
-import { showResults, showImageryDate, setUpColourSwitches, shownChanges, resetColourSwitches } from './results.js';
+import { showResults, showImageryDate, showImageryWarning, hideImageryWarning, setUpColourSwitches, shownChanges, resetColourSwitches } from './results.js';
 // Bring in the list of hotspot places, from places.js
 import { PLACES } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
@@ -183,9 +183,15 @@ function startSwipe(changeReady, archiveReady, photoDate) {
   const deadline = wait(IMAGERY_LIMIT_MS).then(() => null); // Finishes with null when the time is up
   const swipeReady = Promise.all([changeReady, archiveReady]) // When the land-cover result (for the square's corners) and the archive answer are in...
     .then(([change, archive]) => prepareSwipe(change, archive, photoDate)) // ...load the earlier photo's tiles (null if there's no square or no photo)
+    .then((swipe) => (swipe && swipe.apartYears >= MIN_SWIPE_YEARS ? swipe : null)) // ...and only keep it if the two photos are far enough apart
     .catch(() => null); // A failure (e.g. tiles that won't load) means no swipe, never an error
   return Promise.race([swipeReady, deadline]); // Whichever comes first
 } // End of startSwipe
+
+// The swipe is only shown when its two photos are at least this many years apart: comparing e.g. April 2016 with December 2017
+// (where Esri has nothing newer) shows nothing useful
+const MIN_SWIPE_YEARS = 2;
+const YEAR_MS = 365.25 * 24 * 60 * 60 * 1000; // One year in milliseconds (subtracting two dates gives milliseconds)
 
 // How long the reveal may wait for the earlier photo's tiles when the archive answer is already in (places seen before):
 // about a second usually, and worth it, because then the opening sweep (earlier year -> latest) can play.
@@ -200,9 +206,19 @@ const SWIPE_GRACE_MS = 1500;
 async function showFinishedResult(place, change, swipeJob, photoDate, cancelled, holdMs) {
   setBaseImagery(null); // Esri's current imagery: the "after" photo (and never an earlier place's archive imagery)
   const swipeReady = swipeJob.ready; // The earlier photo, loading since the answers came in (see startRequests)
+  // The disclaimer: where Esri's newest photo is older than the last land-cover year (e.g. from 2017, while the colours run
+  // to 2024), the panel says so, because the photo may not show the changes the colours mark. It's the most recent sharp
+  // imagery there is (blurry 10 m Sentinel-2 photos were tried instead and rejected: the colours made no sense on them).
+  hideImageryWarning(); // A new result: no warning until we know the photo is too old
+  const warnIfOld = (date) => { // Show the warning if this photo date is older than the last land-cover year
+    if (date && change && date < `${change.years.to}-01-01`) showImageryWarning(date, change.years.from, change.years.to); // ("YYYY-MM-DD" dates sort correctly as text)
+  }; // End of warnIfOld
   showImageryDate(photoDate.now()); // The imagery line: the current photo's date if it's in already (otherwise its dateless wording)...
-  photoDate.ready.then((date) => { // ...and when the date comes in (or right away, if it's in):
-    if (date && !cancelled()) showImageryDate(date); // fill it in, unless the visitor has left (nothing ever waits for this)
+  warnIfOld(photoDate.now()); // ...and the warning, if that date is too old
+  photoDate.ready.then((date) => { // When the date comes in (or right away, if it's in):
+    if (!date || cancelled()) return; // No date, or the visitor has left: nothing to do (nothing ever waits for this)
+    showImageryDate(date); // Fill in the imagery line...
+    warnIfOld(date); // ...and add the warning if needed (only text in the panel changes, never the photo)
   }); // End of the late date
   await showChange(change); // Draw the change layer, turn the map grid-up, and wait for its imagery; with no data, just clear the old drawing
   if (cancelled()) return null; // Went back while the change layer was drawn: stop before showing anything
@@ -431,7 +447,7 @@ async function prepareSwipe(change, archive, photoDate) {
     before: tagText(archive.before.date), // e.g. "2017 · 21 OCT" (an archive photo always has its date)
     after: afterDate ? tagText(afterDate) : 'LATEST', // The current imagery, e.g. "2024 · 12 FEB", or "LATEST" when its date didn't come
   }; // End of the tags
-  return { before, tags }; // Ready
+  return { before, tags, apartYears: afterDate ? (new Date(afterDate) - new Date(archive.before.date)) / YEAR_MS : Infinity }; // Ready, with how far apart the two photos are (unknown "after" date: assume far enough)
 } // End of prepareSwipe
 
 let shown = null; // What the result panel shows: { place, coordsText, changes: { year: answer } }, or null

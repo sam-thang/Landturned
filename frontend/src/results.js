@@ -66,6 +66,21 @@ function photoLine(photoDate) {
     : "Satellite imagery: Esri, usually taken on a different date than the land-cover maps, so the coloured areas may not line up exactly with the buildings and fields you see."; // Without a date
 } // End of photoLine
 
+// The disclaimer for places where Esri's newest photo ("photoDate", e.g. "2017-12-18") is older than the last land-cover year:
+// the photo is the most recent sharp imagery there is, so it may not show the changes the colours mark. "fromYear" and
+// "toYear" are the years compared (e.g. 2017 and 2024). Shown under the stats; hideImageryWarning removes it again.
+export function showImageryWarning(photoDate, fromYear, toYear) {
+  const photoYear = photoDate.slice(0, 4); // The photo's year, e.g. "2017"
+  document.getElementById('imagery-warning-text').textContent = // The explanation, with the real dates:
+    `Esri's newest photo of this place was taken on ${readableDate(photoDate)}, the most recent sharp satellite imagery available here. The colours compare ${fromYear} with ${toYear}, so changes after ${photoYear} may not be visible in the photo.`; // e.g. "…taken on 18 December 2017, … so changes after 2017 may not be visible…"
+  document.getElementById('imagery-warning').hidden = false; // Show it
+} // End of showImageryWarning
+
+// Remove the disclaimer (a new place, or a place where the photo is recent enough)
+export function hideImageryWarning() {
+  document.getElementById('imagery-warning').hidden = true; // Hide it
+} // End of hideImageryWarning
+
 // Show when the map's satellite imagery was taken ("YYYY-MM-DD", or null when unknown) in the small print's second line.
 // Separate from showResults, because the date can change after the result is shown (when the archive imagery arrives),
 // and the year slider re-fills the result often without touching the imagery. "export" lets main.js use it.
