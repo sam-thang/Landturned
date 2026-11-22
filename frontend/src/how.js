@@ -318,6 +318,10 @@ const EXAMPLES = { // Each example: the before grid and the after grid, row by r
   loss: { before: ['TTTT', 'TTTT', 'TTTT', 'TTGG'], after: ['TSST', 'TSST', 'TSST', 'TTGG'] }, // Forest -> bare dirt
   gain: { before: ['BBBS', 'BBBS', 'BBSS', 'BBSS'], after: ['BGGG', 'BTGT', 'BTTG', 'BBGG'] }, // Parking lot and bare lots -> park
   none: { before: ['TTT', 'TTT', 'TTT'], after: ['GGT', 'GGT', 'GGG'] }, // Forest -> farmland: no colour (green stayed green)
+  // Plate 06 ("N" = no data: hidden by cloud)
+  wrong: { before: ['GGGG', 'GGGG', 'GGGG', 'GGGG'], after: ['GGGG', 'GSSG', 'GSSG', 'GGGG'] }, // A dry field mislabelled bare ground: false red
+  edge: { before: ['TTWW', 'TTWW', 'TTWW', 'TTWW'], after: ['TWWW', 'TTWW', 'TWWW', 'TTTW'] }, // A shoreline flipping both ways
+  cloud: { before: ['GGBB', 'GGBB', 'GGGB', 'GGGB'], after: ['GGBB', 'NNBB', 'NNNB', 'GGGB'] }, // Cloud over part of the later year
 }; // End of the examples
 
 // One pixel grid with its top-left corner at (x, y). "rows" are its letters; "compareTo" (optional) is the before grid,
@@ -325,6 +329,11 @@ const EXAMPLES = { // Each example: the before grid and the after grid, row by r
 function pixelGrid(svg, x, y, rows, size, compareTo, letterClass) {
   rows.forEach((row, r) => { // Each row...
     [...row].forEach((letter, c) => { // ...and each pixel in it
+      if (letter === 'N') { // No data (cloud): no category, so no colour at all
+        el('rect', { x: x + c * size, y: y + r * size, width: size, height: size, class: 'cell dashed' }, svg); // A dashed empty cell...
+        label(svg, x + c * size + size / 2, y + r * size + size / 2 + 3, '?', 'middle', 'art-label'); // ...with "?": unknown
+        return; // Nothing more for this pixel
+      } // End of the no-data pixel
       const type = compareTo ? changeType(compareTo[r][c], letter) : null; // The change colour, if this is the after grid and the pixel changed
       const fill = type ? `fill-${type}` : `lc-${letter.toLowerCase()}`; // Bright change colour, or the category's muted colour
       el('rect', { x: x + c * size, y: y + r * size, width: size, height: size, class: `cell ${fill}` }, svg); // The pixel, with a faint grid line round it
@@ -438,6 +447,42 @@ function drawEdgeStage(svg, stage, caption) {
   label(svg, x + size / 2, y + size + 18, caption); // What happened, under the grid
 } // End of drawEdgeStage
 
+// ---------- Plate 06: why it's an estimate ----------
+// Cards 1 to 3 reuse drawExample (plate 04) with the "wrong", "edge" and "cloud" grids above. Cards 4 and 5 are drawn here.
+
+// 10 m is coarse: one pixel drawn to scale (64 units = 10 m, so 6.4 units per metre), with a 3 x 2 m garden shed and a
+// tree 5 m across inside it. The whole pixel still gets one label.
+function drawCoarse(svg) {
+  const X = 12; // The pixel's left edge (room on the right for the note)
+  const Y = 14; // Its top edge
+  const P = 64; // Its size: 10 m
+  const M = P / 10; // Units per metre
+  el('rect', { x: X, y: Y, width: P, height: P, class: 'cell lc-g' }, svg); // The pixel, in grass or farmland's muted colour
+  el('rect', { x: X + 8, y: Y + P - 8 - 2 * M, width: 3 * M, height: 2 * M, class: 'line ink' }, svg); // The shed, 3 x 2 m, in the bottom-left corner
+  el('circle', { cx: X + P - 8 - 2.5 * M, cy: Y + 8 + 2.5 * M, r: 2.5 * M, class: 'line ink' }, svg); // The tree's crown, 5 m across, top right
+  label(svg, X + 7, Y + 11, 'G', 'start', 'art-letter'); // The one label the whole pixel gets
+  el('path', { d: `M${X} ${Y - 6} H${X + P} M${X} ${Y - 9} V${Y - 3} M${X + P} ${Y - 9} V${Y - 3}`, class: 'line' }, svg); // A dimension line along the top
+  label(svg, X + P / 2, Y - 9, '10 m'); // Its length
+  label(svg, X + P + 8, Y + 28, 'shed, tree:', 'start'); // A note on the right...
+  label(svg, X + P + 8, Y + 40, 'smaller than', 'start', 'art-text'); // ...saying both...
+  label(svg, X + P + 8, Y + 52, 'one pixel', 'start', 'art-text'); // ...fit inside one pixel
+} // End of drawCoarse
+
+// Photo and map dates differ: a timeline with the land-cover map's year and the photo's date at different places
+function drawDates(svg) {
+  const Y = 48; // The timeline's height
+  el('path', { d: `M6 ${Y} H156`, class: 'line' }, svg); // The timeline
+  let ticks = ''; // Small ticks for the years, collected into one path
+  for (let i = 0; i <= 8; i += 1) ticks += `M${10 + i * 18} ${Y - 3} V${Y + 3} `; // 9 evenly spaced year ticks
+  el('path', { d: ticks, class: 'line' }, svg); // Draw them
+  el('rect', { x: 132, y: Y - 5, width: 10, height: 10, class: 'cell lc-g' }, svg); // The land-cover map's year: a small map pixel...
+  label(svg, 137, Y - 12, 'map', 'middle', 'art-text'); // ...labelled "map"
+  el('circle', { cx: 64, cy: Y, r: 5, class: 'line ink' }, svg); // The photo's date: a camera-lens circle...
+  label(svg, 64, Y - 12, 'photo', 'middle', 'art-text'); // ...labelled "photo"
+  el('path', { d: `M64 ${Y + 14} H137 M64 ${Y + 11} V${Y + 17} M137 ${Y + 11} V${Y + 17}`, class: 'line' }, svg); // A dimension line between them
+  label(svg, 100, Y + 28, 'can be years apart'); // How far apart they can be
+} // End of drawDates
+
 // Draw every picture: find each empty drawing box on the page and draw the matching picture in it
 const DRAWINGS = { // Box name -> drawing function
   address: drawAddress, square: drawSquare, maps: drawMaps, compare: drawCompare, count: drawCount, photo: drawPhoto, // Plate 01
@@ -451,6 +496,11 @@ const DRAWINGS = { // Box name -> drawing function
   'edges-raw': (svg) => drawEdgeStage(svg, 'raw', 'before cleaning'), // Plate 05, step 1
   'edges-shrink': (svg) => drawEdgeStage(svg, 'shrunk', 'faint: shrunk away'), // Step 2
   'edges-grow': (svg) => drawEdgeStage(svg, 'kept', 'faint: removed for good'), // Step 3
+  'est-wrong': (svg) => drawExample(svg, 'wrong'), // Plate 06: a wrong label
+  'est-edge': (svg) => drawExample(svg, 'edge'), // Fuzzy edges
+  'est-cloud': (svg) => drawExample(svg, 'cloud'), // Clouds
+  'est-coarse': drawCoarse, // 10 m is coarse
+  'est-dates': drawDates, // Photo and map dates
 }; // End of the drawings
 function drawAll() {
   document.querySelectorAll('svg[data-art]').forEach((svg) => { // For each drawing box...

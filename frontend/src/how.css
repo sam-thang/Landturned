@@ -122,9 +122,8 @@ h2 {
   text-wrap: balance; /* Even line lengths */
 } /* End of the section heading rule */
 
-/* Headings inside a section (each step, each limit) */
-h3,
-.limits dt {
+/* Headings inside a section */
+h3 {
   margin: 0 0 4px; /* A little space below */
   font-size: 17px; /* Just above the body text */
   font-weight: 500; /* Medium */
@@ -481,41 +480,6 @@ dd {
   opacity: 0.55; /* See-through, so the photo's houses show under the colour, as in the app */
 } /* End of the overlay rule */
 
-/* ---------- The four steps ---------- */
-
-/* The numbered list of steps: each step's number sits in its own narrow column */
-.steps-list {
-  margin: 24px 0 0; /* Space above */
-  padding: 0; /* No browser indent */
-  list-style: none; /* We draw our own numbers */
-  counter-reset: step; /* Start a counter named "step" at 0 */
-} /* End of the steps rule */
-
-/* One step: number on the left, text on the right */
-.steps-list li {
-  display: grid; /* Two columns... */
-  grid-template-columns: 28px 1fr; /* ...a narrow one for the number, the rest for the text */
-  column-gap: 8px; /* Space between them */
-  padding: 16px 0; /* Space above and below each step */
-  border-top: 1px solid var(--line); /* A hairline between steps, like rows in a schedule */
-  counter-increment: step; /* Count this step: 1, 2, 3, 4 */
-} /* End of the step rule */
-
-/* The step number, drawn by CSS from the counter, in the drawing lettering */
-.steps-list li::before {
-  content: counter(step); /* The step's number */
-  grid-row: 1 / span 3; /* Stay in the left column, next to all of the step's text */
-  padding-top: 3px; /* Line it up with the heading's letters */
-  color: var(--muted); /* Pencil Grey */
-  font-family: var(--mono); /* Drawing lettering */
-  font-size: 13px; /* Small */
-} /* End of the step number rule */
-
-/* Everything else in a step goes in the right column */
-.steps-list li > * {
-  grid-column: 2; /* The text column */
-} /* End of the step content rule */
-
 /* A change-colour word: a small square in its colour before the word, so the colour is always named */
 .swatch-word {
   white-space: nowrap; /* Keep the swatch and its words together */
@@ -541,36 +505,12 @@ dd {
   box-shadow: inset 0 0 0 1px var(--muted); /* ...drawn as a grey outline (an inset shadow doesn't change its size) */
 } /* End of the no-colour square rule */
 
-/* A side note, quieter than the main text */
-.aside {
-  color: var(--muted); /* Pencil Grey */
-  font-size: 15px; /* A little smaller */
-} /* End of the side note rule */
-
-/* ---------- Limits and sources ---------- */
-
-/* The list of limits: each name on its own line, its explanation below */
-.limits {
-  margin: 0; /* No browser spacing */
-} /* End of the limits rule */
-
-/* Space between one limit and the next */
-.limits dt:not(:first-child) {
-  margin-top: 22px; /* Separates the limits */
-} /* End of the limit spacing rule */
+/* ---------- Sources ---------- */
 
 /* The explanations sit flush left (browsers indent "dd" by default) */
-.limits dd,
 .sources dd {
   margin-left: 0; /* No indent */
 } /* End of the indent rule */
-
-/* The closing sentence of the estimate section: a little larger, as the takeaway */
-.takeaway {
-  margin-top: 8px; /* Space above */
-  font-size: 18px; /* Larger than the body */
-  line-height: 1.5; /* Comfortable */
-} /* End of the takeaway rule */
 
 /* Source names: small drawing-voice labels */
 .sources dt {
@@ -600,27 +540,6 @@ dd {
 .sources dd + dd {
   margin-top: -6px; /* A source's second and third paragraphs sit a little closer to its first */
 } /* End of the follow-on paragraph rule */
-
-/* ---------- Placeholders for the pictures still to come (build steps 3 to 6) ---------- */
-
-/* An empty outlined box with a short note, so the reading flow can be judged before the pictures exist */
-.placeholder {
-  display: grid; /* Grid makes centring the note easy... */
-  place-items: center; /* ...in the middle of the box */
-  min-height: 160px; /* Roughly the size the pictures will take */
-  margin: 20px 0 24px; /* Space around it */
-  padding: 16px; /* Space inside */
-  border: 1px dashed var(--line); /* A dashed hairline: clearly temporary */
-} /* End of the placeholder rule */
-
-/* The note inside a placeholder */
-.placeholder figcaption {
-  max-width: 40ch; /* Short lines */
-  color: var(--faint); /* Faint Pencil: least important */
-  font-family: var(--mono); /* Drawing lettering */
-  font-size: 12px; /* Small */
-  text-align: center; /* Centred */
-} /* End of the placeholder note rule */
 
 /* ---------- Keyboard focus ---------- */
 
@@ -707,4 +626,12 @@ a:focus-visible {
     grid-template-columns: repeat(4, minmax(0, 1fr)); /* Four equal columns */
     column-gap: 32px; /* Space between them */
   } /* End of the big-screen cards rule */
+} /* End of the big-screen rules */
+
+/* Big screens: plate 06's five cards in one row */
+@media (min-width: 1180px) {
+  .examples-5 {
+    grid-template-columns: repeat(5, minmax(0, 1fr)); /* Five equal columns */
+    column-gap: 28px; /* A little less space between them than plate 04's four */
+  } /* End of the five-card rule */
 } /* End of the big-screen rules */

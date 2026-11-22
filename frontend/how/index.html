@@ -170,39 +170,39 @@
         <p class="callout"><strong>The catch:</strong> a real change narrower than 30&nbsp;m, like a single new house or a narrow path, is removed too. In image processing and GIS this shrink-then-grow step is called a <em>morphological opening</em>.</p> <!-- The cost of the cleaning, and its proper name -->
       </section> <!-- End of plate 05 -->
 
-      <section aria-labelledby="real-title"> <!-- Section C: real pixels -->
-        <h2 id="real-title">Now with real pixels</h2> <!-- Section heading -->
-        <p>This is a real corner of Ontario Ranch, California: 400&nbsp;×&nbsp;400&nbsp;m, or 1,600 pixels. On the left are the labels for 2017, on the right the labels for 2023. Farmland turned into houses, and one area was still a bare construction site.</p> <!-- What the real example shows -->
-        <figure class="placeholder"> <!-- Where the two real grids will go -->
-          <figcaption>Real pixels, 2017 and 2023. Drawn in step 4 of the build; tap a pixel to see its label in both years.</figcaption> <!-- Temporary note -->
-        </figure> <!-- End of the real-pixels space -->
-      </section> <!-- End of section C -->
-
-      <section aria-labelledby="try-title"> <!-- Section D: the explorer -->
-        <h2 id="try-title">Try it yourself</h2> <!-- Section heading -->
-        <p>Move the slider to compare 2017 with any later year, and switch the edge cleaning on or off. The hectares are recounted as you go, the same way Landturn counts them for a whole square.</p> <!-- What to do with the explorer -->
-        <figure class="placeholder"> <!-- Where the explorer will go -->
-          <figcaption>The explorer: year slider, edge cleaning switch, live hectares. Built in step 5.</figcaption> <!-- Temporary note -->
-        </figure> <!-- End of the explorer space -->
-      </section> <!-- End of section D -->
-
-      <section aria-labelledby="estimate-title"> <!-- Section E: why it's an estimate -->
-        <h2 id="estimate-title">Why it's an estimate</h2> <!-- Section heading -->
-        <dl class="limits"> <!-- A list of limits, each with a name and an explanation ("dl" = description list) -->
-          <dt>The labels can be wrong</dt> <!-- Limit 1 -->
-          <dd>Computers made these maps from satellite images, and they sometimes give a pixel the wrong label: a dry field can look like bare ground, a desert like grassland. A wrong label in either year looks like a change.</dd> <!-- Why -->
-          <dt>Edges are fuzzy</dt> <!-- Limit 2 -->
-          <dd>A pixel on a shoreline or along a road is partly one thing and partly another, so its label can flip from year to year although nothing changed. That is why Landturn leaves out changes narrower than 30&nbsp;m (three pixels). It also means a real change narrower than 30&nbsp;m, like a single new house, is not counted.</dd> <!-- Why, and the 30 m rule with its cost -->
-          <dt>Clouds hide the ground</dt> <!-- Limit 3 -->
-          <dd>Where clouds covered a pixel in either year, nobody can tell what changed. Those pixels are counted separately as "no data", never as change.</dd> <!-- How no data is handled -->
-          <dt>Ten metres is coarse</dt> <!-- Limit 4 -->
-          <dd>One pixel is 10 × 10&nbsp;m, roughly the footprint of a family house. Anything smaller, like a garden shed or a single tree, disappears into its surroundings.</dd> <!-- What 10 m can't see -->
-        </dl> <!-- End of the limits -->
-        <figure class="placeholder"> <!-- Where the small edge example will go -->
-          <figcaption>A real example of fuzzy edges, with and without cleaning. Added in step 6.</figcaption> <!-- Temporary note -->
-        </figure> <!-- End of the edge example space -->
-        <p class="takeaway">So read the numbers as good estimates of change at the scale of a street or a neighbourhood: reliable for a new suburb, a factory or a reservoir, not for a single building.</p> <!-- The one-sentence takeaway -->
-      </section> <!-- End of section E -->
+      <!-- PLATE 06: why the numbers are estimates, as five small cards in the style of plate 04 (how.js draws each picture) -->
+      <section class="plate" aria-labelledby="estimate-title"> <!-- The plate -->
+        <h2 id="estimate-title"><span class="plate-no">06</span>Why it's an estimate</h2> <!-- Plate number and title -->
+        <p class="plate-lede">Five things that can make the numbers too high or too low. <span class="diagram-tag">Diagram, not real data</span></p> <!-- One line of framing, plus the made-up-data tag -->
+        <ul class="examples examples-5"> <!-- One card per limit -->
+          <li class="example"> <!-- Limit 1 -->
+            <svg class="art example-art" data-art="est-wrong" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids of a field. In the later year four pixels in the middle are labelled bare ground and coloured red, although the field did not change."></svg> <!-- Empty drawing box; how.js draws in it -->
+            <h3>The label can be wrong</h3> <!-- Name -->
+            <p>A computer model made the maps, and it sometimes mislabels a pixel: a dry field can look like bare ground. A wrong label in either year looks like change.</p> <!-- Why -->
+          </li> <!-- End of limit 1 -->
+          <li class="example"> <!-- Limit 2 -->
+            <svg class="art example-art" data-art="est-edge" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids of a shoreline between trees and water. In the later year a few pixels along the shore flip, some to water and one back to trees."></svg> <!-- Empty drawing box -->
+            <h3>Edges are fuzzy</h3> <!-- Name -->
+            <p>A pixel on a shoreline or a road is partly one thing and partly another, so its label can flip. Cleaning (05) removes most of this, and real changes under 30&nbsp;m with it.</p> <!-- Why, and the link to plate 05 -->
+          </li> <!-- End of limit 2 -->
+          <li class="example"> <!-- Limit 3 -->
+            <svg class="art example-art" data-art="est-cloud" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids. In the later year five pixels are hidden by cloud, drawn as dashed cells with a question mark, and get no colour."></svg> <!-- Empty drawing box -->
+            <h3>Clouds hide the ground</h3> <!-- Name -->
+            <p>Where clouds covered a pixel in either year, nobody can tell what changed. It counts as no data, never as change, so real change under the cloud is missed.</p> <!-- How no data is handled, and its cost -->
+          </li> <!-- End of limit 3 -->
+          <li class="example"> <!-- Limit 4 -->
+            <svg class="art example-art" data-art="est-coarse" viewBox="0 0 162 84" role="img" aria-label="One pixel, 10 metres across, drawn to scale with a garden shed and a tree inside it. The whole pixel gets one label: grass or farmland."></svg> <!-- Empty drawing box -->
+            <h3>10&nbsp;m is coarse</h3> <!-- Name -->
+            <p>One pixel is 10 × 10&nbsp;m, roughly a family house's footprint, and gets one label. A shed or a single tree blends into whatever surrounds it.</p> <!-- What 10 m can't see -->
+          </li> <!-- End of limit 4 -->
+          <li class="example"> <!-- Limit 5 -->
+            <svg class="art example-art" data-art="est-dates" viewBox="0 0 162 84" role="img" aria-label="A timeline: the satellite photo and the land-cover map are marked at different dates."></svg> <!-- Empty drawing box -->
+            <h3>Photo and map dates differ</h3> <!-- Name -->
+            <p>The satellite photos are for looking only. They can be from a different year than the maps, so the colours may not line up with what you see.</p> <!-- Why the overlay can look off -->
+          </li> <!-- End of limit 5 -->
+        </ul> <!-- End of the cards -->
+        <p class="callout">So read the numbers as good estimates of change at the scale of a street or a neighbourhood: reliable for a new suburb, a factory or a reservoir, not for a single building.</p> <!-- The one-sentence takeaway -->
+      </section> <!-- End of plate 06 -->
 
       <!-- Section F: data and credits. Wording checked 2026-11-22 against each source: the AWS Registry of Open Data page and
            Impact Observatory's site (licence, name, producers), Esri's item pages and developer docs ("Powered by Esri" and
