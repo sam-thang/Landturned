@@ -312,6 +312,82 @@ dd {
   font-style: normal; /* ...not slanted */
 } /* End of the term rule */
 
+/* ---------- Plate 04: which colour a change gets ---------- */
+
+/* The four example cards. Phones: one column. (Wider screens: see the end of the file.) */
+.examples {
+  margin: 28px 0 0; /* Space above */
+  padding: 0; /* No browser indent */
+  list-style: none; /* No bullets */
+  display: grid; /* A grid of cards... */
+  gap: 28px; /* ...with space between them */
+} /* End of the cards rule */
+
+/* One card: picture, name, one line; a hairline on top, like a drawing's title strip */
+.example {
+  padding-top: 16px; /* Space under the hairline */
+  border-top: 1px solid var(--line); /* The hairline */
+} /* End of the card rule */
+.example-art {
+  display: block; /* On its own line */
+  width: 162px; /* Drawn 1:1 (162 units = 162 px), so cells, lettering and lines match plate 01 exactly */
+  height: 84px; /* Its height at that scale */
+  margin-bottom: 12px; /* Space before the name */
+  overflow: visible; /* Thin lines at the edge aren't cut off */
+} /* End of the card picture rule */
+.example h3 {
+  font-size: 15px; /* Small heading, like the other plates' */
+} /* End of the card name rule */
+.example p {
+  margin: 0; /* No paragraph spacing */
+  color: var(--muted); /* Pencil Grey */
+  font-size: 14px; /* Small reading text */
+  line-height: 1.5; /* Comfortable */
+} /* End of the card text rule */
+
+/* The tiny grid pair inside the "No colour" line, sitting in the text like a word */
+.mini-art {
+  display: inline-block; /* In the line of text */
+  width: 82px; /* Drawn 1:1, like the cards */
+  height: 33px; /* Its height at that scale */
+  vertical-align: middle; /* Centred on the text line */
+  overflow: visible; /* Thin lines at the edge aren't cut off */
+} /* End of the tiny grid rule */
+
+/* "No colour ...": one line under the cards */
+.no-colour {
+  display: flex; /* "No colour", the tiny grids and the sentence in a row... */
+  flex-wrap: wrap; /* ...the sentence dropping below on phones */
+  align-items: center; /* Centred on each other */
+  gap: 8px 16px; /* Space between them (rows, columns) */
+  max-width: 900px; /* A comfortable line length */
+  margin: 28px 0 0; /* Space above */
+  color: var(--muted); /* Pencil Grey */
+  font-size: 15px; /* A touch smaller than reading text */
+} /* End of the no-colour rule */
+.no-colour-text {
+  flex: 1 1 300px; /* The sentence takes the rest of the row, or a row of its own when less than 300 px is left */
+} /* End of the no-colour sentence rule */
+.no-colour .swatch-word {
+  white-space: nowrap; /* "No colour" stays on one line */
+  color: var(--ink); /* The name in ink, like the cards' names */
+  font-weight: 500; /* Medium */
+} /* End of the no-colour name rule */
+
+/* "Green space lost = ...": a callout under the rows, set apart by a hairline on its left like a note on a drawing */
+.callout {
+  max-width: 760px; /* As wide as the rows */
+  margin: 20px 0 0; /* Space above */
+  padding-left: 14px; /* Room after the line */
+  border-left: 1px solid var(--muted); /* The hairline */
+  color: var(--muted); /* Pencil Grey... */
+  font-size: 15px; /* A touch smaller than reading text */
+} /* End of the callout rule */
+.callout strong {
+  color: var(--ink); /* ...with the term in ink */
+  font-weight: 500; /* Medium, never bold */
+} /* End of the callout term rule */
+
 /* ---------- Lines and letters inside the drawings ---------- */
 /* Drawn like a plan: hairlines in grey, the important line in ink, the four change colours as the only colour. */
 .art .line {
@@ -375,6 +451,22 @@ dd {
 .art .mark {
   fill: var(--ink); /* The marked corner or pixel: solid ink, so the eye finds it at once */
 } /* End of the mark rule */
+.art .cat-box {
+  stroke: none; /* Our categories' boxes in plate 03: a solid fill, no outline */
+} /* End of the category box rule */
+.art .lc-t { fill: var(--lc-trees); } /* Trees: dark green */
+.art .lc-g { fill: var(--lc-grass); } /* Grass or farmland: olive */
+.art .lc-b { fill: var(--lc-built); } /* Built: grey */
+.art .lc-w { fill: var(--lc-water); } /* Water: deep blue */
+.art .lc-s { fill: var(--lc-bare); } /* Bare ground: tan */
+.art .on-colour {
+  fill: var(--bg); /* A letter on a bright change colour (plate 04's after grids): dark, so it stays readable */
+} /* End of the on-colour letter rule */
+.art .art-letter-sm {
+  fill: var(--ink); /* Off-white */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 7px; /* Fits the tiny 11-unit cells beside "No colour" */
+} /* End of the small letter rule */
 .art .junction {
   fill: var(--muted); /* The dot where merging wires join, in the wires' grey */
 } /* End of the junction rule */
@@ -437,6 +529,10 @@ dd {
 .swatch-word.loss { --swatch: var(--loss); } /* Red: green space cleared */
 .swatch-word.gain { --swatch: var(--gain); } /* Green: green space gained */
 .swatch-word.water { --swatch: var(--water); } /* Blue: new water */
+.swatch-word.none::before {
+  background: none; /* "No colour": an empty square... */
+  box-shadow: inset 0 0 0 1px var(--muted); /* ...drawn as a grey outline (an inset shadow doesn't change its size) */
+} /* End of the no-colour square rule */
 
 /* A side note, quieter than the main text */
 .aside {
@@ -590,4 +686,18 @@ a:focus-visible {
   .wiring-notes {
     max-width: 480px; /* Notes stay a comfortable reading width */
   } /* End of the wide notes rule */
+
+  /* Plate 04 on wide screens: the four cards side by side (two by two on medium screens, see below) */
+  .examples {
+    grid-template-columns: repeat(2, minmax(0, 1fr)); /* Two columns: a 2 x 2 grid */
+    column-gap: 40px; /* Space between the columns */
+  } /* End of the wide cards rule */
 } /* End of the wide-screen rules */
+
+/* Big screens: the four example cards in one row, left to right, like a strip of details on a drawing sheet */
+@media (min-width: 1180px) {
+  .examples {
+    grid-template-columns: repeat(4, minmax(0, 1fr)); /* Four equal columns */
+    column-gap: 32px; /* Space between them */
+  } /* End of the big-screen cards rule */
+} /* End of the big-screen rules */

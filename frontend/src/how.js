@@ -293,7 +293,7 @@ function drawClasses(svg) {
   OUR_CATEGORIES.forEach(({ key, letter, name }) => { // Each of our categories:
     const y = rightMiddle[key]; // Its middle height
     const none = key === 'N'; // "No data" is drawn dashed and quiet
-    el('rect', { x: RIGHT_X, y: y - BOX / 2, width: RIGHT_W, height: BOX, class: none ? 'line dashed' : 'line ink' }, svg); // Its box
+    el('rect', { x: RIGHT_X, y: y - BOX / 2, width: RIGHT_W, height: BOX, class: none ? 'line dashed' : `cat-box lc-${key.toLowerCase()}` }, svg); // Its box: filled with the category's muted land-cover colour (e.g. "lc-t" for trees), or dashed for no data
     if (letter) label(svg, RIGHT_X + 8, y + 3.5, letter, 'start', 'art-text'); // Its letter, as in the other diagrams
     label(svg, RIGHT_X + (letter ? 22 : 8), y + 3.5, name, 'start', none ? 'art-label' : 'art-text'); // Its name
     const merges = IO_CLASSES.filter((c) => c.to === key).length > 1; // Do several wires meet here?
@@ -308,8 +308,61 @@ function drawClasses(svg) {
   el('text', { x: 360, y: mid, 'text-anchor': 'middle', transform: `rotate(90 360 ${mid})`, class: 'art-label' }, svg).textContent = 'green space'; // Its label, turned to run down the bracket
 } // End of drawClasses
 
+// ---------- Plate 04: the example cards ----------
+// Each card shows a small before -> after pair of pixel grids, in the same style as plates 01 and 03: every cell is
+// a 10 m pixel in its category's muted colour with its letter. In the after grid, a cell that changed gets the bright
+// change colour, worked out by changeType (the app's colour rule, above), so the cards can never disagree with the rule.
+const EXAMPLES = { // Each example: the before grid and the after grid, row by row from the top (letters as in plate 03)
+  built: { before: ['GGGG', 'GGGG', 'TTGG', 'TTGG'], after: ['GBBB', 'GBBB', 'TTBB', 'TTGG'] }, // Field -> warehouse
+  water: { before: ['TTGG', 'TTGG', 'TTGG', 'TGGG'], after: ['TWWG', 'TWWG', 'TWWG', 'TWWG'] }, // Valley -> reservoir: trees and fields flooded
+  loss: { before: ['TTTT', 'TTTT', 'TTTT', 'TTGG'], after: ['TSST', 'TSST', 'TSST', 'TTGG'] }, // Forest -> bare dirt
+  gain: { before: ['BBBS', 'BBBS', 'BBSS', 'BBSS'], after: ['BGGG', 'BTGT', 'BTTG', 'BBGG'] }, // Parking lot and bare lots -> park
+  none: { before: ['TTT', 'TTT', 'TTT'], after: ['GGT', 'GGT', 'GGG'] }, // Forest -> farmland: no colour (green stayed green)
+}; // End of the examples
+
+// One pixel grid with its top-left corner at (x, y). "rows" are its letters; "compareTo" (optional) is the before grid,
+// so changed cells can be coloured; "size" is one cell's width; "letterClass" sets the lettering size.
+function pixelGrid(svg, x, y, rows, size, compareTo, letterClass) {
+  rows.forEach((row, r) => { // Each row...
+    [...row].forEach((letter, c) => { // ...and each pixel in it
+      const type = compareTo ? changeType(compareTo[r][c], letter) : null; // The change colour, if this is the after grid and the pixel changed
+      const fill = type ? `fill-${type}` : `lc-${letter.toLowerCase()}`; // Bright change colour, or the category's muted colour
+      el('rect', { x: x + c * size, y: y + r * size, width: size, height: size, class: `cell ${fill}` }, svg); // The pixel, with a faint grid line round it
+      label(svg, x + c * size + size / 2, y + r * size + size / 2 + 3, letter, 'middle', type ? `${letterClass} on-colour` : letterClass); // Its letter (dark on a bright colour, so it stays readable)
+    }); // End of the pixels in the row
+  }); // End of the rows
+} // End of pixelGrid
+
+// A card's picture: years above, the before grid, an arrow, the after grid (both 4 x 4, cells 16 units like plate 01)
+function drawExample(svg, key) {
+  const { before, after } = EXAMPLES[key]; // This card's two grids
+  const CELL = 16; // One pixel's size, the same as plate 01's grids
+  label(svg, 32, 10, years.first); // The first year over the before grid (filled in from /api/years, like plate 01)
+  pixelGrid(svg, 0, 18, before, CELL, null, 'art-letter'); // The before grid
+  label(svg, 81, 55, '→', 'middle', 'art-big muted'); // "became", level with the grids' middle
+  label(svg, 130, 10, years.latest); // The latest year over the after grid
+  pixelGrid(svg, 98, 18, after, CELL, before, 'art-letter'); // The after grid, compared with the before grid
+} // End of drawExample
+
+// The tiny pair beside "No colour": 3 x 3 grids, cells 11 units, trees -> grass or farmland, which gets no colour
+function drawNoColour(svg) {
+  const { before, after } = EXAMPLES.none; // The two grids
+  pixelGrid(svg, 0, 0, before, 11, null, 'art-letter-sm'); // Before
+  label(svg, 41, 20, '→', 'middle', 'art-label'); // "became"
+  pixelGrid(svg, 49, 0, after, 11, before, 'art-letter-sm'); // After: the changed pixels keep muted colours, because changeType gives no colour
+} // End of drawNoColour
+
 // Draw every picture: find each empty drawing box on the page and draw the matching picture in it
-const DRAWINGS = { address: drawAddress, square: drawSquare, maps: drawMaps, compare: drawCompare, count: drawCount, photo: drawPhoto, 'square-big': drawSquareBig, pixels: drawPixels, pixel: drawPixel, classes: drawClasses }; // Box name -> drawing function
+const DRAWINGS = { // Box name -> drawing function
+  address: drawAddress, square: drawSquare, maps: drawMaps, compare: drawCompare, count: drawCount, photo: drawPhoto, // Plate 01
+  'square-big': drawSquareBig, pixels: drawPixels, pixel: drawPixel, // Plate 02
+  classes: drawClasses, // Plate 03
+  'ex-built': (svg) => drawExample(svg, 'built'), // Field -> warehouse: orange
+  'ex-water': (svg) => drawExample(svg, 'water'), // Valley -> reservoir: blue
+  'ex-loss': (svg) => drawExample(svg, 'loss'), // Forest -> bare dirt: red
+  'ex-gain': (svg) => drawExample(svg, 'gain'), // Parking lot -> park: green
+  'ex-none': drawNoColour, // Forest -> farmland: no colour
+}; // End of the drawings
 function drawAll() {
   document.querySelectorAll('svg[data-art]').forEach((svg) => { // For each drawing box...
     svg.replaceChildren(); // ...empty it (when redrawing with the real years)...

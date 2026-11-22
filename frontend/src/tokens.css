@@ -12,6 +12,14 @@
   --gain: #4fd98a; /* Green: green space gained */
   --built: #ffa01f; /* Orange: newly built (any land that became built) */
   --water: #3db8f5; /* Blue: new water */
+  /* The land-cover categories themselves (what a pixel IS, not how it changed): muted earth colours, so they never
+     compete with or get mistaken for the four bright change colours above. Each is dark enough for off-white lettering
+     on top. Used by "How this works" for now; ready for a land-cover map layer later. */
+  --lc-trees: #2f5a3c; /* Trees: dark green */
+  --lc-grass: #5c6a30; /* Grass or farmland: olive */
+  --lc-built: #585e68; /* Built: grey */
+  --lc-water: #264a70; /* Water: deep blue */
+  --lc-bare: #746044; /* Bare ground: tan */
   --sans: 'Space Grotesk', system-ui, sans-serif; /* Main font, with standard fonts as backups if it fails to load */
   --mono: 'JetBrains Mono', ui-monospace, monospace; /* "Monospace" font (every letter equally wide) for labels and numbers, like on a technical drawing */
 } /* End of the design tokens */

@@ -114,16 +114,36 @@
         </div> <!-- End of the drawing and notes -->
       </section> <!-- End of plate 03 -->
 
-      <section aria-labelledby="idea-title"> <!-- Section B: colours (until plate 04 replaces it) -->
-        <h2 id="idea-title">Colours</h2> <!-- Section heading -->
-        <ol class="steps-list"> <!-- The steps, numbered because their order is the method -->
-          <li> <!-- Step 1 -->
-            <h3>Compare and count</h3> <!-- Step heading -->
-            <p>Where a pixel's label changed, it gets a change colour: <span class="swatch-word built">newly built</span>, <span class="swatch-word loss">green space cleared</span> to bare ground, <span class="swatch-word gain">green space gained</span>, or <span class="swatch-word water">new water</span>. Then we count: in the diagram, 1,230 orange pixels × 0.01&nbsp;ha = 12.3&nbsp;hectares newly built.</p> <!-- The colours and the count; each colour word gets a small swatch in CSS, so colour never stands alone -->
-            <p class="aside">Changes between trees and grass or farmland get no colour: both count as green space.</p> <!-- The one rule people might wonder about -->
-          </li> <!-- End of step 4 -->
-        </ol> <!-- End of the steps -->
-      </section> <!-- End of section B -->
+      <!-- PLATE 04: the colour rule as four real-world examples (how.js draws each little before -> after picture), and a line
+           on what gets no colour -->
+      <section class="plate" aria-labelledby="colours-title"> <!-- The plate -->
+        <h2 id="colours-title"><span class="plate-no">04</span>Which colour a change gets</h2> <!-- Plate number and title -->
+        <p class="plate-lede">Each 10&nbsp;m square gets a colour based on what the land was and what it became.</p> <!-- How the colours work, in one line (the rule is the analysis's own: compare() in backend/app/landcover.py) -->
+        <ul class="examples"> <!-- One card per change colour -->
+          <li class="example"> <!-- Orange -->
+            <svg class="art example-art" data-art="ex-built" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 pixel grids. Before: mostly grass or farmland with some trees. After: seven grass or farmland pixels have become built and are filled orange."></svg> <!-- The before -> after pixel grids; how.js draws them -->
+            <h3><span class="swatch-word built">Newly built</span></h3> <!-- Colour and name -->
+            <p>Field → warehouse. Anything that becomes built.</p> <!-- The example and the rule -->
+          </li> <!-- End of orange -->
+          <li class="example"> <!-- Blue -->
+            <svg class="art example-art" data-art="ex-water" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 pixel grids. Before: trees and grass or farmland. After: the two middle columns, trees and grass alike, have become water and are filled blue."></svg> <!-- The picture -->
+            <h3><span class="swatch-word water">New water</span></h3> <!-- Colour and name -->
+            <p>Valley → reservoir. Anything that becomes water.</p> <!-- The example and the rule -->
+          </li> <!-- End of blue -->
+          <li class="example"> <!-- Red -->
+            <svg class="art example-art" data-art="ex-loss" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 pixel grids. Before: mostly trees. After: a block of trees has become bare ground and is filled red."></svg> <!-- The picture -->
+            <h3><span class="swatch-word loss">Green space cleared</span></h3> <!-- Colour and name -->
+            <p>Forest → bare dirt. Green land stripped bare, with nothing built yet, like a building site.</p> <!-- The example and the rule -->
+          </li> <!-- End of red -->
+          <li class="example"> <!-- Green -->
+            <svg class="art example-art" data-art="ex-gain" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 pixel grids. Before: built and bare ground. After: many of those pixels have become trees or grass and are filled green."></svg> <!-- The picture -->
+            <h3><span class="swatch-word gain">Green space gained</span></h3> <!-- Colour and name -->
+            <p>Parking lot → park. Built, water or bare land that turns green.</p> <!-- The example and the rule -->
+          </li> <!-- End of green -->
+        </ul> <!-- End of the cards -->
+        <p class="no-colour"><span class="swatch-word none">No colour:</span> <svg class="art mini-art" data-art="ex-none" viewBox="0 0 82 33" role="img" aria-label="A tiny pair of 3 by 3 grids: trees become grass or farmland, with no colour."></svg> <span class="no-colour-text">Forest → farmland, because both count as green space. Built or water that becomes bare ground, like a demolished building or a drained pond. And squares with no data (clouds), which each result reports separately.</span></p> <!-- Every case that isn't coloured (matches compare() in backend/app/landcover.py), with a tiny grid pair showing the first -->
+        <p class="callout"><strong>Green space lost</strong> = everything green that isn't green any more: the red pixels, plus orange and blue pixels that used to be trees, grass or farmland.</p> <!-- How the result page's total is made up -->
+      </section> <!-- End of plate 04 -->
 
       <section aria-labelledby="real-title"> <!-- Section C: real pixels -->
         <h2 id="real-title">Now with real pixels</h2> <!-- Section heading -->
