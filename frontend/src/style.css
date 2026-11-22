@@ -38,7 +38,7 @@ body {
 .stage {
   position: relative; /* Lets the canvas inside be positioned relative to the stage */
   container-type: inline-size; /* Make the stage a "container", so rules can react to the stage's own width (see the callout) */
-  flex: 0 0 56%; /* Don't grow, don't shrink, take 56% of the height */
+  flex: 0 0 min(56%, 100% - 330px); /* Don't grow, don't shrink, take 56% of the height, but on short phones leave the panel at least 330 px so its text fits without scrolling (the globe shrinks a little instead) */
   overflow: hidden; /* Cut off anything that sticks out of the stage */
 } /* End of the stage rule */
 
@@ -1539,6 +1539,17 @@ h1:focus {
 } /* End of the message rule */
 
 /* "Or start with a place that turned": quiet sentence case in the reading font, not a spaced-capitals label */
+/* "Search by Nominatim · © OpenStreetMap contributors": the search's credit, small and faint, tucked under the search box */
+.search-credit {
+  margin: -14px 0 18px; /* Pulled up into the search row's bottom space, so it reads as the box's caption; space below before the next line */
+  font-size: 11px; /* Small print */
+  color: var(--faint); /* Faint: present but quiet */
+} /* End of the search credit rule */
+.search-credit a {
+  color: var(--muted); /* The link a step brighter than its line... */
+  text-underline-offset: 2px; /* ...and underlined, so it reads as a link without colour */
+} /* End of the search credit link rule */
+
 .or-line {
   margin: 0; /* No paragraph spacing (the search row above and the buttons below set the gaps) */
   font-size: 13px; /* Small, like the messages */
@@ -1612,6 +1623,10 @@ h1:focus {
   .search-row {
     margin: 12px 0; /* A little less space around the search row */
   } /* End of the phone search row rule */
+
+  .search-credit {
+    margin: -6px 0 12px; /* The search row's space below is smaller on phones, so the credit is pulled up less (6 px gap under the box) */
+  } /* End of the phone search credit rule */
 
   /* The place buttons: one row you swipe sideways, instead of several wrapped lines */
   .places {

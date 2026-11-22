@@ -58,7 +58,7 @@
           <p id="map-edge-note" class="map-edge-note" role="status" hidden>Search another address to explore further.</p> <!-- Shown while the map touches the edge of the 10 km box around the searched address (map.js); role="status": screen readers announce it -->
           <div id="map-credit" class="map-credit"> <!-- The imagery credit the licence requires, in our own small dark style -->
             <button id="credit-toggle" class="credit-toggle" type="button" aria-expanded="false" aria-controls="credit-text" aria-label="Image credits">i</button> <!-- On phones: the small ⓘ that opens and closes the credit (hidden on wide screens); aria-expanded tells screen readers whether it's open -->
-            <span id="credit-text" class="credit-text">Imagery © Esri, Maxar, Earthstar Geographics, and the GIS User Community</span> <!-- The credit text itself -->
+            <span id="credit-text" class="credit-text">Powered by Esri · Imagery © Esri, Vantor, Earthstar Geographics, and the GIS User Community</span> <!-- The credit text: "Powered by Esri" (Esri's terms require it), then World Imagery's own credit line as Esri publishes it (checked 2026-11-22; Vantor is Maxar's new name) -->
           </div> <!-- End of the credit -->
         </div> <!-- End of the map wrapper -->
         <div id="teaser" class="teaser" hidden><strong></strong><small></small></div> <!-- The hover box for hotspots; globe.js fills in the name and teaser, and shows it -->
@@ -101,6 +101,7 @@
           <span>My location</span> <!-- The label -->
         </button> <!-- End of the locate button -->
         </div> <!-- End of the search row -->
+        <p class="search-credit">Search by Nominatim · © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></p> <!-- The address search uses OpenStreetMap's Nominatim, whose rules ask for a visible credit; the link opens OSM's copyright page in a new tab ("noopener": that tab can't control this one) -->
         <p id="search-message" class="message" role="status" hidden></p> <!-- Messages like "Couldn't find that address"; role="status" makes screen readers announce them -->
         <p class="or-line">Or start with a place that turned</p> <!-- Label above the place buttons, in quiet sentence case -->
         <div id="places" class="places"></div> <!-- Empty area; main.js adds one button per place here -->
@@ -146,7 +147,8 @@
           </div> <!-- End of the imagery warning -->
           <p id="result-note" class="note"></p> <!-- Small print, line 1: where the land cover comes from, what Landturn does with it, that it's an estimate -->
           <p id="photo-note" class="note"></p> <!-- Small print, line 2: the satellite imagery's source and date, and why the coloured areas may not line up with it -->
-          <p class="note"><a class="note-link" href="/how/">How this works →</a></p> <!-- Small print, line 3: the method page -->
+          <p class="note">Place names: Nominatim · © <a class="note-link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></p> <!-- Small print, line 3: searched and "My location" place names come from OpenStreetMap's Nominatim, which asks for a visible credit -->
+          <p class="note"><a class="note-link" href="/how/">How this works →</a></p> <!-- Small print, line 4: the method page -->
         </div> <!-- End of the result section -->
       </section> <!-- End of the panel -->
     </div> <!-- End of the app -->
