@@ -145,6 +145,31 @@
         <p class="callout"><strong>Green space lost</strong> = everything green that isn't green any more: the red pixels, plus orange and blue pixels that used to be trees, grass or farmland.</p> <!-- How the result page's total is made up -->
       </section> <!-- End of plate 04 -->
 
+      <!-- PLATE 05: edge cleaning, as three same-size grids (raw -> shrink -> grow back), worked out in how.js with the
+           backend's own steps (remove_thin_changes in backend/app/landcover.py). Same layout as plate 02. -->
+      <section class="plate" aria-labelledby="edges-title"> <!-- The plate -->
+        <h2 id="edges-title"><span class="plate-no">05</span>Cleaning the edges</h2> <!-- Plate number and title -->
+        <p class="plate-lede">Changes narrower than about 30&nbsp;m are removed, one colour at a time. <span class="diagram-tag">Diagram, not real data</span></p> <!-- The rule in one line, plus the made-up-data tag -->
+        <ol class="zoom"> <!-- The three steps, in order -->
+          <li class="zoom-step"> <!-- Step 1 -->
+            <svg class="art zoom-art" data-art="edges-raw" viewBox="0 0 236 180" role="img" aria-label="A change map, 10 by 10 pixels: a solid patch of newly built pixels, plus a thin diagonal line of new water, a strip two pixels wide of green gained, and a single cleared pixel"></svg> <!-- Empty drawing box; how.js draws in it -->
+            <h3>Raw change</h3> <!-- Title -->
+            <p>Along a shoreline, a field edge or a road, a 10&nbsp;m pixel is partly one thing and partly another, so its label can flip between years although nothing changed. These flips show up as thin lines and specks.</p> <!-- Why edges are noisy ("mixed pixels") -->
+          </li> <!-- End of step 1 -->
+          <li class="zoom-step"> <!-- Step 2 -->
+            <svg class="art zoom-art" data-art="edges-shrink" viewBox="0 0 236 180" role="img" aria-label="Every coloured patch shrunk by one pixel: only the middle of the built patch is left; the thin line, the strip and the speck have vanished"></svg> <!-- Empty drawing box -->
+            <h3>Shrink by one pixel</h3> <!-- Title -->
+            <p>Every coloured patch loses its outer ring of pixels. Anything narrower than 3 pixels (30&nbsp;m) disappears completely.</p> <!-- The "erode" step -->
+          </li> <!-- End of step 2 -->
+          <li class="zoom-step"> <!-- Step 3 -->
+            <svg class="art zoom-art" data-art="edges-grow" viewBox="0 0 236 180" role="img" aria-label="The patches grown back by one pixel: the built patch has its full shape again, and the thin changes stay removed"></svg> <!-- Empty drawing box -->
+            <h3>Grow back by one pixel</h3> <!-- Title -->
+            <p>What's left grows back to its full shape. The thin lines and specks have nothing left to grow from, so they stay removed. Wide patches keep their shape, but thin spurs sticking out of them are trimmed too.</p> <!-- The "dilate" step, and what it does to the edges of big patches -->
+          </li> <!-- End of step 3 -->
+        </ol> <!-- End of the steps -->
+        <p class="callout"><strong>The catch:</strong> a real change narrower than 30&nbsp;m, like a single new house or a narrow path, is removed too. In image processing and GIS this shrink-then-grow step is called a <em>morphological opening</em>.</p> <!-- The cost of the cleaning, and its proper name -->
+      </section> <!-- End of plate 05 -->
+
       <section aria-labelledby="real-title"> <!-- Section C: real pixels -->
         <h2 id="real-title">Now with real pixels</h2> <!-- Section heading -->
         <p>This is a real corner of Ontario Ranch, California: 400&nbsp;×&nbsp;400&nbsp;m, or 1,600 pixels. On the left are the labels for 2017, on the right the labels for 2023. Farmland turned into houses, and one area was still a bare construction site.</p> <!-- What the real example shows -->

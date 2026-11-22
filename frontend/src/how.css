@@ -383,6 +383,10 @@ dd {
   color: var(--muted); /* Pencil Grey... */
   font-size: 15px; /* A touch smaller than reading text */
 } /* End of the callout rule */
+.callout em {
+  color: var(--ink); /* A technical term ("morphological opening") in ink... */
+  font-style: normal; /* ...not slanted */
+} /* End of the callout term rule */
 .callout strong {
   color: var(--ink); /* ...with the term in ink */
   font-weight: 500; /* Medium, never bold */
@@ -467,6 +471,9 @@ dd {
   font-family: var(--mono); /* Drawing lettering */
   font-size: 7px; /* Fits the tiny 11-unit cells beside "No colour" */
 } /* End of the small letter rule */
+.art .ghost {
+  opacity: 0.22; /* Plate 05: a pixel that lost its colour in the cleaning, shown faintly so you can see what was removed */
+} /* End of the ghost rule */
 .art .junction {
   fill: var(--muted); /* The dot where merging wires join, in the wires' grey */
 } /* End of the junction rule */

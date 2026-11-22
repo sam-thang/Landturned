@@ -352,6 +352,92 @@ function drawNoColour(svg) {
   pixelGrid(svg, 49, 0, after, 11, before, 'art-letter-sm'); // After: the changed pixels keep muted colours, because changeType gives no colour
 } // End of drawNoColour
 
+// ---------- Plate 05: cleaning the edges ----------
+// A made-up 10 x 10 change map ("." = no change; B, W, L, G = the four change colours). The cleaning below copies the
+// backend's remove_thin_changes step by step, so the drawing shows exactly what the app does.
+const EDGE_MAP = [ // Row by row from the top
+  '..........', // Row 0
+  '.BBBBB....', // A new building block, 5 x 4 pixels: real change
+  '.BBBBB..W.', // The diagonal W line: a shoreline whose edge pixels flipped to water (1 pixel wide: noise)
+  '.BBBBB.W..', // Row 3
+  '.BBBBBW...', // Row 4
+  '.....W....', // Row 5
+  '.L..W..GG.', // L: one lone cleared pixel (a speck). GG: a strip 2 pixels wide along a field edge
+  '...W...GG.', // Row 7
+  '..W....GG.', // Row 8
+  '.......GG.', // Row 9
+]; // End of the made-up change map
+const EDGE_TYPES = { B: 'built', W: 'water', L: 'loss', G: 'gain' }; // Letter -> change colour
+
+// Is (r, c) inside the grid?
+const inside = (r, c) => r >= 0 && r < 10 && c >= 0 && c < 10;
+
+// Shrink ("erode") one colour's patches: a pixel stays only if it and all 8 neighbours have that colour.
+// Beyond the map's edge counts as "the same as the border pixel", like the backend's "edge" padding, so a patch that
+// merely touches the edge of the square isn't shrunk from that side.
+function erode(mask) {
+  return mask.map((row, r) => row.map((on, c) => { // For every pixel...
+    for (let dr = -1; dr <= 1; dr += 1) { // ...look at the row above, its own row and the row below...
+      for (let dc = -1; dc <= 1; dc += 1) { // ...and the column left, its own and right
+        const rr = Math.min(9, Math.max(0, r + dr)); // A neighbour beyond the edge is replaced by the nearest border pixel ("edge" padding)
+        const cc = Math.min(9, Math.max(0, c + dc)); // Same for columns
+        if (!mask[rr][cc]) return false; // One neighbour without the colour: this pixel goes
+      } // End of the columns
+    } // End of the rows
+    return true; // All 9 had the colour: it stays
+  })); // End of the pixels
+} // End of erode
+
+// Grow ("dilate") one colour's patches: a pixel gets the colour if it or any of its 8 neighbours has it.
+// Beyond the edge counts as "no colour" (the backend's "constant" padding), so nothing grows in from outside.
+function dilate(mask) {
+  return mask.map((row, r) => row.map((on, c) => { // For every pixel...
+    for (let dr = -1; dr <= 1; dr += 1) { // ...look at the 3 x 3 block around it
+      for (let dc = -1; dc <= 1; dc += 1) { // (columns too)
+        if (inside(r + dr, c + dc) && mask[r + dr][c + dc]) return true; // A neighbour with the colour: this pixel gets it
+      } // End of the columns
+    } // End of the rows
+    return false; // No neighbour had it
+  })); // End of the pixels
+} // End of dilate
+
+// Run the cleaning, one colour at a time, like the backend. For every pixel it records three answers:
+// raw = its colour before cleaning, shrunk = its colour after shrinking (or null), kept = its colour after cleaning (or null).
+function cleanEdges() {
+  const raw = EDGE_MAP.map((row) => [...row].map((ch) => EDGE_TYPES[ch] || null)); // The raw change map as colour names
+  const shrunk = raw.map((row) => row.map(() => null)); // Start empty
+  const kept = raw.map((row) => row.map(() => null)); // Start empty
+  Object.values(EDGE_TYPES).forEach((type) => { // For each colour on its own...
+    const mask = raw.map((row) => row.map((t) => t === type)); // ...where is it? (true / false per pixel)
+    const small = erode(mask); // Shrink
+    const grown = dilate(small); // Grow back
+    raw.forEach((row, r) => row.forEach((t, c) => { // Write the answers for this colour
+      if (small[r][c]) shrunk[r][c] = type; // Survived the shrink
+      if (mask[r][c] && grown[r][c]) kept[r][c] = type; // Was this colour AND came back: kept (the backend's "mask & kept")
+    })); // End of the pixels
+  }); // End of the colours
+  return { raw, shrunk, kept }; // All three stages
+} // End of cleanEdges
+const EDGES = cleanEdges(); // Work it out once; the three drawings use it
+
+// One stage's grid at the square's usual place (SQ, from plate 02): solid colour where the pixel has a colour at this
+// stage, a faint "ghost" where it had one in the raw map but has lost it, and a count underneath.
+function drawEdgeStage(svg, stage, caption) {
+  const { x, y, size } = SQ; // The square's position, the same as plate 02's drawings
+  const cell = size / 10; // 12 units per pixel
+  let count = 0; // Coloured pixels at this stage, counted from the grid itself as it is drawn below, so the number always matches the picture (and, because EDGES comes from the same 3 x 3 opening as the backend, the backend's answer too)
+  EDGES.raw.forEach((row, r) => row.forEach((rawType, c) => { // Every pixel...
+    const now = EDGES[stage][r][c]; // ...its colour at this stage (or null)
+    const box = { x: x + c * cell, y: y + r * cell, width: cell, height: cell }; // Its square
+    if (now) { el('rect', { ...box, class: `cell fill-${now}` }, svg); count += 1; } // Coloured now: solid, and counted
+    else if (rawType) el('rect', { ...box, class: `cell fill-${rawType} ghost` }, svg); // Lost its colour: a faint ghost of it
+    else el('rect', { ...box, class: 'cell' }, svg); // Never coloured: an empty cell
+  })); // End of the pixels
+  el('rect', { x, y, width: size, height: size, class: 'line ink' }, svg); // The map's edge
+  label(svg, x + size / 2, y - 10, `${count} changed pixels`); // The count above the grid, e.g. "36 changed pixels"
+  label(svg, x + size / 2, y + size + 18, caption); // What happened, under the grid
+} // End of drawEdgeStage
+
 // Draw every picture: find each empty drawing box on the page and draw the matching picture in it
 const DRAWINGS = { // Box name -> drawing function
   address: drawAddress, square: drawSquare, maps: drawMaps, compare: drawCompare, count: drawCount, photo: drawPhoto, // Plate 01
@@ -362,6 +448,9 @@ const DRAWINGS = { // Box name -> drawing function
   'ex-loss': (svg) => drawExample(svg, 'loss'), // Forest -> bare dirt: red
   'ex-gain': (svg) => drawExample(svg, 'gain'), // Parking lot -> park: green
   'ex-none': drawNoColour, // Forest -> farmland: no colour
+  'edges-raw': (svg) => drawEdgeStage(svg, 'raw', 'before cleaning'), // Plate 05, step 1
+  'edges-shrink': (svg) => drawEdgeStage(svg, 'shrunk', 'faint: shrunk away'), // Step 2
+  'edges-grow': (svg) => drawEdgeStage(svg, 'kept', 'faint: removed for good'), // Step 3
 }; // End of the drawings
 function drawAll() {
   document.querySelectorAll('svg[data-art]').forEach((svg) => { // For each drawing box...
