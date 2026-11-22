@@ -74,6 +74,23 @@ const PIN_GAP = 2.5; // The cross's arms start this far from the center, leaving
 const PIN_ARM = 11; // ...and end this far out, a little beyond the circle
 const PIN_INK = 'rgba(240, 244, 248, 0.95)'; // Off-white, like the coastlines but stronger; the four colors are kept for change types
 const PIN_HALO = '#0c1015'; // The ocean color, drawn wide underneath to cut a clean gap through coastlines and grid lines
+// ---------- The water note ----------
+const WATER_NOTE_MS = 2000; // How long "That's water. Tap the land." stays up, in milliseconds (2 seconds)
+const WATER_NOTE_GAP = 12; // How far above the tapped spot the note's bottom edge sits, in pixels (clear of the fingertip)
+const TOUCH = window.matchMedia('(pointer: coarse)').matches; // True on touch screens (the main pointer is a finger), so the note says "tap", else "click"
+
+const CAPTION_ROOM = 38; // Phones: the strip at the top of the globe area kept for the caption, in pixels (14 px gap + the line + a gap below)
+
+// How big the globe is (its radius in pixels at zoom 1) in a globe area "width" x "height" pixels.
+// Wide screens: 40% of the shorter side, which leaves the big stage calm space around it.
+// Phones (narrower than 900 px, the same line style.css uses): 45%, as the key is gone there, but never so big that the
+// globe's top reaches into the caption strip.
+function globeRadius(width, height) {
+  const shorter = Math.min(width, height); // The shorter side of the globe area
+  if (window.innerWidth >= 900) return shorter * 0.4; // Wide screens: 40%
+  return Math.min(shorter * 0.45, height / 2 - CAPTION_ROOM); // Phones: 45%, or less if the caption needs the room
+} // End of globeRadius
+
 // Below this stage width (in pixels) the pin card sits above the mark instead of beside it.
 // Must match the "@container (max-width: 700px)" rules in style.css, where the callout's label moves above its ring the same way.
 const COMPACT_WIDTH = 700;
@@ -100,9 +117,10 @@ function limitTilt(lat) {
 // "onSelectPlace" is a function to call when the user clicks a hotspot.
 // "pinCard" is the card shown beside a tapped spot; the globe moves it so it follows the pin.
 // "onPinChange" is a function to call when the pin moves or goes away; it gets the spot as [lon, lat], or null when cleared.
+// "waterNote" is the small "That's water. Tap the land." box shown beside an ocean tap.
 // Returns an object with a turnTo function, so other code can tell the globe where to look.
 // "export" lets main.js use this function.
-export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange) {
+export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange, waterNote) {
   const context = canvas.getContext('2d'); // The "2D context" is the set of drawing tools for the canvas
   const projection = geoOrthographic() // The orthographic projection: the Earth as seen from far out in space
     .clipAngle(90) // Hide everything more than 90° from the center, i.e. the far side of the globe
@@ -132,7 +150,7 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange) 
   function aimProjection() {
     const width = canvas.clientWidth; // The canvas width on screen, in CSS pixels
     const height = canvas.clientHeight; // The canvas height on screen
-    const radius = Math.min(width, height) * 0.4 * view.zoom; // Globe radius: 40% of the shorter side (so it fits), times the zoom factor
+    const radius = globeRadius(width, height) * view.zoom; // Globe radius: its size at zoom 1 (see globeRadius), times the zoom factor
     projection
       .translate([width / 2, height / 2]) // Put the globe's center in the middle of the canvas
       .scale(radius) // Make the globe this many pixels in radius
@@ -286,6 +304,24 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange) 
     onPinChange(null); // Tell main.js, so it can drop any name lookup still running
   } // End of clearPin
 
+  // Show "That's water. Tap the land." just above the spot (x, y) where someone tapped the sea, for WATER_NOTE_MS.
+  let waterTimer = null; // The countdown that hides the note again, so a second tap can restart it
+  function showWaterNote(x, y) {
+    waterNote.textContent = TOUCH ? "That's water. Tap the land." : "That's water. Click the land."; // The words (setting them again makes screen readers repeat them)
+    const width = canvas.clientWidth; // The stage's width, to keep the note inside it
+    const noteWidth = waterNote.offsetWidth; // The note's own width with these words
+    const noteHeight = waterNote.offsetHeight; // ...and height
+    const MARGIN = 8; // Keep at least this far from the stage's edges
+    const left = clamp(x - noteWidth / 2, MARGIN, width - noteWidth - MARGIN); // Centred over the tap, but never past the left or right edge
+    let top = y - WATER_NOTE_GAP - noteHeight; // Its bottom edge a little above the tap
+    if (top < MARGIN) top = y + WATER_NOTE_GAP; // No room above (tap near the top): put it below the tap instead
+    waterNote.style.left = `${left}px`; // Move it across...
+    waterNote.style.top = `${top}px`; // ...and down
+    waterNote.classList.add('shown'); // Fade it in (style.css)
+    clearTimeout(waterTimer); // Cancel the countdown of an earlier tap, if any...
+    waterTimer = setTimeout(() => waterNote.classList.remove('shown'), WATER_NOTE_MS); // ...and fade it out 2 seconds after this one
+  } // End of showWaterNote
+
   // Find the visible hotspot nearest to a pointer event, or null if none is close enough
   function hotspotAt(event) {
     const rect = canvas.getBoundingClientRect(); // Where the canvas is on the page
@@ -421,7 +457,7 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange) 
   // A circle's edge is 2 × π × radius long for 360°, so near the middle 1 pixel ≈ 180° ÷ (π × radius).
   // The radius grows with the zoom, so when zoomed in each pixel turns the globe less.
   function degreesPerPixel() {
-    const radius = Math.min(canvas.clientWidth, canvas.clientHeight) * 0.4 * view.zoom; // The globe's radius on screen (same formula as in draw)
+    const radius = globeRadius(canvas.clientWidth, canvas.clientHeight) * view.zoom; // The globe's radius on screen (same formula as in draw)
     return 180 / (Math.PI * radius); // Degrees per pixel
   } // End of degreesPerPixel
 
@@ -534,6 +570,7 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange) 
       onPinChange(lonLat); // Tell main.js, which fills in the card
     } else { // Sea or empty space:
       clearPin(); // Tapping away removes the pin and its card
+      if (lonLat) showWaterNote(event.clientX - rect.left, event.clientY - rect.top); // On the globe but not on land: it's the sea, so say so (a tap should never just do nothing)
     } // End of the land check
   }); // End of pointerup
   // When the system cancels a touch (e.g. a phone call comes in)

@@ -54,48 +54,60 @@ body {
   touch-action: none; /* On touch screens, let dragging turn the globe instead of scrolling the page */
 } /* End of the globe rule */
 
-/* THE KEY: the four dot colours, in the globe area (index.html). Phones: a compact 2 x 2 grid along the bottom, under the
-   globe. Wide screens: a legend block in the bottom-left corner (see the min-width: 900px rules). */
-.globe-key {
+/* THE CAPTION: "Pick any spot on land to see how it turned." (index.html). Phones: centred along the top of the globe
+   area. Wide screens: centred along the bottom (see the min-width: 900px rules). A sentence, so sentence case. */
+.globe-caption {
   position: absolute; /* Placed freely over the globe area */
-  left: 16px; /* 16 px from the left edge */
-  right: 16px; /* ...and the right edge (the grid spreads across) */
-  bottom: 10px; /* 10 px above the bottom of the globe area */
-  pointer-events: none; /* Never blocks dragging the globe */
-  transition: opacity 0.4s ease; /* Fades out when a place is chosen (and back in on the way back) */
+  top: 14px; /* Phones: 14 px from the top (globe.js keeps the globe below it) */
+  left: 50%; /* From the middle... */
+  transform: translateX(-50%); /* ...moved back by half its own width, so it's centred */
+  margin: 0; /* No paragraph spacing */
+  font-size: 13px; /* The panel's small-text size */
+  line-height: 1.2; /* Snug single line */
+  color: var(--muted); /* Grey: a quiet hint, not a headline */
+  white-space: nowrap; /* Always one line */
+  pointer-events: none; /* Never blocks dragging or tapping the globe */
+  transition: opacity 0.4s ease; /* Fades out and back in */
+} /* End of the caption rule */
+/* Hidden while a pin is showing (people found out they can pick any spot) and once a place is chosen.
+   ":has" asks "does the app contain ...?", so no JavaScript is needed. */
+.app:has(#pin-card:not([hidden])) .globe-caption,
+.app:has(#panel-landing[hidden]) .globe-caption {
+  opacity: 0; /* Invisible */
+} /* End of the hidden caption rule */
+
+/* THE KEY (index.html): wide screens only, one dimmed line in the bottom-left corner, like a site plan's legend strip.
+   Phones don't show it: the place buttons' dots and the hover teasers already explain the colours there. */
+.globe-key {
+  display: none; /* Phones: no key (the min-width: 900px rules show it) */
 } /* End of the key rule */
-.globe-key-title {
-  display: none; /* Phones: no "KEY" heading, to save height (the dots next to the words explain themselves) */
-} /* End of the key title rule */
-.globe-key-list {
-  display: grid; /* Phones: a grid... */
-  grid-template-columns: 1fr 1fr; /* ...of two equal columns, so two rows of two */
-  gap: 6px 12px; /* 6 px between rows, 12 px between columns */
-  margin: 0; /* No list spacing */
-  padding: 0; /* No list indent */
-  list-style: none; /* No bullet points (the coloured dots are the bullets) */
-  font: 10px / 1.2 var(--mono); /* Small drawing lettering, like the map labels (10 px: the phone minimum) */
-  letter-spacing: 0.08em; /* Spread a little */
-  text-transform: uppercase; /* Capitals, like the result rows */
-  color: var(--muted); /* Grey: it explains the dots, the dots themselves are the bright part */
-} /* End of the key list rule */
-.globe-key-list li {
-  display: flex; /* Dot and words in a row... */
-  align-items: center; /* ...centred with each other */
-  gap: 7px; /* 7 px between the dot and the words */
-} /* End of the key item rule */
 .key-dot {
-  width: 8px; /* The place buttons' dot size */
-  height: 8px; /* ...8 x 8 px */
+  display: inline-block; /* A small block that sits in the line of text */
+  width: 6px; /* A small dot... */
+  height: 6px; /* ...6 x 6 px */
+  margin-right: 6px; /* 6 px before its word */
   border-radius: 50%; /* A circle, like the dots on the globe */
   background: var(--dot-color); /* Its colour, set on each dot in index.html */
-  flex: none; /* Never squashed by long words */
+  vertical-align: 1px; /* Lift it to sit level with the capitals' middle */
 } /* End of the key dot rule */
-/* Once a place is chosen (the landing panel is hidden), the key fades out: it only explains the globe's dots.
-   ":has" asks "does the app contain a hidden landing panel?", so no JavaScript is needed. */
-.app:has(#panel-landing[hidden]) .globe-key {
-  opacity: 0; /* Invisible */
-} /* End of the hidden key rule */
+
+/* The water note: "That's water. Tap the land.", shown for 2 seconds just above an ocean tap (globe.js sets left and top
+   and adds the "shown" class). Same dark box as the hover teaser, so it reads as part of the globe's annotations. */
+.water-note {
+  position: absolute; /* Placed at an exact spot inside the stage */
+  margin: 0; /* No paragraph spacing */
+  padding: 6px 9px; /* The teaser's inner spacing */
+  background: rgba(10, 12, 15, 0.92); /* The teaser's almost solid dark background */
+  border: 1px solid var(--line); /* Thin outline */
+  font-size: 13px; /* The teaser's size */
+  white-space: nowrap; /* Always one line */
+  pointer-events: none; /* Never blocks the next tap or drag */
+  opacity: 0; /* Invisible until globe.js shows it */
+  transition: opacity 0.25s ease; /* Fades in and out quickly */
+} /* End of the water note rule */
+.water-note.shown {
+  opacity: 1; /* Visible */
+} /* End of the shown water note rule */
 
 /* While the mouse is over a hotspot (globe.js adds the "over-hotspot" class) */
 .globe.over-hotspot {
@@ -131,25 +143,52 @@ body {
     flex: 1; /* The globe takes all the width the panel doesn't use */
   } /* End of the wide-screen stage rule */
 
-  /* The key on wide screens: a legend block in the globe area's bottom-left corner, like the key on a plan */
+  /* The caption on wide screens: centred along the bottom, level with the key */
+  .globe-caption {
+    top: auto; /* Not at the top... */
+    bottom: 26px; /* ...but along the bottom */
+  } /* End of the wide caption rule */
+
+  /* The key on wide screens: one line in the bottom-left corner */
   .globe-key {
+    display: flex; /* Shown: "KEY" and the four entries in a row */
+    gap: 16px; /* 16 px between entries */
+    position: absolute; /* Placed freely over the globe area */
     left: 28px; /* The panel's inner margin, so the page's left edges line up in rhythm */
-    right: auto; /* Only as wide as its words */
-    bottom: 28px; /* ...and the same distance from the bottom */
+    bottom: 28px; /* 28 px from the bottom */
+    margin: 0; /* No paragraph spacing */
+    font: 10px / 1 var(--mono); /* Small drawing lettering */
+    letter-spacing: 0.1em; /* Spread like a drawing label */
+    text-transform: uppercase; /* Capitals, like the result rows */
+    color: var(--muted); /* Grey... */
+    opacity: 0.75; /* ...and dimmed a little more: it's reference, not content */
+    pointer-events: none; /* Never blocks dragging the globe */
+    transition: opacity 0.4s ease; /* Fades out when a place is chosen */
   } /* End of the wide key rule */
   .globe-key-title {
-    display: block; /* The "KEY" heading shows here */
-    margin: 0 0 10px; /* 10 px above the list */
-    font: 11px / 1 var(--mono); /* The kicker labels' lettering */
-    letter-spacing: 0.12em; /* Spread like the kickers ("OR START WITH A PLACE THAT TURNED") */
-    color: var(--muted); /* Grey */
-  } /* End of the wide key title rule */
-  .globe-key-list {
-    grid-template-columns: auto; /* One column: four rows */
-    gap: 8px; /* 8 px between rows */
-    font-size: 11px; /* The map labels' size */
-    color: var(--ink); /* Off-white: on the big dark globe area it can be a little brighter */
-  } /* End of the wide key list rule */
+    padding-right: 16px; /* Room before the divider... */
+    border-right: 1px solid var(--line); /* ...a thin rule between "KEY" and the entries, like a legend box's divider */
+  } /* End of the key title rule */
+  .app:has(#panel-landing[hidden]) .globe-key {
+    opacity: 0; /* Hidden once a place is chosen: it only explains the globe's dots */
+  } /* End of the hidden key rule */
+
+  /* When the globe area is too narrow for the key (about 410 px) and a centred caption side by side, the caption moves.
+     "@container" reacts to the stage's own width (the stage is a container, see .stage), not the window's. */
+  @container (max-width: 1149px) { /* Medium globe areas: */
+    .globe-caption {
+      left: auto; /* Not from the middle... */
+      right: 28px; /* ...but in the bottom-right corner, mirroring the key's 28 px */
+      transform: none; /* No centring shift */
+    } /* End of the medium caption rule */
+  } /* End of the medium rules */
+  @container (max-width: 739px) { /* Narrow globe areas (small laptop windows): */
+    .globe-caption {
+      left: 28px; /* Left-aligned with the key... */
+      right: auto; /* ...not in the right corner */
+      bottom: 50px; /* ...one line above it */
+    } /* End of the narrow caption rule */
+  } /* End of the narrow rules */
 
   .panel {
     flex: 0 0 400px; /* The panel is always exactly 400 px wide */
@@ -1498,6 +1537,13 @@ h1:focus {
   font-size: 13px; /* Small text */
   color: var(--ink); /* Off-white, so it's noticed */
 } /* End of the message rule */
+
+/* "Or start with a place that turned": quiet sentence case in the reading font, not a spaced-capitals label */
+.or-line {
+  margin: 0; /* No paragraph spacing (the search row above and the buttons below set the gaps) */
+  font-size: 13px; /* Small, like the messages */
+  color: var(--muted); /* Grey: the search box and buttons are the bright parts */
+} /* End of the or-line rule */
 
 /* ---------- Place buttons ---------- */
 

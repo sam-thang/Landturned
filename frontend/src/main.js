@@ -27,6 +27,7 @@ const globe = startGlobe(
   document.getElementById('pin-card'), // The card beside a tapped spot
   (place) => selectPlace(place), // What to do when a hotspot is clicked
   (lonLat) => fillPinCard(lonLat), // What to do when the pin moves or goes away (see "The pin card" below)
+  document.getElementById('water-note'), // The "That's water. Tap the land." note shown beside an ocean tap
 ); // End of startGlobe
 
 // ---------- Messages ----------

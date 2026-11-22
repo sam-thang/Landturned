@@ -12,17 +12,16 @@
     <div class="app"> <!-- The whole app: the globe area and the text panel side by side (or stacked on phones) -->
       <div class="stage"> <!-- The big picture area where the globe is drawn -->
         <canvas id="globe" class="globe" role="img" aria-label="Globe of the Earth"></canvas> <!-- A drawing surface; globe.js paints the Earth on it. role/aria-label describe it for screen readers -->
-        <!-- The KEY: what the four dot colours on the globe mean, like the legend box on a drawing sheet. Same names as the
-             result's rows. Only on the landing page: style.css fades it out once a place is chosen. -->
-        <div class="globe-key" aria-labelledby="globe-key-title"> <!-- A labelled group: screen readers announce it as "Key" -->
-          <p id="globe-key-title" class="globe-key-title">KEY</p> <!-- Its heading, like "KEY" on a plan -->
-          <ul class="globe-key-list"> <!-- The four colours, as a list (screen readers say "list, 4 items") -->
-            <li><span class="key-dot" style="--dot-color: var(--built)"></span>Newly built</li> <!-- Orange dot: land that became built -->
-            <li><span class="key-dot" style="--dot-color: var(--loss)"></span>Cleared to bare ground</li> <!-- Red dot: green space stripped to bare ground -->
-            <li><span class="key-dot" style="--dot-color: var(--gain)"></span>Green space gained</li> <!-- Green dot: land that became trees or grass -->
-            <li><span class="key-dot" style="--dot-color: var(--water)"></span>New water</li> <!-- Blue dot: land that became water -->
-          </ul> <!-- End of the list -->
-        </div> <!-- End of the key -->
+        <p class="globe-caption">Pick any spot on land to see how it turned.</p> <!-- The hint that any land works, not just the coloured places. Phones: top of the globe area; wide screens: bottom. style.css fades it while a pin shows and once a place is chosen -->
+        <!-- The KEY (wide screens only; style.css hides it on phones): one dimmed line in the bottom-left corner, like the legend strip on a site plan -->
+        <p class="globe-key"> <!-- One line of small drawing lettering -->
+          <span class="globe-key-title">Key</span> <!-- "KEY", as on a drawing sheet -->
+          <span><i class="key-dot" style="--dot-color: var(--built)"></i>Built</span> <!-- Orange dot: land that became built -->
+          <span><i class="key-dot" style="--dot-color: var(--loss)"></i>Cleared</span> <!-- Red dot: green space stripped to bare ground -->
+          <span><i class="key-dot" style="--dot-color: var(--gain)"></i>Green gained</span> <!-- Green dot: land that became trees or grass -->
+          <span><i class="key-dot" style="--dot-color: var(--water)"></i>New water</span> <!-- Blue dot: land that became water -->
+        </p> <!-- End of the key -->
+        <p id="water-note" class="water-note" role="status"></p> <!-- The short "That's water. Tap the land." note: globe.js fills it in and shows it beside an ocean tap for 2 seconds; role="status" makes screen readers read it out -->
         <div class="map-layer"> <!-- Wrapper for the satellite map: handles position and fading (invisible until the crossfade) -->
           <div id="map" class="map"></div> <!-- MapLibre draws the map in here -->
           <div class="map-marks"> <!-- Bottom-left group of drawing marks: north arrow to the left of the scale bar, on one dark backing -->
@@ -103,7 +102,7 @@
         </button> <!-- End of the locate button -->
         </div> <!-- End of the search row -->
         <p id="search-message" class="message" role="status" hidden></p> <!-- Messages like "Couldn't find that address"; role="status" makes screen readers announce them -->
-        <p class="kicker">OR START WITH A PLACE THAT TURNED</p> <!-- Label above the place buttons -->
+        <p class="or-line">Or start with a place that turned</p> <!-- Label above the place buttons, in quiet sentence case -->
         <div id="places" class="places"></div> <!-- Empty area; main.js adds one button per place here -->
         </div> <!-- End of the landing section -->
         <div id="panel-locating" hidden> <!-- Panel contents while zooming to a place and loading; hidden until then -->
