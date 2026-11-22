@@ -45,7 +45,7 @@ The design is dark, minimal, and image-led. `docs/mockup-v2.html` is the design 
 
 | Era | Years | Dataset | Resolution | Classes | Status |
 |---|---|---|---|---|---|
-| Detailed | 2017 to today | Impact Observatory annual land cover, read from Microsoft Planetary Computer as Cloud-Optimized GeoTIFFs | 10 m | 9 | **Build first** |
+| Detailed | 2017 to 2024 | Impact Observatory annual land cover, read from the AWS Registry of Open Data (`io-10m-annual-lulc` S3 bucket, one file per UTM zone and year) as Cloud-Optimized GeoTIFFs | 10 m | 9 | **Built** |
 | Long view | 1985 to 2022 | GLC_FCS30D | 30 m | 35 | Add later |
 
 - Older (GLC_FCS30D) years are coarser, and the app must label them that way.
