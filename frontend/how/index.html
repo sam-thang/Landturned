@@ -43,7 +43,7 @@
           <li class="flow-step"> <!-- Step 3 -->
             <svg class="art flow-art" data-art="maps" viewBox="0 0 170 110" role="img" aria-label="Two grids of pixels, the first year and the latest year, each pixel with a one-letter land-cover label"></svg> <!-- Empty drawing box -->
             <h3>Read the yearly maps</h3> <!-- Step title -->
-            <p>Impact Observatory's map for every year, <span data-year="first">the first year</span> to <span data-year="latest">the latest year</span>. Their 9 classes become our 5: <b>T</b> trees, <b>G</b> grass or farmland, <b>B</b> built, <b>W</b> water, <b>S</b> bare soil.</p> <!-- Which maps, which years (how.js fills in the real years), and the letters' key -->
+            <p>Impact Observatory's map for every year, <span data-year="first">the first year</span> to <span data-year="latest">the latest year</span>. Their 9 classes become our 5: <b>T</b> trees, <b>G</b> grass or farmland, <b>B</b> built, <b>W</b> water, <b>S</b> bare ground (soil, sand, rock, snow).</p> <!-- Which maps, which years (how.js fills in the real years), and the letters' key -->
           </li> <!-- End of step 3 -->
           <li class="flow-step"> <!-- Step 4 -->
             <svg class="art flow-art" data-art="compare" viewBox="0 0 170 110" role="img" aria-label="One pixel: grass in 2017, built in 2024, so it is coloured orange for newly built"></svg> <!-- Empty drawing box -->
@@ -86,14 +86,38 @@
         </ol> <!-- End of the drawings -->
       </section> <!-- End of plate 02 -->
 
-      <section aria-labelledby="idea-title"> <!-- Section B: labels and colours (until plates 03 and 04 replace it) -->
-        <h2 id="idea-title">Labels and colours</h2> <!-- Section heading -->
+      <!-- PLATE 03: how Impact Observatory's 9 classes merge into our 5 categories (plus no data), drawn as a wiring
+           diagram (how.js draws it), with notes beside it explaining each merge -->
+      <section class="plate" aria-labelledby="classes-title"> <!-- The plate -->
+        <h2 id="classes-title"><span class="plate-no">03</span>Their 9 classes, our 5</h2> <!-- Plate number and title -->
+        <p class="plate-lede">Impact Observatory sorts land into 9 classes. Landturn merges them into 5 categories, plus “no data”.</p> <!-- One line of framing -->
+        <div class="wiring"> <!-- The drawing and its notes: side by side on wide screens, stacked on phones -->
+          <svg class="art wiring-art" data-art="classes" viewBox="0 0 370 300" role="img" aria-label="Impact Observatory's 9 classes joined to Landturn's categories: trees to trees; crops, rangeland and flooded vegetation to grass or farmland; built area to built; water to water; bare ground and snow or ice to bare ground; clouds to no data. Trees and grass or farmland together count as green space."></svg> <!-- Empty drawing box; the label describes every connection for screen readers -->
+          <ul class="wiring-notes"> <!-- One note per merge, in the drawing's order -->
+            <li> <!-- Note 1 -->
+              <h3>Three green classes become one</h3> <!-- Title -->
+              <p>Crops, rangeland (grass and shrubs) and flooded vegetation (wetlands, rice) are all open, green land. The model can also mix them up from one year to the next. Merged, a field turning into pasture isn't counted as change.</p> <!-- Why they merge -->
+            </li> <!-- End of note 1 -->
+            <li> <!-- Note 2 -->
+              <h3>Trees stay apart, but count as green</h3> <!-- Title -->
+              <p>Trees and grass or farmland are both <i>green space</i>. So forest cut for pasture gets no colour: green stayed green. Land stripped bare does.</p> <!-- The green-space rule that the colour diagram builds on -->
+            </li> <!-- End of note 2 -->
+            <li> <!-- Note 3 -->
+              <h3>Snow and ice count as bare</h3> <!-- Title -->
+              <p>Open land with nothing growing on it, like rock and sand.</p> <!-- Why snow goes to bare -->
+            </li> <!-- End of note 3 -->
+            <li> <!-- Note 4 -->
+              <h3>Clouds become “no data”</h3> <!-- Title -->
+              <p>Where clouds hid the ground in either year, nobody can tell what changed. Those pixels are never counted as change; each result reports them separately.</p> <!-- How clouds are handled -->
+            </li> <!-- End of note 4 -->
+          </ul> <!-- End of the notes -->
+        </div> <!-- End of the drawing and notes -->
+      </section> <!-- End of plate 03 -->
+
+      <section aria-labelledby="idea-title"> <!-- Section B: colours (until plate 04 replaces it) -->
+        <h2 id="idea-title">Colours</h2> <!-- Section heading -->
         <ol class="steps-list"> <!-- The steps, numbered because their order is the method -->
           <li> <!-- Step 1 -->
-            <h3>Read each pixel's label, twice</h3> <!-- Step heading -->
-            <p>A published map gives every pixel one label per year: trees, grass or farmland, built, water, or bare ground. Where clouds hid the ground, the label is "no data". We read the first year and the latest year.</p> <!-- Where the labels come from -->
-          </li> <!-- End of step 3 -->
-          <li> <!-- Step 4 -->
             <h3>Compare and count</h3> <!-- Step heading -->
             <p>Where a pixel's label changed, it gets a change colour: <span class="swatch-word built">newly built</span>, <span class="swatch-word loss">green space cleared</span> to bare ground, <span class="swatch-word gain">green space gained</span>, or <span class="swatch-word water">new water</span>. Then we count: in the diagram, 1,230 orange pixels × 0.01&nbsp;ha = 12.3&nbsp;hectares newly built.</p> <!-- The colours and the count; each colour word gets a small swatch in CSS, so colour never stands alone -->
             <p class="aside">Changes between trees and grass or farmland get no colour: both count as green space.</p> <!-- The one rule people might wonder about -->

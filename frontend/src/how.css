@@ -266,6 +266,52 @@ dd {
   font-size: 16px; /* Clear but quiet */
 } /* End of the zoom arrow rule */
 
+/* ---------- Plate 03: their 9 classes, our 5 ---------- */
+
+/* The wiring drawing and its notes. Phones: the drawing on top, the notes below. */
+.wiring {
+  margin-top: 28px; /* Space above */
+  display: grid; /* A grid... */
+  gap: 32px; /* ...with space between the drawing and the notes */
+} /* End of the wiring rule */
+
+/* The drawing itself */
+.wiring-art {
+  display: block; /* On its own line */
+  width: 100%; /* As wide as its column... */
+  max-width: 480px; /* ...but never so big that its small lettering looks oversized */
+  height: auto; /* As tall as its shape needs */
+  overflow: visible; /* Thin lines at the edge aren't cut off */
+} /* End of the wiring drawing rule */
+
+/* The notes: a plain list, a hairline between them like rows in a schedule */
+.wiring-notes {
+  margin: 0; /* No browser spacing */
+  padding: 0; /* No browser indent */
+  list-style: none; /* No bullets */
+} /* End of the notes rule */
+.wiring-notes li {
+  padding: 12px 0; /* Space above and below each note */
+  border-top: 1px solid var(--line); /* The hairline */
+} /* End of the note rule */
+.wiring-notes li:first-child {
+  padding-top: 0; /* The first note starts level with the drawing... */
+  border-top: 0; /* ...with no line above */
+} /* End of the first note rule */
+.wiring-notes h3 {
+  font-size: 15px; /* Small heading, like the other plates' */
+} /* End of the note title rule */
+.wiring-notes p {
+  margin: 0; /* No paragraph spacing */
+  color: var(--muted); /* Pencil Grey */
+  font-size: 14px; /* Small reading text */
+  line-height: 1.5; /* Comfortable */
+} /* End of the note text rule */
+.wiring-notes i {
+  color: var(--ink); /* "green space", a term the colour rule uses, in ink... */
+  font-style: normal; /* ...not slanted */
+} /* End of the term rule */
+
 /* ---------- Lines and letters inside the drawings ---------- */
 /* Drawn like a plan: hairlines in grey, the important line in ink, the four change colours as the only colour. */
 .art .line {
@@ -329,6 +375,9 @@ dd {
 .art .mark {
   fill: var(--ink); /* The marked corner or pixel: solid ink, so the eye finds it at once */
 } /* End of the mark rule */
+.art .junction {
+  fill: var(--muted); /* The dot where merging wires join, in the wires' grey */
+} /* End of the junction rule */
 .art .overlay {
   opacity: 0.55; /* See-through, so the photo's houses show under the colour, as in the app */
 } /* End of the overlay rule */
@@ -531,4 +580,14 @@ a:focus-visible {
     bottom: auto; /* Not at the bottom */
     transform: translateX(50%); /* Centred in the gap */
   } /* End of the wide zoom arrow rule */
+
+  /* Plate 03 on wide screens: the drawing on the left, the notes beside it */
+  .wiring {
+    grid-template-columns: minmax(0, 480px) minmax(0, 1fr); /* The drawing up to 480 px, the notes take the rest */
+    gap: 56px; /* Space between them */
+    align-items: start; /* Both start at the top */
+  } /* End of the wide wiring rule */
+  .wiring-notes {
+    max-width: 480px; /* Notes stay a comfortable reading width */
+  } /* End of the wide notes rule */
 } /* End of the wide-screen rules */

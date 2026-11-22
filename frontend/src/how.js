@@ -238,8 +238,78 @@ function drawPixel(svg) {
   label(svg, x + size / 2, y + size + 18, '100 pixels = 1 ha'); // The handy rule, under the drawing
 } // End of drawPixel
 
+// ---------- Plate 03: their 9 classes, our 5 ----------
+// A wiring diagram: Impact Observatory's classes in boxes on the left, our categories on the right, joined by lines.
+// Where several classes go to one category, their lines meet on a short upright "bus" line, like wires joining.
+// This is the same table the backend uses (IO_LOOKUP in backend/app/landcover.py).
+const IO_CLASSES = [ // Their classes, top to bottom, ordered so the lines never cross; "to" = our category's key below
+  { name: 'Trees', to: 'T' }, // Trees stay trees
+  { name: 'Crops', to: 'G' }, // Crops...
+  { name: 'Rangeland', to: 'G' }, // ...rangeland (grass and shrubs)...
+  { name: 'Flooded vegetation', to: 'G' }, // ...and wetlands or rice all become grass or farmland
+  { name: 'Built area', to: 'B' }, // Built stays built
+  { name: 'Water', to: 'W' }, // Water stays water
+  { name: 'Bare ground', to: 'S' }, // Bare ground...
+  { name: 'Snow/ice', to: 'S' }, // ...and snow or ice become bare ground
+  { name: 'Clouds', to: 'N' }, // Clouds become "no data"
+]; // End of their classes
+const OUR_CATEGORIES = [ // Our categories, in the same order; "letter" is the one shown in the other diagrams
+  { key: 'T', letter: 'T', name: 'Trees' }, // Trees
+  { key: 'G', letter: 'G', name: 'Grass or farmland' }, // Grass or farmland
+  { key: 'B', letter: 'B', name: 'Built' }, // Built
+  { key: 'W', letter: 'W', name: 'Water' }, // Water
+  { key: 'S', letter: 'S', name: 'Bare ground' }, // Bare ground
+  { key: 'N', letter: '', name: 'No data' }, // No data (no letter: it's never a land type)
+]; // End of our categories
+
+function drawClasses(svg) {
+  const ROW = 30; // Distance from one left box to the next
+  const BOX = 22; // Box height
+  const TOP = 24; // Where the first box starts (room for the headings above)
+  const LEFT_W = 128; // Left boxes: from x 0 to 128
+  const RIGHT_X = 206; // Right boxes start here...
+  const RIGHT_W = 134; // ...and are this wide (ending at 340)
+  const BUS_X = 167; // The upright line where merging wires meet, halfway between the two columns
+  label(svg, 0, 12, 'Impact Observatory', 'start'); // Heading over the left column
+  label(svg, RIGHT_X, 12, 'Landturn', 'start'); // Heading over the right column
+
+  const middleOf = (row) => TOP + row * ROW + BOX / 2; // The middle height of the left box in this row
+
+  // Each of our categories sits level with the middle of the classes that feed it
+  const rightMiddle = {}; // Category key -> the middle height of its box
+  OUR_CATEGORIES.forEach(({ key }) => { // For each category...
+    const rows = IO_CLASSES.map((c, i) => (c.to === key ? i : -1)).filter((i) => i >= 0); // ...the rows of the classes that go to it
+    rightMiddle[key] = (middleOf(rows[0]) + middleOf(rows[rows.length - 1])) / 2; // Halfway between the first and the last of them
+  }); // End of the categories
+
+  IO_CLASSES.forEach(({ name, to }, i) => { // Each of their classes:
+    const y = middleOf(i); // Its middle height
+    const cloud = to === 'N'; // The clouds row is drawn dashed: it leads to "no data", not to a land type
+    el('rect', { x: 0, y: y - BOX / 2, width: LEFT_W, height: BOX, class: cloud ? 'line dashed' : 'line' }, svg); // Its box
+    label(svg, 8, y + 3.5, name, 'start', 'art-text'); // Its name (+3.5 centres the text in the box)
+    el('path', { d: `M${LEFT_W} ${y} H${BUS_X} V${rightMiddle[to]} H${RIGHT_X}`, class: cloud ? 'line dashed' : 'line' }, svg); // Its wire: across, up or down the bus, across to its category
+  }); // End of their classes
+
+  OUR_CATEGORIES.forEach(({ key, letter, name }) => { // Each of our categories:
+    const y = rightMiddle[key]; // Its middle height
+    const none = key === 'N'; // "No data" is drawn dashed and quiet
+    el('rect', { x: RIGHT_X, y: y - BOX / 2, width: RIGHT_W, height: BOX, class: none ? 'line dashed' : 'line ink' }, svg); // Its box
+    if (letter) label(svg, RIGHT_X + 8, y + 3.5, letter, 'start', 'art-text'); // Its letter, as in the other diagrams
+    label(svg, RIGHT_X + (letter ? 22 : 8), y + 3.5, name, 'start', none ? 'art-label' : 'art-text'); // Its name
+    const merges = IO_CLASSES.filter((c) => c.to === key).length > 1; // Do several wires meet here?
+    if (merges) el('circle', { cx: BUS_X, cy: y, r: 2.5, class: 'junction' }, svg); // A dot where they join, like a wiring junction
+  }); // End of our categories
+
+  // A bracket to the right of Trees and Grass or farmland: both count as green space
+  const top = rightMiddle.T - BOX / 2; // Top of the Trees box
+  const bottom = rightMiddle.G + BOX / 2; // Bottom of the Grass or farmland box
+  el('path', { d: `M346 ${top} H350 V${bottom} H346`, class: 'line' }, svg); // The bracket
+  const mid = (top + bottom) / 2; // Its middle
+  el('text', { x: 360, y: mid, 'text-anchor': 'middle', transform: `rotate(90 360 ${mid})`, class: 'art-label' }, svg).textContent = 'green space'; // Its label, turned to run down the bracket
+} // End of drawClasses
+
 // Draw every picture: find each empty drawing box on the page and draw the matching picture in it
-const DRAWINGS = { address: drawAddress, square: drawSquare, maps: drawMaps, compare: drawCompare, count: drawCount, photo: drawPhoto, 'square-big': drawSquareBig, pixels: drawPixels, pixel: drawPixel }; // Box name -> drawing function
+const DRAWINGS = { address: drawAddress, square: drawSquare, maps: drawMaps, compare: drawCompare, count: drawCount, photo: drawPhoto, 'square-big': drawSquareBig, pixels: drawPixels, pixel: drawPixel, classes: drawClasses }; // Box name -> drawing function
 function drawAll() {
   document.querySelectorAll('svg[data-art]').forEach((svg) => { // For each drawing box...
     svg.replaceChildren(); // ...empty it (when redrawing with the real years)...
