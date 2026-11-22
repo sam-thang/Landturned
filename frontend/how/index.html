@@ -19,24 +19,77 @@
     <main class="method"> <!-- The main content: one column of reading text -->
       <section class="intro" aria-labelledby="title"> <!-- Section A: the title and what the page is about -->
         <h1 id="title">How Landturn estimates change</h1> <!-- The page title -->
-        <p class="lede">Landturn compares two published land-cover maps of the same place and counts the pixels that changed. The results are <strong>estimates</strong> of change from satellite-based maps, not a survey and not exact science. This page shows how they are made, and where they can go wrong.</p> <!-- The framing: what it does, that it estimates, and what follows -->
+        <p class="roles">Impact Observatory labels the land. Landturn compares the years, counts the change, and lays it over satellite photos.</p> <!-- Who does what, in one line: the classifying is theirs, the comparing, counting and showing is ours -->
+        <p class="lede">Impact Observatory is a mapping company. Every year, its computer model looks at that year's pictures from Sentinel-2, two European satellites that photograph all of Earth's land every few days, and gives every 10&nbsp;m square of land one label, such as trees, crops or buildings. The result is a land-cover map of the whole world, published free for anyone to use.</p> <!-- Who Impact Observatory is and what they make, for people who've never heard of them -->
+        <p class="lede">Landturn reads those maps for every year from <span data-year="first">the first year</span> to <span data-year="latest">the latest year</span> and counts the pixels that changed. The results are <strong>estimates</strong> of change from satellite-based maps, not a survey and not exact science. This page shows how they are made, and where they can go wrong.</p> <!-- What Landturn does with them (how.js fills in the years), that it estimates, and what follows -->
       </section> <!-- End of section A -->
 
-      <section aria-labelledby="idea-title"> <!-- Section B: the idea, as a clean diagram -->
-        <h2 id="idea-title">The idea in four steps</h2> <!-- Section heading -->
-        <figure class="placeholder"> <!-- Where the diagram will go -->
-          <figcaption>Diagram, not real data. Drawn in step 3 of the build.</figcaption> <!-- Temporary note, so it's clear what comes here -->
-        </figure> <!-- End of the diagram space -->
-        <ol class="steps-list"> <!-- The four steps, numbered because their order is the method -->
-          <li> <!-- Step 1 -->
-            <h3>Cut out the square</h3> <!-- Step heading -->
-            <p>Every result covers the same 2&nbsp;×&nbsp;2&nbsp;km square around the address: 4&nbsp;square kilometres, or 400&nbsp;hectares.</p> <!-- What the area is ("&nbsp;" keeps numbers and units together) -->
+      <!-- PLATE 01: the whole site at a glance, as five small drawings joined by arrows (how.js draws them into the empty
+           <svg> boxes). A "plate" is a numbered diagram section, like a plate in an atlas. -->
+      <section class="plate" aria-labelledby="flow-title"> <!-- The plate; its heading names it for screen readers -->
+        <h2 id="flow-title"><span class="plate-no">01</span>From address to answer</h2> <!-- Plate number and title -->
+        <p class="plate-lede">Six steps, every time. <span class="diagram-tag">Diagram, not real data</span></p> <!-- One line of framing, plus a tag saying the pixels are made up -->
+        <ol class="flow"> <!-- The five steps, in order (a numbered list, because the order is the method) -->
+          <li class="flow-step"> <!-- Step 1 -->
+            <svg class="art flow-art" data-art="address" viewBox="0 0 170 110" role="img" aria-label="A search box with an address, and a survey mark at the chosen spot"></svg> <!-- Empty drawing box; how.js draws in it -->
+            <h3>Pick a place</h3> <!-- Step title -->
+            <p>Type an address, pick a spot on the globe, or use your location.</p> <!-- The three ways in -->
           </li> <!-- End of step 1 -->
-          <li> <!-- Step 2 -->
-            <h3>Split it into pixels</h3> <!-- Step heading -->
-            <p>The maps we use are made of pixels 10&nbsp;m wide. One square holds 200&nbsp;×&nbsp;200&nbsp;=&nbsp;40,000 of them. Each pixel covers 100&nbsp;m², which is 0.01&nbsp;hectares.</p> <!-- The pixel arithmetic -->
+          <li class="flow-step"> <!-- Step 2 -->
+            <svg class="art flow-art" data-art="square" viewBox="0 0 170 110" role="img" aria-label="A square 2 kilometres on each side, centred on the spot: 400 hectares"></svg> <!-- Empty drawing box -->
+            <h3>Draw the square</h3> <!-- Step title -->
+            <p>2 × 2 km around the spot: 400 hectares.</p> <!-- The analysis area -->
           </li> <!-- End of step 2 -->
-          <li> <!-- Step 3 -->
+          <li class="flow-step"> <!-- Step 3 -->
+            <svg class="art flow-art" data-art="maps" viewBox="0 0 170 110" role="img" aria-label="Two grids of pixels, the first year and the latest year, each pixel with a one-letter land-cover label"></svg> <!-- Empty drawing box -->
+            <h3>Read the yearly maps</h3> <!-- Step title -->
+            <p>Impact Observatory's map for every year, <span data-year="first">the first year</span> to <span data-year="latest">the latest year</span>. Their 9 classes become our 5: <b>T</b> trees, <b>G</b> grass or farmland, <b>B</b> built, <b>W</b> water, <b>S</b> bare soil.</p> <!-- Which maps, which years (how.js fills in the real years), and the letters' key -->
+          </li> <!-- End of step 3 -->
+          <li class="flow-step"> <!-- Step 4 -->
+            <svg class="art flow-art" data-art="compare" viewBox="0 0 170 110" role="img" aria-label="One pixel: grass in 2017, built in 2024, so it is coloured orange for newly built"></svg> <!-- Empty drawing box -->
+            <h3>Compare each pixel</h3> <!-- Step title -->
+            <p>Same pixel, first year against a later one. If its label changed, it gets a change colour. Changes narrower than about 30&nbsp;m are ignored, to remove noise.</p> <!-- The comparison (the headline uses the latest year; the year slider the ones between), and the edge-cleaning rule -->
+          </li> <!-- End of step 4 -->
+          <li class="flow-step"> <!-- Step 5 -->
+            <svg class="art flow-art" data-art="count" viewBox="0 0 170 110" role="img" aria-label="The change map: coloured pixels counted by colour"></svg> <!-- Empty drawing box; how.js also writes the counts into this label -->
+            <h3>Count</h3> <!-- Step title -->
+            <p>Each pixel is 0.01 ha, so pixels × 0.01 = hectares of change.</p> <!-- The arithmetic -->
+          </li> <!-- End of step 5 -->
+          <li class="flow-step"> <!-- Step 6 -->
+            <svg class="art flow-art" data-art="photo" viewBox="0 0 170 110" role="img" aria-label="The coloured change pixels laid over a sharper satellite photo of houses and a road"></svg> <!-- Empty drawing box -->
+            <h3>Lay it on the photo</h3> <!-- Step title -->
+            <p>The change layer is drawn over Esri satellite photos taken close to those years. The photos are sharper than the 10&nbsp;m measurement.</p> <!-- The overlay, and why the colours look blockier than the photo -->
+          </li> <!-- End of step 6 -->
+        </ol> <!-- End of the steps -->
+      </section> <!-- End of plate 01 -->
+
+      <!-- PLATE 02: the square and its pixels, as three same-size drawings that zoom in step by step (how.js draws them) -->
+      <section class="plate" aria-labelledby="pixels-title"> <!-- The plate -->
+        <h2 id="pixels-title"><span class="plate-no">02</span>The square, in pixels</h2> <!-- Plate number and title -->
+        <p class="plate-lede">Every answer covers the same square, and the maps behind it are made of pixels.</p> <!-- One line of framing -->
+        <ol class="zoom"> <!-- The three drawings, in zoom order -->
+          <li class="zoom-step"> <!-- Drawing 1 -->
+            <svg class="art zoom-art" data-art="square-big" viewBox="0 0 236 180" role="img" aria-label="A square 2 kilometres on each side around the spot: 400 hectares"></svg> <!-- Empty drawing box; how.js draws in it -->
+            <h3>The square</h3> <!-- Title -->
+            <p>2 × 2 km around the spot: 400 hectares. Every result describes exactly this square.</p> <!-- The area -->
+          </li> <!-- End of drawing 1 -->
+          <li class="zoom-step"> <!-- Drawing 2 -->
+            <svg class="art zoom-art" data-art="pixels" viewBox="0 0 236 180" role="img" aria-label="The same square split into a grid, 200 pixels across and 200 down, with one corner marked for zooming in"></svg> <!-- Empty drawing box -->
+            <h3>Split into pixels</h3> <!-- Title -->
+            <p>200 pixels across, 200 down: 40,000 pixels. The real grid is too fine to draw here, so this shows one line every 10 pixels.</p> <!-- The pixel count, and an honest note about the drawing -->
+          </li> <!-- End of drawing 2 -->
+          <li class="zoom-step"> <!-- Drawing 3 -->
+            <svg class="art zoom-art" data-art="pixel" viewBox="0 0 236 180" role="img" aria-label="The marked corner zoomed in: 10 by 10 pixels, 100 metres across, with one pixel of 10 by 10 metres marked"></svg> <!-- Empty drawing box -->
+            <h3>One pixel</h3> <!-- Title -->
+            <p>10 × 10&nbsp;m = 100&nbsp;m² = 0.01&nbsp;ha. Each pixel gets one label per year, so anything smaller, like a shed or a single tree, blends into it.</p> <!-- The pixel's size, its area, and what that means -->
+          </li> <!-- End of drawing 3 -->
+        </ol> <!-- End of the drawings -->
+      </section> <!-- End of plate 02 -->
+
+      <section aria-labelledby="idea-title"> <!-- Section B: labels and colours (until plates 03 and 04 replace it) -->
+        <h2 id="idea-title">Labels and colours</h2> <!-- Section heading -->
+        <ol class="steps-list"> <!-- The steps, numbered because their order is the method -->
+          <li> <!-- Step 1 -->
             <h3>Read each pixel's label, twice</h3> <!-- Step heading -->
             <p>A published map gives every pixel one label per year: trees, grass or farmland, built, water, or bare ground. Where clouds hid the ground, the label is "no data". We read the first year and the latest year.</p> <!-- Where the labels come from -->
           </li> <!-- End of step 3 -->
@@ -74,7 +127,7 @@
           <dt>Clouds hide the ground</dt> <!-- Limit 3 -->
           <dd>Where clouds covered a pixel in either year, nobody can tell what changed. Those pixels are counted separately as "no data", never as change.</dd> <!-- How no data is handled -->
           <dt>Ten metres is coarse</dt> <!-- Limit 4 -->
-          <dd>One pixel is about the size of a tennis court. Anything smaller, like a garden shed or a single tree, disappears into its surroundings.</dd> <!-- What 10 m can't see -->
+          <dd>One pixel is 10 × 10&nbsp;m, roughly the footprint of a family house. Anything smaller, like a garden shed or a single tree, disappears into its surroundings.</dd> <!-- What 10 m can't see -->
         </dl> <!-- End of the limits -->
         <figure class="placeholder"> <!-- Where the small edge example will go -->
           <figcaption>A real example of fuzzy edges, with and without cleaning. Added in step 6.</figcaption> <!-- Temporary note -->
@@ -82,15 +135,21 @@
         <p class="takeaway">So read the numbers as good estimates of change at the scale of a street or a neighbourhood: reliable for a new suburb, a factory or a reservoir, not for a single building.</p> <!-- The one-sentence takeaway -->
       </section> <!-- End of section E -->
 
-      <section aria-labelledby="sources-title"> <!-- Section F: sources -->
-        <h2 id="sources-title">Sources</h2> <!-- Section heading -->
-        <dl class="sources"> <!-- Each source with what it's used for -->
-          <dt>Land cover</dt> <!-- Source 1 -->
-          <dd>Impact Observatory annual land use and land cover maps, 10&nbsp;m, 2017 to the latest year (currently 2024), read from Impact Observatory's public copy on AWS Open Data (CC BY 4.0). All numbers come from these maps.</dd> <!-- The data the numbers come from -->
-          <dt>Satellite imagery</dt> <!-- Source 2 -->
-          <dd>Esri World Imagery (Esri, Maxar, Earthstar Geographics, and the GIS User Community): mostly satellite images, in some places aerial photos. It is usually taken on a different date than the land-cover maps, so the coloured areas may not line up exactly with the buildings and fields you see. It is for looking only; it is not used in the calculation.</dd> <!-- The imagery, its date mismatch, and that it isn't measured -->
-          <dt>Place search</dt> <!-- Source 3 -->
-          <dd>OpenStreetMap, through its Nominatim search service.</dd> <!-- The geocoder -->
+      <!-- Section F: data and credits. Wording checked 2026-11-22 against each source: the AWS Registry of Open Data page and
+           Impact Observatory's site (licence, name, producers), Esri's item pages and developer docs ("Powered by Esri" and
+           each layer's credits), and the OpenStreetMap attribution guidelines and Nominatim usage policy. -->
+      <section aria-labelledby="sources-title"> <!-- Section F -->
+        <h2 id="sources-title">Data and credits</h2> <!-- Section heading -->
+        <dl class="sources"> <!-- Each source: what it is, its credit line, its licence -->
+          <dt>Land cover</dt> <!-- Source 1: all the numbers come from here -->
+          <dd><a href="https://registry.opendata.aws/io-lulc/">10m Annual Land Use Land Cover (9-class)</a>, produced by Impact Observatory, Microsoft, and Esri from ESA Sentinel-2 imagery, <span data-year="first">first year</span> to <span data-year="latest">latest year</span>. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; accessed from the AWS Registry of Open Data. All numbers come from these maps.</dd> <!-- Official title (linked to its page), producers, source imagery, years (filled in by how.js), licence -->
+          <dd>Changes made by Landturn: the 9 classes are simplified into 5 categories, each later year is compared with the first, and changes narrower than about 30&nbsp;m are removed.</dd> <!-- CC BY asks users to say what they changed -->
+          <dt>Satellite imagery</dt> <!-- Source 2: the photos, for looking only -->
+          <dd>Powered by Esri. <a href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9">World Imagery</a>: Esri, Vantor, Earthstar Geographics, and the GIS User Community.</dd> <!-- Esri's required "Powered by Esri", and the layer's own credit line -->
+          <dd><a href="https://livingatlas.arcgis.com/wayback/">World Imagery Wayback</a> (the earlier photos): each archive release carries its own credits, for recent releases Esri, Vantor, Earthstar Geographics, and the GIS User Community; older releases also credit CNES/Airbus DS, USDA FSA, USGS, Aerogrid, IGN, and IGP.</dd> <!-- The archive's credits, which differ by release -->
+          <dd>Used under the Esri Master License Agreement. The photos are for looking only: they are not used in the calculation, and their dates may differ from the land-cover years.</dd> <!-- The licence, and how the photos are (not) used -->
+          <dt>Place search</dt> <!-- Source 3: the address search -->
+          <dd>Search by <a href="https://nominatim.org/">Nominatim</a>. Map data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>, available under the Open Database License (ODbL).</dd> <!-- OSM's required credit, linked to its copyright page, with the licence named -->
         </dl> <!-- End of the sources -->
         <p><a class="sheet-back" href="../">← Back to the globe</a></p> <!-- A second way back, at the end of the page -->
       </section> <!-- End of section F -->

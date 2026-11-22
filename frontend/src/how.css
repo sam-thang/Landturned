@@ -62,12 +62,17 @@ body {
 
 /* ---------- The reading column ---------- */
 
-/* One centred column, narrow enough for comfortable reading (about 65 characters per line) */
+/* The sheet: wide enough for diagrams to spread out side by side, centred on big screens */
 .method {
-  max-width: 680px; /* Never wider than this */
+  max-width: 1200px; /* Never wider than this (six diagram steps side by side need the room) */
   margin: 0 auto; /* Centred on wide screens */
   padding: 0 16px 72px; /* Side space on phones, and room at the bottom */
-} /* End of the column rule */
+} /* End of the sheet rule */
+
+/* Reading text stays in a narrower column (about 65 characters per line), so long lines don't tire the eye */
+.method > section:not(.plate) {
+  max-width: 680px; /* The comfortable reading width */
+} /* End of the reading column rule */
 
 /* Each section after the first starts with a hairline, like the bands of a drawing sheet */
 .method section + section {
@@ -91,6 +96,16 @@ h1 {
   font-size: 17px; /* A touch bigger than the body text */
   color: var(--muted); /* Pencil Grey, so the title leads */
 } /* End of the lede rule */
+
+/* "Impact Observatory labels the land. Landturn compares...": who does what, set apart by a hairline on its left like a
+   note on a drawing, and in ink, so it's read before the longer paragraph */
+.roles {
+  margin: 0 0 18px; /* Space below */
+  padding-left: 14px; /* Room after the line */
+  border-left: 1px solid var(--muted); /* The hairline */
+  font-size: 18px; /* A touch bigger than the lede */
+  line-height: 1.45; /* Comfortable */
+} /* End of the roles rule */
 
 /* "estimates" in the opening paragraph: in ink, not bold (the No-Bold Rule) */
 .lede strong {
@@ -122,6 +137,201 @@ dd {
   font-size: 16px; /* Readable on phones */
   line-height: 1.6; /* Comfortable line spacing for longer reading */
 } /* End of the reading text rule */
+
+/* ---------- Plates: numbered diagram sections ---------- */
+
+/* The plate number before a plate's title, e.g. "01", like the numbers on an atlas plate */
+.plate-no {
+  margin-right: 14px; /* Space before the title */
+  color: var(--muted); /* Pencil Grey: the title leads */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 13px; /* Small */
+  letter-spacing: 0.08em; /* Spread a little */
+  vertical-align: 4px; /* Lifted to sit level with the title's capitals */
+} /* End of the plate number rule */
+
+/* The one line of framing under a plate's title */
+.plate-lede {
+  color: var(--muted); /* Pencil Grey */
+} /* End of the plate lede rule */
+
+/* "Diagram, not real data": a small tag, so made-up pixels are never mistaken for real ones */
+.diagram-tag {
+  margin-left: 8px; /* Space after the sentence */
+  padding: 2px 6px; /* Space inside the tag */
+  border: 1px solid var(--line); /* Hairline box */
+  color: var(--faint); /* Faint Pencil */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 11px; /* Small */
+  text-transform: uppercase; /* Capitals */
+  letter-spacing: 0.08em; /* Spread a little */
+  white-space: nowrap; /* Never broken over two lines */
+} /* End of the diagram tag rule */
+
+/* ---------- Plate 01: the flow from address to answer ---------- */
+
+/* The five steps. Phones: stacked, top to bottom, with a ↓ between them. */
+.flow {
+  margin: 28px 0 0; /* Space above */
+  padding: 0; /* No browser indent */
+  list-style: none; /* The drawings and arrows show the order; no numbers needed */
+  display: grid; /* A grid of steps... */
+  gap: 40px; /* ...40 px apart (room for the arrow between them) */
+} /* End of the flow rule */
+
+/* One step. Phones: the drawing on the left, its title and text on the right. */
+.flow-step {
+  position: relative; /* Lets the arrow be placed relative to this step */
+  display: grid; /* Two columns... */
+  grid-template-columns: 150px 1fr; /* ...the drawing's, and the text's */
+  column-gap: 16px; /* Space between them */
+  align-items: start; /* Everything starts at the top */
+  align-content: start; /* Rows stay packed at the top (otherwise a shorter step spreads its rows out to match the tallest) */
+} /* End of the step rule */
+
+/* The drawing spans the title and the text rows */
+.flow-art {
+  grid-row: 1 / span 2; /* Rows 1 and 2 of the step */
+  width: 100%; /* As wide as its column... */
+  height: auto; /* ...and as tall as its shape needs (the viewBox keeps the proportions) */
+  overflow: visible; /* Thin lines at the very edge aren't cut off */
+} /* End of the drawing rule */
+
+/* Step titles and text, smaller than the reading sections' */
+.flow-step h3,
+.zoom-step h3 {
+  font-size: 15px; /* Small heading */
+} /* End of the step title rule */
+.flow-step p,
+.zoom-step p {
+  margin: 0; /* No paragraph spacing */
+  color: var(--muted); /* Pencil Grey */
+  font-size: 14px; /* Small reading text */
+  line-height: 1.5; /* Comfortable */
+} /* End of the step text rule */
+.flow-step b {
+  color: var(--ink); /* The letters' key (T, G, B...) in ink, like the letters in the drawing */
+  font-family: var(--mono); /* Drawing lettering, matching the grid */
+  font-weight: 500; /* Medium, never bold */
+} /* End of the letter key rule */
+
+/* The arrow to the next step (every step but the last). Phones: ↓, centred under the drawing. */
+.flow-step:not(:last-child)::after {
+  content: '↓'; /* A down arrow */
+  position: absolute; /* Placed freely... */
+  left: 75px; /* ...under the middle of the 150 px drawing */
+  bottom: -32px; /* ...in the gap below the step */
+  transform: translateX(-50%); /* Centred on that point */
+  color: var(--muted); /* Pencil Grey */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 16px; /* Clear but quiet */
+} /* End of the arrow rule */
+
+/* ---------- Plate 02: the square, in pixels ---------- */
+
+/* The three drawings. Phones: stacked, top to bottom, with a ↓ between them. */
+.zoom {
+  margin: 28px 0 0; /* Space above */
+  padding: 0; /* No browser indent */
+  list-style: none; /* The arrows show the order */
+  display: grid; /* A grid of drawings... */
+  gap: 44px; /* ...apart enough for the arrow between them */
+} /* End of the zoom rule */
+
+/* One drawing with its title and text */
+.zoom-step {
+  position: relative; /* Lets the arrow be placed relative to this step */
+  max-width: 340px; /* Phones: no wider than this, so the drawing doesn't get huge */
+  container-type: inline-size; /* Lets the arrow measure this step's width ("cqw" units, see the wide-screen arrow) */
+} /* End of the zoom step rule */
+
+/* The drawing itself */
+.zoom-art {
+  display: block; /* On its own line */
+  width: 100%; /* As wide as its column... */
+  height: auto; /* ...and as tall as its shape needs */
+  margin-bottom: 10px; /* Space before the title */
+  overflow: visible; /* Thin lines at the edge aren't cut off */
+} /* End of the zoom drawing rule */
+
+/* The arrow to the next drawing. Phones: ↓, under the middle of the square. */
+.zoom-step:not(:last-child)::after {
+  content: '↓'; /* A down arrow */
+  position: absolute; /* Placed freely... */
+  left: 50%; /* ...in the middle... */
+  bottom: -34px; /* ...of the gap below */
+  transform: translateX(-50%); /* Centred on that point */
+  color: var(--muted); /* Pencil Grey */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 16px; /* Clear but quiet */
+} /* End of the zoom arrow rule */
+
+/* ---------- Lines and letters inside the drawings ---------- */
+/* Drawn like a plan: hairlines in grey, the important line in ink, the four change colours as the only colour. */
+.art .line {
+  fill: none; /* Lines only, no fill */
+  stroke: var(--muted); /* Pencil Grey */
+  stroke-width: 1; /* A hairline */
+} /* End of the line rule */
+.art .ink {
+  stroke: var(--ink); /* Off-white: the line that matters */
+  stroke-width: 1.5; /* A little heavier */
+} /* End of the ink rule */
+.art .dashed {
+  stroke-dasharray: 3 3; /* 3 units on, 3 off: a leader line */
+} /* End of the dashed rule */
+.art .cell {
+  fill: none; /* An empty cell... */
+  stroke: #343c47; /* ...with a faint grid line, a touch brighter than the page's dividers so it reads on the dark sheet */
+  stroke-width: 1; /* Hairline */
+} /* End of the cell rule */
+.art .pick {
+  fill: none; /* Just an outline... */
+  stroke: var(--ink); /* ...in ink, so the picked pixel can be followed from step to step */
+  stroke-width: 1.5; /* A little heavier */
+} /* End of the picked pixel rule */
+.art .fill-built { fill: var(--built); } /* Orange: newly built */
+.art .fill-loss { fill: var(--loss); } /* Red: cleared */
+.art .fill-gain { fill: var(--gain); } /* Green: green space gained */
+.art .fill-water { fill: var(--water); } /* Blue: new water */
+.art .art-label {
+  fill: var(--muted); /* Pencil Grey */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 9px; /* Small, like dimensions on a plan */
+  letter-spacing: 0.06em; /* Spread a little */
+} /* End of the drawing label rule */
+.art .art-text {
+  fill: var(--ink); /* Off-white */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 10px; /* Readable */
+} /* End of the drawing text rule */
+.art .art-letter {
+  fill: var(--ink); /* Off-white */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 9px; /* Fits in a 16-unit cell */
+} /* End of the grid letter rule */
+.art .art-big {
+  fill: var(--ink); /* Off-white */
+  font-family: var(--mono); /* Drawing lettering */
+  font-size: 16px; /* The zoomed-in pixel's letter */
+} /* End of the big letter rule */
+.art .muted {
+  fill: var(--muted); /* Grey arrow and equals sign */
+} /* End of the muted letter rule */
+.art .photo {
+  fill: #151a20; /* The photo's area: a dark grey-blue, a step lighter than the page */
+} /* End of the photo rule */
+.art .photo-line {
+  fill: none; /* Outlines only */
+  stroke: #5d6673; /* Mid grey: the photo's fine detail */
+  stroke-width: 0.75; /* Finer than the hairlines: the photo is sharper than the pixels */
+} /* End of the photo detail rule */
+.art .mark {
+  fill: var(--ink); /* The marked corner or pixel: solid ink, so the eye finds it at once */
+} /* End of the mark rule */
+.art .overlay {
+  opacity: 0.55; /* See-through, so the photo's houses show under the colour, as in the app */
+} /* End of the overlay rule */
 
 /* ---------- The four steps ---------- */
 
@@ -225,6 +435,20 @@ dd {
   margin-top: 0; /* Flush with the heading's spacing */
 } /* End of the first source rule */
 
+/* Links in the credits (dataset page, licence, OpenStreetMap's copyright page): underlined ink, readable as links without colour */
+.sources a {
+  color: var(--ink); /* Off-white */
+  text-decoration: underline; /* Underlined... */
+  text-decoration-color: var(--muted); /* ...in grey, so it doesn't shout */
+  text-underline-offset: 3px; /* A little below the letters */
+} /* End of the credit link rule */
+.sources a:hover {
+  text-decoration-color: var(--ink); /* The underline brightens on hover */
+} /* End of the credit link hover rule */
+.sources dd + dd {
+  margin-top: -6px; /* A source's second and third paragraphs sit a little closer to its first */
+} /* End of the follow-on paragraph rule */
+
 /* ---------- Placeholders for the pictures still to come (build steps 3 to 6) ---------- */
 
 /* An empty outlined box with a short note, so the reading flow can be judged before the pictures exist */
@@ -269,4 +493,42 @@ a:focus-visible {
   h1 {
     margin-top: 64px; /* More air above the title */
   } /* End of the wide title rule */
+
+  /* Plate 01 on wide screens: the five steps in one row, left to right, with → between them */
+  .flow {
+    grid-template-columns: repeat(6, 1fr); /* Six equal columns */
+    gap: 28px; /* Room for the arrows */
+  } /* End of the wide flow rule */
+  .flow-step {
+    grid-template-columns: 1fr; /* One column: drawing on top, text below */
+    row-gap: 14px; /* Space between the drawing and the title */
+  } /* End of the wide step rule */
+  .flow-art {
+    grid-row: auto; /* Just its own row */
+  } /* End of the wide drawing rule */
+  .flow-step:not(:last-child)::after {
+    content: '→'; /* A right arrow */
+    left: auto; /* Not under the drawing... */
+    right: -14px; /* ...but in the gap to the right (half the 28 px gap) */
+    top: 50px; /* Level with the middle of the drawings */
+    bottom: auto; /* Not at the bottom */
+    transform: translateX(50%); /* Centred in the gap */
+  } /* End of the wide arrow rule */
+
+  /* Plate 02 on wide screens: the three drawings side by side, with → between them */
+  .zoom {
+    grid-template-columns: repeat(3, 1fr); /* Three equal columns */
+    gap: 56px; /* Room for the arrows */
+  } /* End of the wide zoom rule */
+  .zoom-step {
+    max-width: none; /* Fill the column */
+  } /* End of the wide zoom step rule */
+  .zoom-step:not(:last-child)::after {
+    content: '→'; /* A right arrow */
+    left: auto; /* Not under the drawing... */
+    right: -28px; /* ...but in the gap to the right (half the 56 px gap) */
+    top: calc(100cqw * 90 / 236 - 10px); /* Level with the middle of the squares: the drawing is 236 wide and its square is centred 90 down, so the middle is at 90/236 of the column's width (100cqw = the column's full width), less half the arrow's height */
+    bottom: auto; /* Not at the bottom */
+    transform: translateX(50%); /* Centred in the gap */
+  } /* End of the wide zoom arrow rule */
 } /* End of the wide-screen rules */

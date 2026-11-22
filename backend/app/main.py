@@ -24,6 +24,14 @@ def health() -> dict:  # "-> dict" notes that this function hands back a diction
     return {"status": "ok"}  # Answer with a small dictionary; FastAPI turns it into JSON: {"status": "ok"}
 
 
+# The years the app compares: the dataset's first year and the newest published year, from the same setting and the same
+# check every analysis uses. The "How this works" page shows these, so it always matches the data.
+# Answer: {"first": 2017, "latest": 2024}
+@app.get("/api/years")
+def years() -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
+    return {"first": landcover.FIRST_YEAR, "latest": landcover.newest_year()}  # The first year, and the newest year with files
+
+
 # The land-cover analysis of the 2 x 2 km square around a point, in one request: the main result (first year -> newest year)
 # and every comparison the year slider needs (first year -> each later year), so the slider works as soon as the result shows.
 # Example: /api/analysis?lat=33.96&lon=-117.55
