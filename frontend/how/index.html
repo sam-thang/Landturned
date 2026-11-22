@@ -176,12 +176,12 @@
         <p class="plate-lede">Five things that can make the numbers too high or too low. <span class="diagram-tag">Diagram, not real data</span></p> <!-- One line of framing, plus the made-up-data tag -->
         <ul class="examples examples-5"> <!-- One card per limit -->
           <li class="example"> <!-- Limit 1 -->
-            <svg class="art example-art" data-art="est-wrong" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids of a field. In the later year four pixels in the middle are labelled bare ground and coloured red, although the field did not change."></svg> <!-- Empty drawing box; how.js draws in it -->
+            <svg class="art example-art" data-art="est-wrong" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids of a field. In the later year a patch of 3 by 3 pixels is labelled bare ground and coloured red, although the field did not change."></svg> <!-- Empty drawing box; how.js draws in it -->
             <h3>The label can be wrong</h3> <!-- Name -->
-            <p>A computer model made the maps, and it sometimes mislabels a pixel: a dry field can look like bare ground. A wrong label in either year looks like change.</p> <!-- Why -->
+            <p>A computer model made the maps, and it sometimes mislabels a pixel: a dry field can look like bare ground. A wrong label in either year looks like change. A whole mislabelled field is big enough to survive cleaning, so it shows up as change. Impact Observatory <a href="https://registry.opendata.aws/io-lulc/">reports</a> an average accuracy of over 75% for its yearly maps.</p> <!-- Why, and the producer's own accuracy figure (quoted from the AWS Registry page, checked 2026-11-22: "Each of the maps has an assessed average accuracy of over 75%.") -->
           </li> <!-- End of limit 1 -->
           <li class="example"> <!-- Limit 2 -->
-            <svg class="art example-art" data-art="est-edge" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids of a shoreline between trees and water. In the later year a few pixels along the shore flip, some to water and one back to trees."></svg> <!-- Empty drawing box -->
+            <svg class="art example-art" data-art="est-edge" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids of a shoreline between trees and water. The later grid, before cleaning: a few pixels along the shore flip, some to water and one back to trees."></svg> <!-- Empty drawing box -->
             <h3>Edges are fuzzy</h3> <!-- Name -->
             <p>A pixel on a shoreline or a road is partly one thing and partly another, so its label can flip. Cleaning (05) removes most of this, and real changes under 30&nbsp;m with it.</p> <!-- Why, and the link to plate 05 -->
           </li> <!-- End of limit 2 -->
@@ -193,7 +193,7 @@
           <li class="example"> <!-- Limit 4 -->
             <svg class="art example-art" data-art="est-coarse" viewBox="0 0 162 84" role="img" aria-label="One pixel, 10 metres across, drawn to scale with a garden shed and a tree inside it. The whole pixel gets one label: grass or farmland."></svg> <!-- Empty drawing box -->
             <h3>10&nbsp;m is coarse</h3> <!-- Name -->
-            <p>One pixel is 10 × 10&nbsp;m, roughly a family house's footprint, and gets one label. A shed or a single tree blends into whatever surrounds it.</p> <!-- What 10 m can't see -->
+            <p>One pixel is 10 × 10&nbsp;m, about the size of a small house, and gets one label. A shed or a single tree blends into whatever surrounds it.</p> <!-- What 10 m can't see -->
           </li> <!-- End of limit 4 -->
           <li class="example"> <!-- Limit 5 -->
             <svg class="art example-art" data-art="est-dates" viewBox="0 0 162 84" role="img" aria-label="A timeline: the satellite photo and the land-cover map are marked at different dates."></svg> <!-- Empty drawing box -->
@@ -203,6 +203,18 @@
         </ul> <!-- End of the cards -->
         <p class="callout">So read the numbers as good estimates of change at the scale of a street or a neighbourhood: reliable for a new suburb, a factory or a reservoir, not for a single building.</p> <!-- The one-sentence takeaway -->
       </section> <!-- End of plate 06 -->
+
+      <!-- PLATE 07: how far people can look, and how "Analyse this area" works. One drawing beside one paragraph, like
+           plate 03. The limits are the map's own: EXPLORE_RADIUS_M (10 km each way) and safeBox() in frontend/src/map.js. -->
+      <section class="plate" aria-labelledby="look-title"> <!-- The plate -->
+        <h2 id="look-title"><span class="plate-no">07</span>Where you can look</h2> <!-- Plate number and title -->
+        <div class="wiring"> <!-- The drawing and its paragraph: side by side on wide screens, stacked on phones -->
+          <svg class="art wiring-art" data-art="look" viewBox="0 0 330 230" role="img" aria-label="A 20 by 20 kilometre box with the result square in the middle, drawn to scale. An arrow leads to a dashed square labelled Analyse this area. A dashed limit line runs a little inside the box's edge, and the dashed square's centre stops on it."></svg> <!-- Empty drawing box; how.js draws in it -->
+          <div class="wiring-notes"> <!-- The text beside it, in the same small reading style as plate 03's notes -->
+            <p>Each search opens a 20 × 20&nbsp;km box around the address. Pan the map (or drag the dashed square) and press <em>Analyse this area</em> to measure any 2 × 2&nbsp;km square inside it. Squares near the edge stop a little short, so the result fits on screen. Keeping each search to one area keeps results fast, and keeps the free data sources we rely on available for everyone. To look further away, search a new address: the box moves with it.</p> <!-- The whole plate in one paragraph. "Pan the map (or drag...)": the dashed square follows the map's centre, and also has a grip to drag (map.js) -->
+          </div> <!-- End of the text -->
+        </div> <!-- End of the drawing and text -->
+      </section> <!-- End of plate 07 -->
 
       <!-- Section F: data and credits. Wording checked 2026-11-22 against each source: the AWS Registry of Open Data page and
            Impact Observatory's site (licence, name, producers), Esri's item pages and developer docs ("Powered by Esri" and

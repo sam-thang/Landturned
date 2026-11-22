@@ -306,8 +306,9 @@ dd {
   font-size: 14px; /* Small reading text */
   line-height: 1.5; /* Comfortable */
 } /* End of the note text rule */
-.wiring-notes i {
-  color: var(--ink); /* "green space", a term the colour rule uses, in ink... */
+.wiring-notes i,
+.wiring-notes em {
+  color: var(--ink); /* "green space" (plate 03) or a button's name (plate 07's "Analyse this area") in ink... */
   font-style: normal; /* ...not slanted */
 } /* End of the term rule */
 
@@ -454,6 +455,12 @@ dd {
 .art .mark {
   fill: var(--ink); /* The marked corner or pixel: solid ink, so the eye finds it at once */
 } /* End of the mark rule */
+.art .margin {
+  fill: var(--muted); /* Plate 07's band near the box's edge, where the new square's centre can't go: grey... */
+  fill-opacity: 0.12; /* ...very faint, so it reads as a zone, not a thing */
+  fill-rule: evenodd; /* Fill only between the two outlines, leaving the middle empty */
+  stroke: none; /* No outline of its own (the box and the dashed line draw those) */
+} /* End of the margin rule */
 .art .cat-box {
   stroke: none; /* Our categories' boxes in plate 03: a solid fill, no outline */
 } /* End of the category box rule */
@@ -527,14 +534,16 @@ dd {
   margin-top: 0; /* Flush with the heading's spacing */
 } /* End of the first source rule */
 
-/* Links in the credits (dataset page, licence, OpenStreetMap's copyright page): underlined ink, readable as links without colour */
-.sources a {
+/* Links in the credits (dataset page, licence, OpenStreetMap's copyright page) and in the cards (plate 06's accuracy source): underlined ink, readable as links without colour */
+.sources a,
+.example a {
   color: var(--ink); /* Off-white */
   text-decoration: underline; /* Underlined... */
   text-decoration-color: var(--muted); /* ...in grey, so it doesn't shout */
   text-underline-offset: 3px; /* A little below the letters */
 } /* End of the credit link rule */
-.sources a:hover {
+.sources a:hover,
+.example a:hover {
   text-decoration-color: var(--ink); /* The underline brightens on hover */
 } /* End of the credit link hover rule */
 .sources dd + dd {

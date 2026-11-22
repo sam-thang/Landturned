@@ -319,7 +319,7 @@ const EXAMPLES = { // Each example: the before grid and the after grid, row by r
   gain: { before: ['BBBS', 'BBBS', 'BBSS', 'BBSS'], after: ['BGGG', 'BTGT', 'BTTG', 'BBGG'] }, // Parking lot and bare lots -> park
   none: { before: ['TTT', 'TTT', 'TTT'], after: ['GGT', 'GGT', 'GGG'] }, // Forest -> farmland: no colour (green stayed green)
   // Plate 06 ("N" = no data: hidden by cloud)
-  wrong: { before: ['GGGG', 'GGGG', 'GGGG', 'GGGG'], after: ['GGGG', 'GSSG', 'GSSG', 'GGGG'] }, // A dry field mislabelled bare ground: false red
+  wrong: { before: ['GGGG', 'GGGG', 'GGGG', 'GGGG'], after: ['GGGG', 'GSSS', 'GSSS', 'GSSS'] }, // A dry field mislabelled bare ground: false red, 3 x 3 pixels, wide enough to survive cleaning (plate 05)
   edge: { before: ['TTWW', 'TTWW', 'TTWW', 'TTWW'], after: ['TWWW', 'TTWW', 'TWWW', 'TTTW'] }, // A shoreline flipping both ways
   cloud: { before: ['GGBB', 'GGBB', 'GGGB', 'GGGB'], after: ['GGBB', 'NNBB', 'NNNB', 'GGGB'] }, // Cloud over part of the later year
 }; // End of the examples
@@ -343,13 +343,14 @@ function pixelGrid(svg, x, y, rows, size, compareTo, letterClass) {
 } // End of pixelGrid
 
 // A card's picture: years above, the before grid, an arrow, the after grid (both 4 x 4, cells 16 units like plate 01)
-function drawExample(svg, key) {
+function drawExample(svg, key, afterLabel) {
   const { before, after } = EXAMPLES[key]; // This card's two grids
   const CELL = 16; // One pixel's size, the same as plate 01's grids
   label(svg, 32, 10, years.first); // The first year over the before grid (filled in from /api/years, like plate 01)
   pixelGrid(svg, 0, 18, before, CELL, null, 'art-letter'); // The before grid
   label(svg, 81, 55, '→', 'middle', 'art-big muted'); // "became", level with the grids' middle
-  label(svg, 130, 10, years.latest); // The latest year over the after grid
+  if (afterLabel) label(svg, 162, 10, afterLabel, 'end'); // A label instead of the year (too long to centre, so it ends at the drawing's right edge)
+  else label(svg, 130, 10, years.latest); // The latest year over the after grid
   pixelGrid(svg, 98, 18, after, CELL, before, 'art-letter'); // The after grid, compared with the before grid
 } // End of drawExample
 
@@ -483,6 +484,58 @@ function drawDates(svg) {
   label(svg, 100, Y + 28, 'can be years apart'); // How far apart they can be
 } // End of drawDates
 
+// ---------- Plate 07: where you can look ----------
+// One drawing, to scale: the 20 x 20 km box (160 units, so 8 units per km), the 2 x 2 km result in the middle, a dashed
+// new square pushed against the limit for its centre, and that limit as a dashed line inside the box's edge. The limits
+// are the map's own (EXPLORE_RADIUS_M and safeBox() in map.js).
+const LOOK = { x: 50, y: 36, size: 160 }; // The box: top-left corner and width
+const KM = LOOK.size / 20; // Units per kilometre: 8
+const INSET = 1.4 * KM; // The limit, 1.4 km inside the edge: a middle value (the real one, 1.2 to 2 km, depends on the screen's shape)
+
+// A 2 x 2 km square centred on (cx, cy). "cls" picks its look: solid for the result, dashed for a new one.
+function kmSquare(svg, cx, cy, cls) {
+  el('rect', { x: cx - KM, y: cy - KM, width: 2 * KM, height: 2 * KM, class: cls }, svg); // 1 km each way from its centre
+} // End of kmSquare
+
+// A dashed leader from (x, y) out past the box's right edge, to a word on the right (like plate 02's "zoom")
+function leader(svg, x, y, text, cls = 'art-label') {
+  const end = LOOK.x + LOOK.size + 8; // The leader ends 8 units right of the box (short, so the longest label fits on a phone)
+  el('path', { d: `M${x} ${y} H${end}`, class: 'line dashed' }, svg); // The leader
+  label(svg, end + 3, y + 3, text, 'start', cls); // The word (+3 centres it on the line)
+} // End of leader
+
+function drawLook(svg) {
+  const { x, y, size } = LOOK; // Unpack the box's position
+  const mx = x + size / 2; // The box's centre (the address), across...
+  const my = y + size / 2; // ...and down
+  const outer = `M${x} ${y} h${size} v${size} h${-size} Z`; // The box's outline, as a path...
+  const inner = `M${x + INSET} ${y + INSET} v${size - 2 * INSET} h${size - 2 * INSET} v${-(size - 2 * INSET)} Z`; // ...and the limit's, drawn the other way round
+  el('path', { d: `${outer} ${inner}`, class: 'margin' }, svg); // The band between them, shaded faintly (the inner outline leaves a hole)
+  el('rect', { x, y, width: size, height: size, class: 'line ink' }, svg); // The box: as far as the map lets you pan
+  el('rect', { x: x + INSET, y: y + INSET, width: size - 2 * INSET, height: size - 2 * INSET, class: 'line dashed' }, svg); // The limit for a new square's centre
+  el('path', { d: `M${x} ${y - 12} H${x + size} M${x} ${y - 16} V${y - 8} M${x + size} ${y - 16} V${y - 8}`, class: 'line' }, svg); // Dimension line along the top, with end ticks
+  label(svg, mx, y - 15, '20 km'); // Its length
+  el('path', { d: `M${x - 12} ${y} V${y + size} M${x - 16} ${y} H${x - 8} M${x - 16} ${y + size} H${x - 8}`, class: 'line' }, svg); // Dimension line down the left side
+  label(svg, x - 18, my + 3, '20 km', 'end'); // Its length
+  kmSquare(svg, mx, my, 'mark'); // Your result's square, solid so it reads at this small size
+  const nx = x + size - INSET; // The new square, pushed right to the limit: its centre on the line...
+  const ny = y + 50; // ...in the upper part of the box
+  kmSquare(svg, nx, ny, 'line ink dashed'); // The dashed square
+  el('circle', { cx: nx, cy: ny, r: 1.5, class: 'mark' }, svg); // Its centre, sitting on the limit
+  const tx = nx - KM - 4; // The arrow's tip, just off the dashed square's bottom-left corner, across...
+  const ty = ny + KM + 4; // ...and down
+  const sx = mx + KM + 4; // The arrow's start, just off the result's top-right corner, across...
+  const sy = my - KM - 4; // ...and down
+  el('path', { d: `M${sx} ${sy} L${tx} ${ty}`, class: 'line' }, svg); // The arrow's shaft
+  const angle = Math.atan2(ty - sy, tx - sx); // Which way the arrow points, as an angle (atan2 turns a direction into an angle)
+  const head = (turn) => `${tx - 6 * Math.cos(angle + turn)} ${ty - 6 * Math.sin(angle + turn)}`; // A point 6 units back from the tip, turned a little to one side
+  el('path', { d: `M${head(0.45)} L${tx} ${ty} L${head(-0.45)}`, class: 'line' }, svg); // The arrowhead: two short strokes, angled back from the tip along the shaft
+  leader(svg, nx + KM, ny, 'Analyse this area', 'art-text'); // The dashed square's button, named in ink like the app's button
+  leader(svg, mx + KM, my, 'result'); // The result, named
+  leader(svg, x + size - INSET, y + size - 30, 'limit'); // The limit line, named
+  label(svg, mx, y + size + 18, '10 km each way'); // The rule, under the box
+} // End of drawLook
+
 // Draw every picture: find each empty drawing box on the page and draw the matching picture in it
 const DRAWINGS = { // Box name -> drawing function
   address: drawAddress, square: drawSquare, maps: drawMaps, compare: drawCompare, count: drawCount, photo: drawPhoto, // Plate 01
@@ -497,10 +550,11 @@ const DRAWINGS = { // Box name -> drawing function
   'edges-shrink': (svg) => drawEdgeStage(svg, 'shrunk', 'faint: shrunk away'), // Step 2
   'edges-grow': (svg) => drawEdgeStage(svg, 'kept', 'faint: removed for good'), // Step 3
   'est-wrong': (svg) => drawExample(svg, 'wrong'), // Plate 06: a wrong label
-  'est-edge': (svg) => drawExample(svg, 'edge'), // Fuzzy edges
+  'est-edge': (svg) => drawExample(svg, 'edge', 'before cleaning'), // Fuzzy edges: labelled so it doesn't contradict plate 05 (cleaning would remove these thin flips)
   'est-cloud': (svg) => drawExample(svg, 'cloud'), // Clouds
   'est-coarse': drawCoarse, // 10 m is coarse
   'est-dates': drawDates, // Photo and map dates
+  look: drawLook, // Plate 07: the 20 km box, the result, a new square and the limit
 }; // End of the drawings
 function drawAll() {
   document.querySelectorAll('svg[data-art]').forEach((svg) => { // For each drawing box...
