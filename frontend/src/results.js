@@ -53,17 +53,17 @@ function revealPieces(name, change) {
   return [start, highlight(s.water, '--water'), ' around ', n, ' became water.']; // Blue story (the only one left)
 } // End of revealPieces
 
-// Turn "2026-05-23" into "23 May 2026". The "T00:00" makes the browser read it as a local date, so it can't slip a day.
+// Turn "2026-05-23" into "May 23, 2026" (American order). The "T00:00" makes the browser read it as a local date, so it can't slip a day.
 function readableDate(isoDate) {
-  return new Date(`${isoDate}T00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }); // Day, month name, year
+  return new Date(`${isoDate}T00:00`).toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' }); // Month name, day, year (en-US = American English: month first, comma before the year)
 } // End of readableDate
 
 // The imagery line of the small print: whose satellite imagery it is, when it was taken, and why the coloured areas may not
 // line up with it. "photoDate" is "YYYY-MM-DD" from Esri's metadata (current or archive imagery), or null when unknown.
 function photoLine(photoDate) {
   return photoDate // With a date:
-    ? `Satellite imagery: Esri, ${readableDate(photoDate)}, a different date than the land-cover maps, so the coloured areas may not line up exactly with the buildings and fields you see.` // e.g. "Satellite imagery: Esri, 23 May 2026, …"
-    : "Satellite imagery: Esri, usually taken on a different date than the land-cover maps, so the coloured areas may not line up exactly with the buildings and fields you see."; // Without a date
+    ? `Satellite imagery: Esri, ${readableDate(photoDate)}, a different date than the land-cover maps, so the colored areas may not line up exactly with the buildings and fields you see.` // e.g. "Satellite imagery: Esri, May 23, 2026, …"
+    : "Satellite imagery: Esri, usually taken on a different date than the land-cover maps, so the colored areas may not line up exactly with the buildings and fields you see."; // Without a date
 } // End of photoLine
 
 // The disclaimer for places where Esri's newest photo ("photoDate", e.g. "2017-12-18") is older than the last land-cover year:
@@ -72,7 +72,7 @@ function photoLine(photoDate) {
 export function showImageryWarning(photoDate, fromYear, toYear) {
   const photoYear = photoDate.slice(0, 4); // The photo's year, e.g. "2017"
   document.getElementById('imagery-warning-text').textContent = // The explanation, with the real dates:
-    `Esri's newest photo of this place was taken on ${readableDate(photoDate)}, the most recent sharp satellite imagery available here. The colours compare ${fromYear} with ${toYear}, so changes after ${photoYear} may not be visible in the photo.`; // e.g. "…taken on 18 December 2017, … so changes after 2017 may not be visible…"
+    `Esri's newest photo of this place was taken on ${readableDate(photoDate)}, the most recent sharp satellite imagery available here. The colors compare ${fromYear} with ${toYear}, so changes after ${photoYear} may not be visible in the photo.`; // e.g. "…taken on December 18, 2017, … so changes after 2017 may not be visible…"
   document.getElementById('imagery-warning').hidden = false; // Show it
 } // End of showImageryWarning
 

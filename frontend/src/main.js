@@ -385,7 +385,7 @@ async function analyseArea() {
   for (const step of ['compare', 'imagery']) setAreaStep(step, null); // The square's steps: none started yet (an earlier run may have ticked them)
   areaSteps.hidden = false; // Show the steps in the dashed square
   setAreaStep('compare', 'running'); // The comparison starts at once
-  announce('Analysing this area: comparing land cover.'); // Say so to screen-reader users
+  announce('Analyzing this area: comparing land cover.'); // Say so to screen-reader users
 
   const nameReady = reverseGeocode(place.lat, place.lon).catch(() => null); // Ask which town this is (e.g. "Fontana"); null if unknown or it fails
   const { changeReady, swipe, photoDate } = startRequests(place); // The same requests as for a chosen place
@@ -394,9 +394,9 @@ async function analyseArea() {
 
   if (!change) { // The analysis failed:
     areaSteps.hidden = true; // Hide the steps (the button says what happened)
-    announce("Couldn't analyse this area. The previous result is back."); // Say so to screen-reader users
+    announce("Couldn't analyze this area. The previous result is back."); // Say so to screen-reader users
     setResultBusy(false); // Bring the old result back...
-    setAnalysing(null, "Couldn't analyse · Try again"); // ...and let the button say so (pressing it tries again)
+    setAnalysing(null, "Couldn't analyze · Try again"); // ...and let the button say so (pressing it tries again)
     mode = 'result'; // Ready again
     return; // Stop here
   } // End of the failure case

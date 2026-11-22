@@ -67,6 +67,7 @@ The design is dark, minimal, and image-led. `docs/mockup-v2.html` is the design 
 
 These override the mockup where the two differ:
 
+- **American English:** All user-facing text uses American English. This covers spelling (color, center, analyze, meter) and dates ("Oct 21, 2017"). Metric units (m, km, ha) stay. Code names, comments, and quotes or official names from data sources are not changed.
 - **Global search:** the search box says "Enter any address", with no country named.
 - **Landing:** a linework globe drawn with D3 (orthographic projection on a canvas), *not* MapLibre's built-in globe (the user rejected that one as tacky). It spins slowly and can be dragged. Glowing hotspots mark a hand-picked list of places with dramatic land change, colored by change type, with a hover teaser. The search box sits in a side panel (desktop) or bottom panel (mobile), together with place buttons.
 - **Two-stage transition:**

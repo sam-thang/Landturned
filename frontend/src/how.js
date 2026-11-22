@@ -530,7 +530,7 @@ function drawLook(svg) {
   const angle = Math.atan2(ty - sy, tx - sx); // Which way the arrow points, as an angle (atan2 turns a direction into an angle)
   const head = (turn) => `${tx - 6 * Math.cos(angle + turn)} ${ty - 6 * Math.sin(angle + turn)}`; // A point 6 units back from the tip, turned a little to one side
   el('path', { d: `M${head(0.45)} L${tx} ${ty} L${head(-0.45)}`, class: 'line' }, svg); // The arrowhead: two short strokes, angled back from the tip along the shaft
-  leader(svg, nx + KM, ny, 'Analyse this area', 'art-text'); // The dashed square's button, named in ink like the app's button
+  leader(svg, nx + KM, ny, 'Analyze this area', 'art-text'); // The dashed square's button, named in ink like the app's button
   leader(svg, mx + KM, my, 'result'); // The result, named
   leader(svg, x + size - INSET, y + size - 30, 'limit'); // The limit line, named
   label(svg, mx, y + size + 18, '10 km each way'); // The rule, under the box

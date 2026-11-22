@@ -226,7 +226,7 @@ function squareOnScreen() {
 let analysedCorners = null; // The analysis square now on the map (its four corners), or null when there's none
 let analysingCenter = null; // While "Analyse this area" runs: the spot being analysed as [lon, lat]; otherwise null
 const EARTH_CIRCUMFERENCE_M = 40075016.686; // The Earth's circumference at the equator, in metres
-const ANALYSE_LABEL = 'Analyse this area'; // The button's normal text (CSS shows it in capitals)
+const ANALYSE_LABEL = 'Analyze this area'; // The button's normal text (CSS shows it in capitals)
 
 // ---------- The dashed square: where "Analyse this area" will analyse ----------
 // While panning, the dashed square follows the map's centre (like "Search this area" on other maps). Once it's "pinned" it
@@ -459,7 +459,7 @@ function waitForSettledOffer() {
 export function setAnalysing(center, label = ANALYSE_LABEL) {
   analysingCenter = center; // Remember the spot (or forget it)
   const button = document.getElementById('analyse-area'); // The button
-  button.textContent = center ? 'Analysing…' : label; // Its text
+  button.textContent = center ? 'Analyzing…' : label; // Its text
   button.setAttribute('aria-disabled', center ? 'true' : 'false'); // Tell screen readers it can't be pressed now. ("disabled" would also take keyboard focus away from it)
   updateAnalyseOffer(); // Redraw the dashed square and the button
 } // End of setAnalysing
@@ -614,8 +614,8 @@ function setSwipe(fraction) {
   const percent = Math.round(swipe.fraction * 100); // How much of the square shows 2017, in percent
   swipe.handle.setAttribute('aria-valuenow', percent); // Tell screen readers the slider's value...
   swipe.handle.setAttribute('aria-valuetext', percent === 0 // ...and what it means, in words
-    ? 'All latest imagery, with the change colours' // At the left edge
-    : `${percent}% earliest imagery, colours hidden`); // Anywhere else
+    ? 'All latest imagery, with the change colors' // At the left edge
+    : `${percent}% earliest imagery, colors hidden`); // Anywhere else
   drawBeforePart(swipe.before, swipe.canvas, swipe.fraction); // Redraw the visible part of 2017
   const source = map.getSource('before'); // The 2017 source
   source.play(); // A canvas source only sends a new drawing to the map while "playing": switch that on...

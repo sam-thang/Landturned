@@ -36,7 +36,7 @@
             <p>Type an address, pick a spot on the globe, or use your location.</p> <!-- The three ways in -->
           </li> <!-- End of step 1 -->
           <li class="flow-step"> <!-- Step 2 -->
-            <svg class="art flow-art" data-art="square" viewBox="0 0 170 110" role="img" aria-label="A square 2 kilometres on each side, centred on the spot: 400 hectares"></svg> <!-- Empty drawing box -->
+            <svg class="art flow-art" data-art="square" viewBox="0 0 170 110" role="img" aria-label="A square 2 kilometers on each side, centered on the spot: 400 hectares"></svg> <!-- Empty drawing box -->
             <h3>Draw the square</h3> <!-- Step title -->
             <p>2 × 2 km around the spot: 400 hectares.</p> <!-- The analysis area -->
           </li> <!-- End of step 2 -->
@@ -46,17 +46,17 @@
             <p>Impact Observatory's map for every year, <span data-year="first">the first year</span> to <span data-year="latest">the latest year</span>. Their 9 classes become our 5: <b>T</b> trees, <b>G</b> grass or farmland, <b>B</b> built, <b>W</b> water, <b>S</b> bare ground (soil, sand, rock, snow).</p> <!-- Which maps, which years (how.js fills in the real years), and the letters' key -->
           </li> <!-- End of step 3 -->
           <li class="flow-step"> <!-- Step 4 -->
-            <svg class="art flow-art" data-art="compare" viewBox="0 0 170 110" role="img" aria-label="One pixel: grass in 2017, built in 2024, so it is coloured orange for newly built"></svg> <!-- Empty drawing box -->
+            <svg class="art flow-art" data-art="compare" viewBox="0 0 170 110" role="img" aria-label="One pixel: grass in 2017, built in 2024, so it is colored orange for newly built"></svg> <!-- Empty drawing box -->
             <h3>Compare each pixel</h3> <!-- Step title -->
-            <p>Same pixel, first year against a later one. If its label changed, it gets a change colour. Changes narrower than about 30&nbsp;m are ignored, to remove noise.</p> <!-- The comparison (the headline uses the latest year; the year slider the ones between), and the edge-cleaning rule -->
+            <p>Same pixel, first year against a later one. If its label changed, it gets a change color. Changes narrower than about 30&nbsp;m are ignored, to remove noise.</p> <!-- The comparison (the headline uses the latest year; the year slider the ones between), and the edge-cleaning rule -->
           </li> <!-- End of step 4 -->
           <li class="flow-step"> <!-- Step 5 -->
-            <svg class="art flow-art" data-art="count" viewBox="0 0 170 110" role="img" aria-label="The change map: coloured pixels counted by colour"></svg> <!-- Empty drawing box; how.js also writes the counts into this label -->
+            <svg class="art flow-art" data-art="count" viewBox="0 0 170 110" role="img" aria-label="The change map: colored pixels counted by color"></svg> <!-- Empty drawing box; how.js also writes the counts into this label -->
             <h3>Count</h3> <!-- Step title -->
             <p>Each pixel is 0.01 ha, so pixels × 0.01 = hectares of change.</p> <!-- The arithmetic -->
           </li> <!-- End of step 5 -->
           <li class="flow-step"> <!-- Step 6 -->
-            <svg class="art flow-art" data-art="photo" viewBox="0 0 170 110" role="img" aria-label="The coloured change pixels laid over a sharper satellite photo of houses and a road"></svg> <!-- Empty drawing box -->
+            <svg class="art flow-art" data-art="photo" viewBox="0 0 170 110" role="img" aria-label="The colored change pixels laid over a sharper satellite photo of houses and a road"></svg> <!-- Empty drawing box -->
             <h3>Lay it on the photo</h3> <!-- Step title -->
             <p>The change layer is drawn over Esri satellite photos taken close to those years. The photos are sharper than the 10&nbsp;m measurement.</p> <!-- The overlay, and why the colours look blockier than the photo -->
           </li> <!-- End of step 6 -->
@@ -69,7 +69,7 @@
         <p class="plate-lede">Every answer covers the same square, and the maps behind it are made of pixels.</p> <!-- One line of framing -->
         <ol class="zoom"> <!-- The three drawings, in zoom order -->
           <li class="zoom-step"> <!-- Drawing 1 -->
-            <svg class="art zoom-art" data-art="square-big" viewBox="0 0 236 180" role="img" aria-label="A square 2 kilometres on each side around the spot: 400 hectares"></svg> <!-- Empty drawing box; how.js draws in it -->
+            <svg class="art zoom-art" data-art="square-big" viewBox="0 0 236 180" role="img" aria-label="A square 2 kilometers on each side around the spot: 400 hectares"></svg> <!-- Empty drawing box; how.js draws in it -->
             <h3>The square</h3> <!-- Title -->
             <p>2 × 2 km around the spot: 400 hectares. Every result describes exactly this square.</p> <!-- The area -->
           </li> <!-- End of drawing 1 -->
@@ -79,7 +79,7 @@
             <p>200 pixels across, 200 down: 40,000 pixels. The real grid is too fine to draw here, so this shows one line every 10 pixels.</p> <!-- The pixel count, and an honest note about the drawing -->
           </li> <!-- End of drawing 2 -->
           <li class="zoom-step"> <!-- Drawing 3 -->
-            <svg class="art zoom-art" data-art="pixel" viewBox="0 0 236 180" role="img" aria-label="The marked corner zoomed in: 10 by 10 pixels, 100 metres across, with one pixel of 10 by 10 metres marked"></svg> <!-- Empty drawing box -->
+            <svg class="art zoom-art" data-art="pixel" viewBox="0 0 236 180" role="img" aria-label="The marked corner zoomed in: 10 by 10 pixels, 100 meters across, with one pixel of 10 by 10 meters marked"></svg> <!-- Empty drawing box -->
             <h3>One pixel</h3> <!-- Title -->
             <p>10 × 10&nbsp;m = 100&nbsp;m² = 0.01&nbsp;ha. Each pixel gets one label per year, so anything smaller, like a shed or a single tree, blends into it.</p> <!-- The pixel's size, its area, and what that means -->
           </li> <!-- End of drawing 3 -->
@@ -100,7 +100,7 @@
             </li> <!-- End of note 1 -->
             <li> <!-- Note 2 -->
               <h3>Trees stay apart, but count as green</h3> <!-- Title -->
-              <p>Trees and grass or farmland are both <i>green space</i>. So forest cut for pasture gets no colour: green stayed green. Land stripped bare does.</p> <!-- The green-space rule that the colour diagram builds on -->
+              <p>Trees and grass or farmland are both <i>green space</i>. So forest cut for pasture gets no color: green stayed green. Land stripped bare does.</p> <!-- The green-space rule that the colour diagram builds on -->
             </li> <!-- End of note 2 -->
             <li> <!-- Note 3 -->
               <h3>Snow and ice count as bare</h3> <!-- Title -->
@@ -117,8 +117,8 @@
       <!-- PLATE 04: the colour rule as four real-world examples (how.js draws each little before -> after picture), and a line
            on what gets no colour -->
       <section class="plate" aria-labelledby="colours-title"> <!-- The plate -->
-        <h2 id="colours-title"><span class="plate-no">04</span>Which colour a change gets</h2> <!-- Plate number and title -->
-        <p class="plate-lede">Each 10&nbsp;m square gets a colour based on what the land was and what it became.</p> <!-- How the colours work, in one line (the rule is the analysis's own: compare() in backend/app/landcover.py) -->
+        <h2 id="colours-title"><span class="plate-no">04</span>Which color a change gets</h2> <!-- Plate number and title -->
+        <p class="plate-lede">Each 10&nbsp;m square gets a color based on what the land was and what it became.</p> <!-- How the colours work, in one line (the rule is the analysis's own: compare() in backend/app/landcover.py) -->
         <ul class="examples"> <!-- One card per change colour -->
           <li class="example"> <!-- Orange -->
             <svg class="art example-art" data-art="ex-built" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 pixel grids. Before: mostly grass or farmland with some trees. After: seven grass or farmland pixels have become built and are filled orange."></svg> <!-- The before -> after pixel grids; how.js draws them -->
@@ -141,15 +141,15 @@
             <p>Parking lot → park. Built, water or bare land that turns green.</p> <!-- The example and the rule -->
           </li> <!-- End of green -->
         </ul> <!-- End of the cards -->
-        <p class="no-colour"><span class="swatch-word none">No colour:</span> <svg class="art mini-art" data-art="ex-none" viewBox="0 0 82 33" role="img" aria-label="A tiny pair of 3 by 3 grids: trees become grass or farmland, with no colour."></svg> <span class="no-colour-text">Forest → farmland, because both count as green space. Built or water that becomes bare ground, like a demolished building or a drained pond. And squares with no data (clouds), which each result reports separately.</span></p> <!-- Every case that isn't coloured (matches compare() in backend/app/landcover.py), with a tiny grid pair showing the first -->
-        <p class="callout"><strong>Green space lost</strong> = everything green that isn't green any more: the red pixels, plus orange and blue pixels that used to be trees, grass or farmland.</p> <!-- How the result page's total is made up -->
+        <p class="no-colour"><span class="swatch-word none">No color:</span> <svg class="art mini-art" data-art="ex-none" viewBox="0 0 82 33" role="img" aria-label="A tiny pair of 3 by 3 grids: trees become grass or farmland, with no color."></svg> <span class="no-colour-text">Forest → farmland, because both count as green space. Built or water that becomes bare ground, like a demolished building or a drained pond. And squares with no data (clouds), which each result reports separately.</span></p> <!-- Every case that isn't coloured (matches compare() in backend/app/landcover.py), with a tiny grid pair showing the first -->
+        <p class="callout"><strong>Green space lost</strong> = everything green that isn't green anymore: the red pixels, plus orange and blue pixels that used to be trees, grass or farmland.</p> <!-- How the result page's total is made up -->
       </section> <!-- End of plate 04 -->
 
       <!-- PLATE 05: edge cleaning, as three same-size grids (raw -> shrink -> grow back), worked out in how.js with the
            backend's own steps (remove_thin_changes in backend/app/landcover.py). Same layout as plate 02. -->
       <section class="plate" aria-labelledby="edges-title"> <!-- The plate -->
         <h2 id="edges-title"><span class="plate-no">05</span>Cleaning the edges</h2> <!-- Plate number and title -->
-        <p class="plate-lede">Changes narrower than about 30&nbsp;m are removed, one colour at a time. <span class="diagram-tag">Diagram, not real data</span></p> <!-- The rule in one line, plus the made-up-data tag -->
+        <p class="plate-lede">Changes narrower than about 30&nbsp;m are removed, one color at a time. <span class="diagram-tag">Diagram, not real data</span></p> <!-- The rule in one line, plus the made-up-data tag -->
         <ol class="zoom"> <!-- The three steps, in order -->
           <li class="zoom-step"> <!-- Step 1 -->
             <svg class="art zoom-art" data-art="edges-raw" viewBox="0 0 236 180" role="img" aria-label="A change map, 10 by 10 pixels: a solid patch of newly built pixels, plus a thin diagonal line of new water, a strip two pixels wide of green gained, and a single cleared pixel"></svg> <!-- Empty drawing box; how.js draws in it -->
@@ -157,9 +157,9 @@
             <p>Along a shoreline, a field edge or a road, a 10&nbsp;m pixel is partly one thing and partly another, so its label can flip between years although nothing changed. These flips show up as thin lines and specks.</p> <!-- Why edges are noisy ("mixed pixels") -->
           </li> <!-- End of step 1 -->
           <li class="zoom-step"> <!-- Step 2 -->
-            <svg class="art zoom-art" data-art="edges-shrink" viewBox="0 0 236 180" role="img" aria-label="Every coloured patch shrunk by one pixel: only the middle of the built patch is left; the thin line, the strip and the speck have vanished"></svg> <!-- Empty drawing box -->
+            <svg class="art zoom-art" data-art="edges-shrink" viewBox="0 0 236 180" role="img" aria-label="Every colored patch shrunk by one pixel: only the middle of the built patch is left; the thin line, the strip and the speck have vanished"></svg> <!-- Empty drawing box -->
             <h3>Shrink by one pixel</h3> <!-- Title -->
-            <p>Every coloured patch loses its outer ring of pixels. Anything narrower than 3 pixels (30&nbsp;m) disappears completely.</p> <!-- The "erode" step -->
+            <p>Every colored patch loses its outer ring of pixels. Anything narrower than 3 pixels (30&nbsp;m) disappears completely.</p> <!-- The "erode" step -->
           </li> <!-- End of step 2 -->
           <li class="zoom-step"> <!-- Step 3 -->
             <svg class="art zoom-art" data-art="edges-grow" viewBox="0 0 236 180" role="img" aria-label="The patches grown back by one pixel: the built patch has its full shape again, and the thin changes stay removed"></svg> <!-- Empty drawing box -->
@@ -176,7 +176,7 @@
         <p class="plate-lede">Five things that can make the numbers too high or too low. <span class="diagram-tag">Diagram, not real data</span></p> <!-- One line of framing, plus the made-up-data tag -->
         <ul class="examples examples-5"> <!-- One card per limit -->
           <li class="example"> <!-- Limit 1 -->
-            <svg class="art example-art" data-art="est-wrong" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids of a field. In the later year a patch of 3 by 3 pixels is labelled bare ground and coloured red, although the field did not change."></svg> <!-- Empty drawing box; how.js draws in it -->
+            <svg class="art example-art" data-art="est-wrong" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids of a field. In the later year a patch of 3 by 3 pixels is labeled bare ground and colored red, although the field did not change."></svg> <!-- Empty drawing box; how.js draws in it -->
             <h3>The label can be wrong</h3> <!-- Name -->
             <p>A computer model made the maps, and it sometimes mislabels a pixel: a dry field can look like bare ground. A wrong label in either year looks like change. A whole mislabelled field is big enough to survive cleaning, so it shows up as change. Impact Observatory <a href="https://registry.opendata.aws/io-lulc/">reports</a> an average accuracy of over 75% for its yearly maps.</p> <!-- Why, and the producer's own accuracy figure (quoted from the AWS Registry page, checked 2026-11-22: "Each of the maps has an assessed average accuracy of over 75%.") -->
           </li> <!-- End of limit 1 -->
@@ -186,22 +186,22 @@
             <p>A pixel on a shoreline or a road is partly one thing and partly another, so its label can flip. Cleaning (05) removes most of this, and real changes under 30&nbsp;m with it.</p> <!-- Why, and the link to plate 05 -->
           </li> <!-- End of limit 2 -->
           <li class="example"> <!-- Limit 3 -->
-            <svg class="art example-art" data-art="est-cloud" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids. In the later year five pixels are hidden by cloud, drawn as dashed cells with a question mark, and get no colour."></svg> <!-- Empty drawing box -->
+            <svg class="art example-art" data-art="est-cloud" viewBox="0 0 162 84" role="img" aria-label="Two 4 by 4 grids. In the later year five pixels are hidden by cloud, drawn as dashed cells with a question mark, and get no color."></svg> <!-- Empty drawing box -->
             <h3>Clouds hide the ground</h3> <!-- Name -->
             <p>Where clouds covered a pixel in either year, nobody can tell what changed. It counts as no data, never as change, so real change under the cloud is missed.</p> <!-- How no data is handled, and its cost -->
           </li> <!-- End of limit 3 -->
           <li class="example"> <!-- Limit 4 -->
-            <svg class="art example-art" data-art="est-coarse" viewBox="0 0 162 84" role="img" aria-label="One pixel, 10 metres across, drawn to scale with a garden shed and a tree inside it. The whole pixel gets one label: grass or farmland."></svg> <!-- Empty drawing box -->
+            <svg class="art example-art" data-art="est-coarse" viewBox="0 0 162 84" role="img" aria-label="One pixel, 10 meters across, drawn to scale with a garden shed and a tree inside it. The whole pixel gets one label: grass or farmland."></svg> <!-- Empty drawing box -->
             <h3>10&nbsp;m is coarse</h3> <!-- Name -->
             <p>One pixel is 10 × 10&nbsp;m, about the size of a small house, and gets one label. A shed or a single tree blends into whatever surrounds it.</p> <!-- What 10 m can't see -->
           </li> <!-- End of limit 4 -->
           <li class="example"> <!-- Limit 5 -->
             <svg class="art example-art" data-art="est-dates" viewBox="0 0 162 84" role="img" aria-label="A timeline: the satellite photo and the land-cover map are marked at different dates."></svg> <!-- Empty drawing box -->
             <h3>Photo and map dates differ</h3> <!-- Name -->
-            <p>The satellite photos are for looking only. They can be from a different year than the maps, so the colours may not line up with what you see.</p> <!-- Why the overlay can look off -->
+            <p>The satellite photos are for looking only. They can be from a different year than the maps, so the colors may not line up with what you see.</p> <!-- Why the overlay can look off -->
           </li> <!-- End of limit 5 -->
         </ul> <!-- End of the cards -->
-        <p class="callout">So read the numbers as good estimates of change at the scale of a street or a neighbourhood: reliable for a new suburb, a factory or a reservoir, not for a single building.</p> <!-- The one-sentence takeaway -->
+        <p class="callout">So read the numbers as good estimates of change at the scale of a street or a neighborhood: reliable for a new suburb, a factory or a reservoir, not for a single building.</p> <!-- The one-sentence takeaway -->
       </section> <!-- End of plate 06 -->
 
       <!-- PLATE 07: how far people can look, and how "Analyse this area" works. One drawing beside one paragraph, like
@@ -209,9 +209,9 @@
       <section class="plate" aria-labelledby="look-title"> <!-- The plate -->
         <h2 id="look-title"><span class="plate-no">07</span>Where you can look</h2> <!-- Plate number and title -->
         <div class="wiring"> <!-- The drawing and its paragraph: side by side on wide screens, stacked on phones -->
-          <svg class="art wiring-art" data-art="look" viewBox="0 0 330 230" role="img" aria-label="A 20 by 20 kilometre box with the result square in the middle, drawn to scale. An arrow leads to a dashed square labelled Analyse this area. A dashed limit line runs a little inside the box's edge, and the dashed square's centre stops on it."></svg> <!-- Empty drawing box; how.js draws in it -->
+          <svg class="art wiring-art" data-art="look" viewBox="0 0 330 230" role="img" aria-label="A 20 by 20 kilometer box with the result square in the middle, drawn to scale. An arrow leads to a dashed square labeled Analyze this area. A dashed limit line runs a little inside the box's edge, and the dashed square's center stops on it."></svg> <!-- Empty drawing box; how.js draws in it -->
           <div class="wiring-notes"> <!-- The text beside it, in the same small reading style as plate 03's notes -->
-            <p>Each search opens a 20 × 20&nbsp;km box around the address. Pan the map (or drag the dashed square) and press <em>Analyse this area</em> to measure any 2 × 2&nbsp;km square inside it. Squares near the edge stop a little short, so the result fits on screen. Keeping each search to one area keeps results fast, and keeps the free data sources we rely on available for everyone. To look further away, search a new address: the box moves with it.</p> <!-- The whole plate in one paragraph. "Pan the map (or drag...)": the dashed square follows the map's centre, and also has a grip to drag (map.js) -->
+            <p>Each search opens a 20 × 20&nbsp;km box around the address. Pan the map (or drag the dashed square) and press <em>Analyze this area</em> to measure any 2 × 2&nbsp;km square inside it. Squares near the edge stop a little short, so the result fits on screen. Keeping each search to one area keeps results fast, and keeps the free data sources we rely on available for everyone. To look further away, search a new address: the box moves with it.</p> <!-- The whole plate in one paragraph. "Pan the map (or drag...)": the dashed square follows the map's centre, and also has a grip to drag (map.js) -->
           </div> <!-- End of the text -->
         </div> <!-- End of the drawing and text -->
       </section> <!-- End of plate 07 -->
