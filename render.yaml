@@ -1,0 +1,35 @@
+# Render "Blueprint": the whole hosting setup for Landturn, written down in the repository. Render reads this file when
+# the service is created (and on later pushes) instead of us clicking every setting in its dashboard.
+# Reference: https://render.com/docs/blueprint-spec
+
+services: # The list of things Render runs; Landturn is one web service that serves both the website and its /api
+  - type: web # A web service: a program that answers web requests, with an https address
+    name: landturn # Its name in the dashboard; the address becomes something like landturn.onrender.com
+    runtime: python # Render's ready-made Python environment (it also has Node and npm, which the website build needs)
+    region: oregon # Same region as the land-cover files (AWS us-west-2) and Esri's archive service, so analyses read fast
+    plan: 0.5c-512mb # Render's paid starter size: 0.5 CPU, 512 MB memory (measured: about 240 MB at worst). Needed for the disk
+    # No rootDir: the service sees the whole repository, because the build needs both frontend/ and backend/
+    # (Render hides files outside a service's root folder, both while building and while running).
+    buildCommand: >-
+      cd frontend && npm ci && npm run build &&
+      cd ../backend && pip install uv && uv sync --frozen
+    # The build, in order: frontend/ installs the exact website libraries from package-lock.json ("npm ci") and builds
+    # the finished site into frontend/dist; backend/ installs uv (Render only adds it on its own when uv.lock is in the
+    # service's root folder, and ours is in backend/), then installs the exact Python libraries from uv.lock ("--frozen"
+    # = never change the lock file).
+    startCommand: cd backend && sh start.sh # Start the server with our script (one process, Render's port, see start.sh)
+    healthCheckPath: /api/health # Render waits for this to answer before switching visitors over to a new version
+    autoDeployTrigger: commit # Deploy again on every push to the main branch
+    disk: # A permanent disk, so saved answers (analyses, archive lookups, place names, the daily search count) survive deploys
+      name: landturn-cache # Its name in the dashboard
+      mountPath: /var/data # Where it appears inside the server
+      sizeGB: 1 # 1 GB (today's saved answers take about 2 MB); it can be made bigger later, never smaller
+    envVars: # Settings the server gets as environment variables
+      - key: PYTHON_VERSION # The exact Python version, the same as on the development computer
+        value: "3.13.18"
+      - key: NODE_VERSION # The Node version for building the website (Vite needs 20.19+ or 22.12+)
+        value: "24"
+      - key: LANDTURN_CACHE_DIR # Keep every saved answer on the permanent disk (see backend/app/settings.py)
+        value: /var/data/cache
+      - key: GEOAPIFY_API_KEY # The address-search key: a secret, so it's never written here.
+        sync: false # Render asks for it in its dashboard when the service is first created
