@@ -6,6 +6,8 @@
 
 A factual snapshot for performance advice. It's based on reading the code and on timings measured on 2026-11-21 (section 4). "Not checked" means I didn't verify it.
 
+**Updated 2026-11-23 (later):** the place buttons follow a measured order (`BUTTON_ORDER` in `places.js`), Hidroituango replaced Cajamar, the Geoapify key is locked to Render's servers, and the map now says why the earlier imagery didn't come (section 8, end).
+
 **Updated 2026-11-23:** address search and place names moved from Nominatim (called from the browser) to **Geoapify through our backend** (sections 2, 3, 5 and 8). The timing tables in section 4 were measured with Nominatim and are kept as measured.
 
 **Updated 2026-11-22:** no speed changes since Phase 6. New since then (section 8): the landing hints, the map credits, the full "How this works" page, and American English for all user-facing text. The UI button is now labelled "Analyze this area"; the older sections below keep the name it had when they were written.
@@ -41,7 +43,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `frontend/src/globe.js` | D3 landing globe, hotspots, tap-to-pin |
 | `frontend/src/results.js` | Result sentence, stats rows, small print |
 | `frontend/src/loading.js` | Loading steps and progress bar |
-| `frontend/src/places.js` | The 11 hotspots |
+| `frontend/src/places.js` | The 12 hotspots, and `BUTTON_ORDER`: the order of the place buttons |
 | `frontend/src/scalebar.js` | Scale bar |
 | `frontend/how/`, `how.js`, `how.css` | "How this works" page: seven numbered SVG diagrams drawn by `how.js`, plus data and credits (section 8) |
 | `backend/app/main.py` | API routes: `/api/health`, `/api/analysis` (since Phase 3; replaces `/api/change` and `/api/timeline`), `/api/wayback`, `/api/imagery` |
@@ -51,7 +53,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `backend/app/change_image.py` | Change grid → transparent PNG → base64 data URL |
 | `backend/app/wayback.py` | Esri Wayback lookup: which archive versions and photo dates for "before" and "after", with a disk cache |
 | `backend/app/imagery.py` | Sentinel-2 photo of the square. **The frontend no longer calls it.** |
-| `backend/scripts/warm_wayback.py` | Pre-fills the Wayback cache for the 11 hotspots |
+| `backend/scripts/warm_wayback.py` | Pre-fills the Wayback cache for the hotspots |
 | `backend/scripts/rank_places.py`, `explore_fontana.py`, `method_patch.py` | Dev and analysis scripts, not part of the app |
 
 ## 2. Data sources
@@ -428,7 +430,7 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 ## 5. Loading and caching
 
 **Preloaded:**
-- **Hotspots:** `warm_wayback.py` pre-fills the Wayback cache for the 11 hotspots. It must be re-run on the server at deploy (not done; no deploy exists yet).
+- **Hotspots:** `warm_wayback.py` pre-fills the Wayback cache for the hotspots. Run on the server at deploy (2026-11-23). Hidroituango, added later, was filled by visiting it on the live site.
 - **Head start:** `/api/wayback` starts 0.5 s after the "Analyse this area" offer has settled.
 - **Map during the globe turn:** MapLibre and the map start loading while the globe turns.
 - **Parallel start:** all first-wave requests start at once when a place is chosen.
@@ -508,11 +510,12 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 - ~~**`/api/timeline` starts only after the reveal.**~~ Fixed in Phase 3: merged into `/api/analysis`.
 - ~~**After a server restart, the first request per grid zone costs about 1.3 s.**~~ Fixed in the Phase 3 follow-up: zone facts are saved in `zones.json`. Measured right after a restart: Fontana 0.012 s, Bergen 0.002 s. Only a zone never seen before pays once: Stavanger 1.6 s, because its zone had been deleted for the test.
 - **A cold Wayback lookup takes 12–15 s,** mostly sequential tilemap steps and slow Esri metadata services. Only hotspots are pre-warmed.
+  - **Slow days:** on 2026-11-23 most of Esri's photo-date questions hit the 30 s limit (New Capital and Ontario Ranch), so a new spot's earlier photo took 30 s or more (the backend asks twice, so up to about 65 s). A plain `query` on one metadata layer was no faster (1–24 s). The page now waits up to 2 minutes for it (was 40 s).
 - ~~**The reveal waits for all archive tiles.**~~ Fixed in Phase 4: the reveal waits for neither the archive answer nor its tiles; only the 2017 photo's tiles load (25–56), for the swipe.
 - ~~**The backend still finds an archive "after" photo.**~~ Dropped in Phase 5.
 - **The head start only helps** if the user waits at least 0.5 s after the map stops moving (including its glide); before Phase 1 it was 1.5 s.
 - ~~**Nominatim usage policy.**~~ Solved 2026-11-23 by switching to Geoapify through the backend (one shared limit, shared memory, key kept on the server).
-- **Geoapify key:** the current key appeared in a chat transcript. **Before sharing the site publicly:** make a fresh key and, once deployed, restrict it to the server's address in Geoapify's dashboard.
+- ~~**Geoapify key.**~~ Done 2026-11-23: a fresh key is the Render secret, and it only works from Render's Oregon outbound ranges (`74.220.48.0/24`, `74.220.56.0/24`, entered as two regex IP filters in Geoapify's dashboard). Tested live: new searches and place names still work. Render's ranges are shared with other Render services in that region. Local development needs its own unrestricted key in `backend/.env`.
 
 **Data quality:**
 - Impact Observatory labels flicker between years at quiet rural spots, giving implausible colours. A "change must persist two years" filter is parked.
@@ -576,6 +579,18 @@ Then a "Data and credits" section.
 - **Tested:** with a pretend Geoapify, 12 searches at once were all answered 0.2 s apart; 25 at once gave 16 answers and 9 immediate "busy"; the daily limit stops new searches while saved answers still work. With the real key: Fontana 2.3 s, place name 1.2 s, the repeat 0.006 s; Stavanger named; open ocean gives no name. The browser sends no requests to Nominatim or Geoapify.
 - **Credits** (Geoapify's free plan and OpenStreetMap both require one near the information, not only on a credits page): "Place names: Geoapify · © OpenStreetMap contributors" in the result's small print; the How page's "Data and credits"; nothing on the landing page; the map's credit line names only the imagery.
 - **Cost:** free plan. Next step if the site gets busy: Geoapify's paid plan (about $59/month for 10,000 requests/day, checked 2026-11-23).
+
+**Hotspot button order** (`360c188`, `2fcb3a0`, `cd5cd41`, 2026-11-23).
+- **Why:** on a phone only the first two or three place buttons show without scrolling, so the strongest examples go first.
+- **How it was ranked:** every hotspot measured with the app's own analysis (first vs last year, its 2 × 2 km square). Score = changed share of the square × how much one change type dominates × how much of it sits in solid patches of 1 ha or more × (1 − no-data share), minus a penalty for label flicker (a pixel's label changes in a middle year and back). Then each before/after swipe was checked by eye; Weda Bay moved down (scattered colors, hazy photo).
+- **Order:** New Capital, Giga Texas, Ho Chi Minh City, Renaissance Dam, Hasankeyf, Giga Berlin, Ontario Ranch, Hidroituango, Western Sydney, Kīlauea, Marker Wadden, Weda Bay. It lives in one list, `BUTTON_ORDER` in `places.js`; a place missing from it still gets a button, at the end. The globe's dots don't depend on it.
+- **Hidroituango replaced Cajamar** (only 14% of its square changed). Hidroituango, Colombia: forested Cauca canyon → reservoir, 167.9 ha new water, at 7.0824, -75.7389. The user picked that square by eye: its 2018 "before" photo shows green forest, while the script's best square (150.5 ha) showed flood mud. The 10 other South American candidates tested are in `rank_places.py` (Chancay: a third no data; Añelo: scattered blobs, green on bare desert).
+- **Kept:** Weda Bay (user's choice); Kīlauea, the only red place.
+
+**When the earlier imagery doesn't come** (`efbda37`, 2026-11-23).
+- **Before:** after 40 s the "FINDING EARLIER IMAGERY…" label just vanished, which looked like a bug.
+- **Now:** the page waits up to 2 minutes. If no earlier photo comes, the label says why for 5 s without its pulse: "EARLIER IMAGERY TOOK TOO LONG" (time ran out) or "NO EARLIER IMAGERY HERE" (none found, or under 2 years older than the current photo). Screen readers hear the same. A new place or analysis removes it at once.
+- **Tested:** in the dev app with a faked archive (never answers / answers "none"), desktop and 390 px phone: right message, gone after 5 s, no page errors.
 
 ## Phase 2 findings: land-cover years (2026-11-21, research only, no code changed)
 
