@@ -9,7 +9,7 @@ import { fetchAnalysis, fetchPhotoDate, fetchWayback } from './api.js';
 // Bring in the function that fills in the result panel, from results.js
 import { showResults, showImageryDate, showImageryWarning, hideImageryWarning, setUpColourSwitches, shownChanges, resetColourSwitches } from './results.js';
 // Bring in the list of hotspot places, from places.js
-import { PLACES } from './places.js';
+import { PLACES, BUTTON_ORDER } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
@@ -545,7 +545,14 @@ document.getElementById('locating-back').addEventListener('click', returnToGlobe
 
 const placesArea = document.getElementById('places'); // The empty area for the buttons
 
-for (const place of PLACES) { // Make one button for each place
+// Where a place sits in BUTTON_ORDER (0 = first); places not on that list get a number past the end, so they go last
+const buttonPosition = (place) => { // A small helper that takes one place and returns its position
+  const index = BUTTON_ORDER.indexOf(place.id); // Look the place's id up in the order list (-1 means "not found")
+  return index === -1 ? BUTTON_ORDER.length : index; // Not found -> after everything else; found -> its spot in the list
+}; // End of the helper
+const orderedPlaces = [...PLACES].sort((a, b) => buttonPosition(a) - buttonPosition(b)); // A sorted copy of the places (the original list stays as it is)
+
+for (const place of orderedPlaces) { // Make one button for each place, in the chosen order
   const button = document.createElement('button'); // Create a new button element
   button.type = 'button'; // A plain button (not one that submits a form)
   button.className = 'place-button'; // Give it the styles from style.css

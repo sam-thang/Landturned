@@ -944,7 +944,7 @@ body {
   color: var(--muted); /* Grey */
 } /* End of the kicker rule */
 
-/* "Landturned · Sheet 00 · World": written in normal case (so screen readers say the name), drawn in capitals like a sheet number */
+/* "Landturned · Sheet 00": written in normal case (so screen readers say the name), drawn in capitals like a sheet number */
 .sheet-label {
   text-transform: uppercase; /* Capitals on screen */
 } /* End of the sheet label rule */
