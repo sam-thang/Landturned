@@ -79,7 +79,29 @@ const WATER_NOTE_MS = 2000; // How long "That's water. Tap the land." stays up, 
 const WATER_NOTE_GAP = 12; // How far above the tapped spot the note's bottom edge sits, in pixels (clear of the fingertip)
 const TOUCH = window.matchMedia('(pointer: coarse)').matches; // True on touch screens (the main pointer is a finger), so the note says "tap", else "click"
 
-const CAPTION_ROOM = 38; // Phones: the strip at the top of the globe area kept for the caption, in pixels (14 px gap + the line + a gap below)
+
+// The strip at the top of the globe area kept for the caption on phones, in pixels: the caption (10 px from the top,
+// about 16 px tall) plus a clear gap of 12 px before the globe's edge. The globe keeps its size and stays centered.
+const CAPTION_ROOM = 38;
+// Hotspot rings grow to 19 px around their dot (see the pulse in draw), so a hotspot near the globe's edge could reach
+// into the caption. Instead of moving or shrinking the globe, the rings are cut off this far short of the caption, in pixels.
+// Rings that big are almost see-through anyway (they fade as they grow), so the cut hardly shows.
+const CAPTION_GAP = 6;
+// Where the rings must stop, in pixels from the top of the globe area, measured from the page by measureCaption:
+// "top" = rings stay below this line (caption along the top, phones); "bottom" = rings stay above it (caption along the
+// bottom, wide screens). null = no limit on that side.
+let ringLimit = { top: null, bottom: null };
+
+// Measure where the caption is in the globe area (it moves between top and bottom with the screen size, see style.css)
+function measureCaption(height) {
+  const caption = document.querySelector('.globe-caption'); // The caption, if the page has one
+  if (!caption || !caption.offsetHeight) { ringLimit = { top: null, bottom: null }; return; } // No caption: no limit
+  const top = caption.offsetTop; // Its top edge, from the top of the globe area (offsetTop ignores the centring shift, which only moves it sideways)
+  const bottom = top + caption.offsetHeight; // Its bottom edge
+  ringLimit = bottom < height / 2 // In the top half?
+    ? { top: bottom + CAPTION_GAP, bottom: null } // Along the top: rings stay below it
+    : { top: null, bottom: top - CAPTION_GAP }; // Along the bottom: rings stay above it
+} // End of measureCaption
 
 // How big the globe is (its radius in pixels at zoom 1) in a globe area "width" x "height" pixels.
 // Wide screens: 40% of the shorter side, which leaves the big stage calm space around it.
@@ -132,6 +154,7 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange, 
   let turn = null; // The turn in progress, or null when not turning
   let focused = false; // True once a place has been chosen; the globe then stops spinning by itself
   let pin = null; // The tapped spot as [lon, lat], or null when there is no pin; the globe doesn't spin while a pin is set
+  let framesBeforeCaption = 2; // Frames to draw before the caption fades in (see frame): counts down to 0, then stays there
   let interactive = true; // False while the app is busy (e.g. zooming to a place): dragging, hovering, and clicking are ignored
   let visible = true; // False while the globe is hidden behind the map; then we skip drawing to save battery
 
@@ -142,6 +165,7 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange, 
     canvas.width = Math.round(rect.width * ratio); // Give the canvas enough real pixels to look sharp...
     canvas.height = Math.round(rect.height * ratio); // ...in both directions
     context.setTransform(ratio, 0, 0, ratio, 0, 0); // Scale the drawing tools so we can keep using screen sizes in our code
+    measureCaption(rect.height); // Where the caption sits now (top or bottom), so the globe keeps its rings clear of it
     draw(); // Redraw at the new size
   } // End of resize
 
@@ -151,11 +175,12 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange, 
     const width = canvas.clientWidth; // The canvas width on screen, in CSS pixels
     const height = canvas.clientHeight; // The canvas height on screen
     const radius = globeRadius(width, height) * view.zoom; // Globe radius: its size at zoom 1 (see globeRadius), times the zoom factor
+    const centerY = height / 2; // The vertical middle of the canvas: the globe is always centered
     projection
-      .translate([width / 2, height / 2]) // Put the globe's center in the middle of the canvas
+      .translate([width / 2, centerY]) // Put the globe's center in the middle of the canvas
       .scale(radius) // Make the globe this many pixels in radius
       .rotate([-view.lon, -view.lat]); // Turn the globe so our view point faces us (D3 rotates the Earth, hence the minus signs)
-    return { width, height, radius }; // Hand back the sizes, for drawing
+    return { width, height, radius, centerY }; // Hand back the sizes, for drawing
   } // End of aimProjection
 
   // The place on Earth [lon, lat] under a screen point (x, y measured from the canvas's top-left), or null if it's off the globe
@@ -176,9 +201,8 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange, 
   } // End of keepUnder
 
   function draw(time = performance.now()) {
-    const { width, height, radius } = aimProjection(); // Set the projection to the current view and get the sizes
+    const { width, height, radius, centerY } = aimProjection(); // Set the projection to the current view and get the sizes (and how far down the center is)
     const centerX = width / 2; // Horizontal middle of the canvas
-    const centerY = height / 2; // Vertical middle of the canvas
 
     context.clearRect(0, 0, width, height); // Wipe the canvas clean before painting
 
@@ -232,13 +256,19 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange, 
       const moving = phase < 0 ? phase + 1 : phase; // Fix negative values (from western longitudes) so the pulse always runs 0 → 1
       const pulse = REDUCE_MOTION ? STILL_PULSE : moving; // If the person asked for less motion, freeze the ring partway through its pulse instead
 
+      context.save(); // Remember the drawing settings, so the cut below only applies to this ring
+      context.beginPath(); // The area the ring may use: the whole canvas except the caption's side...
+      const clipTop = ringLimit.top ?? 0; // ...from just under a caption along the top (or the very top)...
+      const clipBottom = ringLimit.bottom ?? height; // ...to just above a caption along the bottom (or the very bottom)
+      context.rect(0, clipTop, width, clipBottom - clipTop); // That band
+      context.clip(); // Only draw inside it: a ring near the caption is cut off before it can touch it
       context.beginPath(); // Start the ring
       context.arc(x, y, 3 + pulse * 16, 0, Math.PI * 2); // A circle that grows from 3 to 19 px over one pulse
       context.strokeStyle = color; // Ring in the change color
       context.globalAlpha = (1 - pulse) * 0.8; // Fade out as it grows (globalAlpha = see-through-ness of everything drawn next)
       context.lineWidth = 1.2; // Thin ring
       context.stroke(); // Draw the ring
-      context.globalAlpha = 1; // Back to fully solid for the next drawings
+      context.restore(); // Drop the cut (and the see-through setting) again for the next drawings
 
       context.beginPath(); // Start the dot
       context.arc(x, y, place === hoveredPlace ? 4.5 : 3, 0, Math.PI * 2); // A small dot, slightly bigger when hovered
@@ -420,6 +450,12 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange, 
     } // End of the spin check
 
     if (visible) draw(time); // Paint the globe in its new position, unless it's hidden
+    if (framesBeforeCaption > 0) { // The caption isn't shown yet:
+      framesBeforeCaption -= 1; // count this frame...
+      // ...and on the second one, the first globe frame is already on screen. Only then can the caption fade: a class
+      // added before anything was painted would just switch it on, because the browser never saw it hidden.
+      if (framesBeforeCaption === 0) document.querySelector('.globe-caption')?.classList.add('is-ready'); // Fade the caption in (style.css; with reduced motion it just appears)
+    } // End of the caption check
     requestAnimationFrame(frame); // Ask the browser to run "frame" again at the next screen refresh
   } // End of frame
 
@@ -632,6 +668,7 @@ export function startGlobe(canvas, teaser, pinCard, onSelectPlace, onPinChange, 
   // sliding in after the page comes back from the background), which left the globe squeezed out of shape.
   new ResizeObserver(resize).observe(canvas); // A ResizeObserver calls resize() whenever the canvas's size changes (and once at the start)
   window.addEventListener('resize', resize); // Still also listen to the window: it covers the screen sharpness changing (e.g. moving the window to another monitor)
+  document.fonts?.ready.then(resize); // Once the web fonts have loaded the caption may be a little taller: measure again ("?." skips this in browsers without the fonts API)
   resize(); // Size and draw the globe for the first time
   requestAnimationFrame(frame); // Start the animation loop
   // Zoom back out to the whole globe, then unlock it and let it spin again.

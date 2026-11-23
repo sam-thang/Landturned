@@ -38,7 +38,7 @@ body {
 .stage {
   position: relative; /* Lets the canvas inside be positioned relative to the stage */
   container-type: inline-size; /* Make the stage a "container", so rules can react to the stage's own width (see the callout) */
-  flex: 0 0 min(56%, 100% - 330px); /* Don't grow, don't shrink, take 56% of the height, but on short phones leave the panel at least 330 px so its text fits without scrolling (the globe shrinks a little instead) */
+  flex: 0 0 min(56%, 100% - 290px); /* Don't grow, don't shrink, take 56% of the height, but on very short phones leave the panel at least 290 px so its text fits without scrolling (the globe shrinks a little instead). The landing panel needs about 285 px; it was 330 px while the search credit sat under the search box, which shrank the globe on iPhones in Safari (about 660 px tall) */
   overflow: hidden; /* Cut off anything that sticks out of the stage */
 } /* End of the stage rule */
 
@@ -58,21 +58,42 @@ body {
    area. Wide screens: centred along the bottom (see the min-width: 900px rules). A sentence, so sentence case. */
 .globe-caption {
   position: absolute; /* Placed freely over the globe area */
-  top: 14px; /* Phones: 14 px from the top (globe.js keeps the globe below it) */
+  top: 10px; /* Phones: 10 px from the top, leaving a clear 12 px before the globe (CAPTION_ROOM in globe.js) */
   left: 50%; /* From the middle... */
   transform: translateX(-50%); /* ...moved back by half its own width, so it's centred */
   margin: 0; /* No paragraph spacing */
+  display: flex; /* The mark and the sentence in a row... */
+  align-items: center; /* ...centred on each other */
+  gap: 7px; /* Space between the mark and the words */
   font-size: 13px; /* The panel's small-text size */
+  font-weight: 400; /* Regular weight: a hint, clearly below the headline */
   line-height: 1.2; /* Snug single line */
-  color: var(--muted); /* Grey: a quiet hint, not a headline */
+  color: rgba(230, 233, 238, 0.8); /* The main near-white text colour (--ink, #e6e9ee) at 80%: brighter than the grey hints, quieter than the headline (and not one of the four change colours) */
   white-space: nowrap; /* Always one line */
   pointer-events: none; /* Never blocks dragging or tapping the globe */
-  transition: opacity 0.4s ease; /* Fades out and back in */
+  opacity: 0; /* Hidden at first: globe.js adds "is-ready" once the globe's first frame is on screen */
 } /* End of the caption rule */
+.globe-caption.is-ready {
+  opacity: 1; /* Shown, once the globe is drawn... */
+  transition: opacity 0.6s ease; /* ...fading in. The fade is only set here, not on the hidden caption: otherwise it would also animate while the stylesheet is still arriving (the dev server adds it a moment after the page), and the fade-in would be lost. It also covers fading out and back in for pins */
+} /* End of the ready caption rule */
+/* The small survey mark before the words: thin lines in the caption's own colour */
+.caption-mark {
+  flex: none; /* Never squeezed */
+  fill: none; /* Lines only */
+  stroke: currentColor; /* The same colour as the words ("currentColor" = the text colour) */
+  stroke-width: 1.25px; /* A thin line... */
+  vector-effect: non-scaling-stroke; /* ...that stays 1.25 px however the drawing is scaled */
+} /* End of the caption mark rule */
+@media (prefers-reduced-motion: reduce) { /* People who asked their device for less motion: */
+  .globe-caption.is-ready {
+    transition: none; /* The caption just appears (and disappears), no fade */
+  } /* End of the reduced-motion caption rule */
+} /* End of the reduced-motion rules */
 /* Hidden while a pin is showing (people found out they can pick any spot) and once a place is chosen.
    ":has" asks "does the app contain ...?", so no JavaScript is needed. */
-.app:has(#pin-card:not([hidden])) .globe-caption,
-.app:has(#panel-landing[hidden]) .globe-caption {
+.app:has(#pin-card:not([hidden])) .globe-caption.is-ready,
+.app:has(#panel-landing[hidden]) .globe-caption.is-ready {
   opacity: 0; /* Invisible */
 } /* End of the hidden caption rule */
 
