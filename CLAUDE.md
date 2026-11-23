@@ -46,10 +46,10 @@ The design is dark, minimal, and image-led. `docs/mockup-v2.html` is the design 
 | Era | Years | Dataset | Resolution | Classes | Status |
 |---|---|---|---|---|---|
 | Detailed | 2017 to 2024 | Impact Observatory annual land cover, read from the AWS Registry of Open Data (`io-10m-annual-lulc` S3 bucket, one file per UTM zone and year) as Cloud-Optimized GeoTIFFs | 10 m | 9 | **Built** |
-| Long view | 1985 to 2022 | GLC_FCS30D | 30 m | 35 | Add later |
+| Long view (photos only) | about 1985 to today | Landsat Collection 2 Level-2 on Planetary Computer (`landsat-c2-l2`) | 30 m | none: photos, not measured | Planned, version 2 (see Later features) |
 
-- Older (GLC_FCS30D) years are coarser, and the app must label them that way.
-- Both datasets map into our own simple categories: **trees, grass/farmland, built, water, bare, no data** (no data includes clouds).
+- The long view is photos only and must say so ("Photos only · 30 m · not measured"). It never feeds the stats.
+- The land-cover data maps into our own simple categories: **trees, grass/farmland, built, water, bare, no data** (no data includes clouds).
 
 ### Architecture
 
@@ -74,8 +74,8 @@ These override the mockup where the two differ:
   1. The globe turns and zooms only to a regional view and shows a coordinate callout.
   2. Meanwhile, the detailed MapLibre map loads hidden at the location, and the backend computes the change. When MapLibre fires its `idle` event, crossfade from the globe to the map.
   - Never fly MapLibre from world zoom down to street level.
-- **Reveal:** one sentence leads the results, e.g. "Since 1985, Fontana turned X hectares of open land into buildings within 1 km." Until the long view era (GLC_FCS30D) is built, the app names the real years compared, e.g. "Between 2017 and 2023, …", taken from the backend's answer: the data stops at its latest year, so "since" would wrongly suggest it runs up to today.
-- **Timeline:** from 1985 to the latest available year. The coarse 30 m era (GLC_FCS30D) is visually marked. Before 2000 it moves in 5-year steps.
+- **Reveal:** one sentence leads the results, naming the real years compared, e.g. "Between 2017 and 2024, Fontana turned X hectares of land into buildings.", taken from the backend's answer: the data stops at its latest year, so "since" would wrongly suggest it runs up to today.
+- **Timeline:** measured change runs from 2017 to the latest Impact Observatory year. The photos-only long view from about 1985 is a separate overlay (see Later features), not part of this timeline.
 - **Planning-drawing identity:** a title block with site, coordinates, period, and data source; a scale bar; a north arrow. The four change colors (red, green, orange, blue) are the only accent colors.
 - **No locator globe:** a small "key map" globe was built and dropped (2026-11-16). It looked out of place on desktop and phone, and on desktop it falsely invited dragging. Don't propose it again; the globe-to-map transition and the panel's coordinates already give location context.
 - **Grid-up map:** the analysis square comes from the UTM grid, whose "up" differs slightly from true north (grid convergence: about 0.3° in California, about 3° in Stavanger). The map is turned so the square always sits straight, and the north arrow turns with it so it always points to true north, like a site plan drawn square to its site. People can't rotate or tilt the map themselves.
@@ -88,8 +88,6 @@ Not part of the first version, so don't build these yet:
 
 - "New construction sites found" stat (grouping changed pixels into separate sites)
 - Share screen (download image, PDF summary, copy link)
-- Long view era (GLC_FCS30D, 1985 to 2016)
-- "Analyse this area" button: when people pan away so the analysis square is mostly off-screen, offer to re-run the analysis for the new map center (like "Search this area" on Google Maps). Never recalculate automatically on every map move: each analysis takes seconds, and jumping numbers would confuse people
 - **Long view: how it turned since 1985** (planned, version 2)
   - **Purpose:** show long-term change at city scale, from about 1985 to today, as photos only. No land-cover measurement.
   - **Entry point:** a quiet link under the result sentence: "See how it turned since 1985 →". The main flow stays unchanged.
@@ -110,6 +108,7 @@ Not part of the first version, so don't build these yet:
     - cache by rounded coordinates
     - precompute frames for the globe hotspots
   - **Build order:** after the speed work and the first deployment.
+- Maybe later: measured land cover for 1985–2016 with GLC_FCS30D (30 m).
 
 ### Purpose
 
