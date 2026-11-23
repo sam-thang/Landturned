@@ -13,7 +13,7 @@ import { PLACES, BUTTON_ORDER } from './places.js';
 // Bring in the address lookup and its reverse (coordinates → town name), from geocode.js
 import { geocode, reverseGeocode } from './geocode.js';
 // Bring in the function that shows a place on the satellite map, from map.js
-import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges, getAnalyseSpot, setAnalysing, onOfferSettled, showFindingTag, hideFindingTag } from './map.js';
+import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges, getAnalyseSpot, setAnalysing, onOfferSettled, showFindingTag, hideFindingTag, endFindingTag } from './map.js';
 // Bring in the function that builds the 2017 picture for the before/after swipe, from swipe.js
 import { buildBeforeImage, tagText } from './swipe.js';
 
@@ -127,8 +127,9 @@ const CROSSFADE_MS = 900;
 // A short pause after the last step finishes, so people see everything completed before the crossfade
 const HOLD_MS = 500;
 // The longest the swipe's earlier photo may take, counted from when the place is chosen. Nothing waits for it (the result is
-// shown first); a new place usually takes 10-15 s. If Esri's archive is slower than this, the result simply has no swipe.
-const IMAGERY_LIMIT_MS = 40000;
+// shown first); a new place usually takes 10-15 s, but on slow days Esri's archive needs up to about 65 s (the backend asks
+// each archive version twice, 30 s each), so wait 2 minutes. If it's slower still, the map says "EARLIER IMAGERY TOOK TOO LONG".
+const IMAGERY_LIMIT_MS = 120000;
 
 // Which state the app is in: 'landing' (choosing a place), 'locating' (zooming in and loading),
 // 'result' (map shown), 'failed' (the map couldn't load; only "← Back to globe" works), or 'returning' (going back to the globe)
@@ -172,21 +173,23 @@ function startRequests(place) {
   // still turning, so for places seen before it's usually ready by the reveal and the opening sweep can play
   let archiveIn = false; // Becomes true once the archive answer has arrived
   archiveReady.then(() => { archiveIn = true; }); // Note its arrival
-  const swipe = { ready: startSwipe(changeReady, archiveReady, photoDate), archiveIn: () => archiveIn }; // The earlier photo (a Promise), and "is the archive answer in yet?"
+  const swipe = { ...startSwipe(changeReady, archiveReady, photoDate), archiveIn: () => archiveIn }; // The earlier photo ("ready", a Promise), "did the time run out?" ("timedOut"), and "is the archive answer in yet?" ("..." copies ready and timedOut in)
 
   return { changeReady, swipe, photoDate }; // The answers still to come (Promises), and the photo date ({ ready, now })
 } // End of startRequests
 
 // Get the swipe's earlier photo ready: wait for the archive answer, then load its tiles and cut them to the square. Races
-// one deadline (IMAGERY_LIMIT_MS) and never stops anything else. Hands back a Promise with { before, tags }, or null when
-// there's no earlier photo, it fails, or the time runs out. Started by startRequests, so it runs while the globe turns.
+// one deadline (IMAGERY_LIMIT_MS) and never stops anything else. Hands back { ready, timedOut }: "ready" is a Promise with
+// { before, tags }, or null when there's no earlier photo, it fails, or the time runs out; "timedOut()" says whether the time
+// ran out (so the map can say why no swipe came). Started by startRequests, so it runs while the globe turns.
 function startSwipe(changeReady, archiveReady, photoDate) {
-  const deadline = wait(IMAGERY_LIMIT_MS).then(() => null); // Finishes with null when the time is up
+  let timedOut = false; // Becomes true when the time is up
+  const deadline = wait(IMAGERY_LIMIT_MS).then(() => { timedOut = true; return null; }); // Finishes with null when the time is up, and notes it
   const swipeReady = Promise.all([changeReady, archiveReady]) // When the land-cover result (for the square's corners) and the archive answer are in...
     .then(([change, archive]) => prepareSwipe(change, archive, photoDate)) // ...load the earlier photo's tiles (null if there's no square or no photo)
     .then((swipe) => (swipe && swipe.apartYears >= MIN_SWIPE_YEARS ? swipe : null)) // ...and only keep it if the two photos are far enough apart
     .catch(() => null); // A failure (e.g. tiles that won't load) means no swipe, never an error
-  return Promise.race([swipeReady, deadline]); // Whichever comes first
+  return { ready: Promise.race([swipeReady, deadline]), timedOut: () => timedOut }; // Whichever comes first, and a way to ask whether the time ran out
 } // End of startSwipe
 
 // The swipe is only shown when its two photos are at least this many years apart: comparing e.g. April 2016 with December 2017
@@ -234,8 +237,13 @@ async function showFinishedResult(place, change, swipeJob, photoDate, cancelled,
     showFindingTag(change.image.corners); // "FINDING EARLIER IMAGERY…" in the square's corner, so the wait is visible
     swipeReady.then((late) => { // When the earlier photo is ready (or isn't coming):
       if (cancelled()) return; // The visitor left or chose another place: that place's map is gone, nothing to do
-      hideFindingTag(); // The search is over either way
-      if (!late) return; // No earlier photo (none found in time): the result stays as it is
+      if (!late) { // No earlier photo: say why for a few seconds, instead of the label just vanishing (the result stays as it is)
+        const timedOut = swipeJob.timedOut(); // Did the time run out (Esri's archive was too slow), or is there no photo old enough?
+        endFindingTag(timedOut ? 'EARLIER IMAGERY TOOK TOO LONG' : 'NO EARLIER IMAGERY HERE'); // The label's last words, then it fades away
+        announce(timedOut ? 'Earlier imagery took too long to find.' : 'No earlier imagery for this square.'); // The same for screen-reader users
+        return; // Nothing more to do
+      } // End of the "no earlier photo" case
+      hideFindingTag(); // The earlier photo is here: the search is over
       showSwipe(late.before, change.image.corners, late.tags); // Add the swipe with the handle at the left edge (the colours stay)...
       glideToMiddle(); // ...and glide gently to the middle, for the comparison
       announce('Earlier imagery added: drag the handle on the map to compare.'); // Tell screen-reader users (no year: the photo's real date is on its tag)

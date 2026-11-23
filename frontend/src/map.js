@@ -706,9 +706,23 @@ export function showFindingTag(corners) {
 
 // Remove the "Finding … imagery" tag, if there is one
 export function hideFindingTag() {
+  clearTimeout(findingTagTimer); // Cancel a planned removal (endFindingTag), if any
   if (findingTag) findingTag.remove(); // Take it off the map
   findingTag = null; // And forget it
 } // End of hideFindingTag
+
+// When no earlier photo is coming: the tag says why ("text") for a few seconds, without the pulse, then disappears.
+// A new place or a new analysis in the meantime removes it at once (via hideFindingTag or showFindingTag).
+const FINDING_END_MS = 5000; // How long the last words stay, in milliseconds
+let findingTagTimer = null; // The planned removal, so it can be cancelled
+export function endFindingTag(text) {
+  if (!findingTag) return; // No tag on the map (e.g. it was already removed): nothing to do
+  const tag = findingTag.getElement(); // The tag's element on the page
+  tag.textContent = text; // The new words, e.g. "NO EARLIER IMAGERY HERE"
+  tag.classList.add('is-done'); // Stop the "still working" pulse (style.css)
+  clearTimeout(findingTagTimer); // Never two planned removals
+  findingTagTimer = setTimeout(hideFindingTag, FINDING_END_MS); // Remove it after a few seconds
+} // End of endFindingTag
 
 // Show the before/after swipe: the 2017 picture inside the square, left of a handle that starts at the left edge.
 // "before" is what buildBeforeImage made, "corners" the square's corners (for the handle), "tags" the two year tags'
