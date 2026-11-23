@@ -88,7 +88,8 @@ CANDIDATES = [
     ("kilauea_2018", "Kilauea 2018 lava, Hawaii", 19.480, -154.880, "cleared"),  # The 2018 lower Puna eruption buried forest and homes (Leilani Estates to Kapoho)
     ("la_palma_2021", "La Palma 2021 lava, Spain", 28.615, -17.905, "cleared"),  # The 2021 Cumbre Vieja eruption buried banana fields, vineyards and villages
     ("atacama", "Salar de Atacama lithium ponds, Chile", -23.650, -68.360, "water"),  # Lithium evaporation ponds on the salt flat
-    # --- A stronger South American place than Cajamar (fourth run, 2026-11-23). Winner: Hidroituango (150.5 ha new water) ---
+    # --- A stronger South American place than Cajamar (fourth run, 2026-11-23). Winner: Hidroituango (150.5 ha new water;
+    #     the hotspot uses a square about 6 km further west, picked by eye, 7.0824, -75.7389: 167.9 ha, and a greener "before" photo) ---
     ("hidroituango", "Hidroituango reservoir, Colombia", 7.100, -75.700, "water"),  # Dam on the Cauca river; its reservoir flooded the forested canyon from 2018
     ("chancay_2024", "Chancay megaport, Peru", -11.585, -77.270, "built"),  # Port opened in 2024 (re-run with 2024 data: a third of the square has no data)
     ("lima_airport", "Lima airport new terminal, Peru", -12.030, -77.120, "built"),  # New runway and terminal, 2019-2024
