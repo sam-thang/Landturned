@@ -228,8 +228,7 @@ Quiet and drafted: an outline, a label, nothing else.
 
 ### Inputs / Fields
 - **Style:** the search field is one outlined bar: 1 px Pencil Grey (the strongest outline in the panel, because it's the main action; Hairline was only 1.2:1, below WCAG's 3:1 for a field's edge), square, filled with Night Sheet so it sits a step darker than the panel. A drawn magnifier in Faint Pencil on the left, 16 px text (so phones don't zoom in), and a hint in Faint Pencil.
-- **Hover:** the outline brightens to Drafting Ink; nothing moves.
-- **Focus:** the whole bar gets the 2 px New-Water Blue outline (the text box itself has none).
+- **Hover and focus:** the outline brightens to Drafting Ink; nothing moves. While typing, that white outline is the focus sign: the user rejected the blue focus outline on the search field (2026-11-23). Buttons keep the blue outline for keyboard focus.
 - **Submit:** a drawn arrow appears at the right only once something is typed; it is Pencil Grey, brightening to Drafting Ink on hover.
 
 ### Navigation

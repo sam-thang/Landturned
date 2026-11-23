@@ -1495,10 +1495,12 @@ h1:focus {
      faint hairline the other buttons use was only 1.2:1). The only strongly drawn box in the panel, so the eye goes here first */
   background: var(--bg); /* Darker than the panel, so the box stands out */
 } /* End of the search rule */
-/* Pointing at the search box: the outline brightens to white (drafting ink); nothing moves */
-.search:hover {
+/* Pointing at the search box, or typing in it: the outline brightens to white (drafting ink); nothing moves. While typing
+   this is also the focus sign (the user didn't want the blue outline here), so keyboard users still see where they are */
+.search:hover,
+.search:focus-within {
   border-color: var(--ink); /* White-ish outline */
-} /* End of the search hover rule */
+} /* End of the search hover and focus rule */
 
 /* The text box */
 .search input {
@@ -1669,8 +1671,7 @@ h1:focus {
   flex: none; /* Never shrink or grow */
 } /* End of the dot rule */
 
-/* A visible blue outline for keyboard users (Tab key) on the text box and all buttons */
-.search:has(input:focus-visible),
+/* A visible blue outline for keyboard users (Tab key) on the buttons. Not on the search box: its outline turns white instead (above) */
 .search button:focus-visible,
 .locate:focus-visible,
 .place-button:focus-visible {
