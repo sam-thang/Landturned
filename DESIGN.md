@@ -143,9 +143,9 @@ The system has no single brand accent. Its "primary" role is shared by the four 
 ### Neutral
 - **Night Sheet** (#0a0c0f): the page and the stage behind the globe and map; also the inside of the search field, so the field sits slightly darker than the panel around it.
 - **Night Board** (#0e1115): the text panel, one step lighter than the sheet so the panel and the stage read as two parts of the same drawing.
-- **Hairline** (#1f252d): every 1 px divider and outline: the panel edge, the stats table rules, the outlines of buttons and the search field, the progress-bar track.
+- **Hairline** (#1f252d): every 1 px divider and outline: the panel edge, the stats table rules, the outlines of buttons, the progress-bar track.
 - **Drafting Ink** (#e6e9ee): all primary text, the scale bar, the north arrow, finished loading steps, and the survey-mark pin on the globe.
-- **Pencil Grey** (#8c96a3): secondary text: the intro, the coordinates under a title, kickers, the "green space lost" total, and hover outlines.
+- **Pencil Grey** (#8c96a3): secondary text: the intro, the coordinates under a title, kickers, the "green space lost" total, hover outlines, and the search field's outline (6.3:1, so the field clearly reads as something to type into).
 - **Faint Pencil** (#747f8e): the least important text: the data note, the search hint, and loading steps not reached yet. It is kept at 4.66:1 on the panel so small text still meets WCAG AA.
 - **Night Veil** (night-sheet at 70%): the backing behind everything drawn over the photo (scale bar and north arrow, the area label, the image credit), so annotations stay readable over bright imagery while the photo shows through.
 - **Ghost Line** (drafting ink at 35%): the outline of annotation boxes that float over the globe or the map: the pin card, the callout label, and the line between the pin card's rows.
@@ -227,7 +227,8 @@ Quiet and drafted: an outline, a label, nothing else.
 - **Internal Padding:** 7 × 10 px for annotation boxes.
 
 ### Inputs / Fields
-- **Style:** the search field is one outlined bar: 1 px Hairline, square, filled with Night Sheet so it sits a step darker than the panel. A drawn magnifier in Faint Pencil on the left, 16 px text (so phones don't zoom in), and a hint in Faint Pencil.
+- **Style:** the search field is one outlined bar: 1 px Pencil Grey (the strongest outline in the panel, because it's the main action; Hairline was only 1.2:1, below WCAG's 3:1 for a field's edge), square, filled with Night Sheet so it sits a step darker than the panel. A drawn magnifier in Faint Pencil on the left, 16 px text (so phones don't zoom in), and a hint in Faint Pencil.
+- **Hover:** the outline brightens to Drafting Ink; nothing moves.
 - **Focus:** the whole bar gets the 2 px New-Water Blue outline (the text box itself has none).
 - **Submit:** a drawn arrow appears at the right only once something is typed; it is Pencil Grey, brightening to Drafting Ink on hover.
 

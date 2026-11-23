@@ -1491,9 +1491,14 @@ h1:focus {
   align-items: center; /* Lined up vertically */
   flex: 1; /* Take all the width the "My location" button doesn't need */
   min-width: 0; /* Allow shrinking on narrow phones instead of pushing the button out */
-  border: 1px solid var(--line); /* Thin outline */
+  border: 1px solid var(--muted); /* Pencil-grey outline (6.3:1 on the dark panel, so it clearly reads as a box to type in; the
+     faint hairline the other buttons use was only 1.2:1). The only strongly drawn box in the panel, so the eye goes here first */
   background: var(--bg); /* Darker than the panel, so the box stands out */
 } /* End of the search rule */
+/* Pointing at the search box: the outline brightens to white (drafting ink); nothing moves */
+.search:hover {
+  border-color: var(--ink); /* White-ish outline */
+} /* End of the search hover rule */
 
 /* The text box */
 .search input {
