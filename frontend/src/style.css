@@ -984,6 +984,12 @@ h1:focus {
   line-height: 1.5; /* Comfortable spacing between lines */
 } /* End of the lede rule */
 
+/* "How this works →" under the intro: a quiet link in the small-print style (see .note-link), on its own short line */
+.lede-link {
+  margin: 6px 0 0; /* Just under the intro */
+  font-size: 13px; /* Small, like the other quiet lines */
+} /* End of the intro link rule */
+
 /* Use the monospace font (for coordinates and technical labels) */
 .mono {
   font-family: var(--mono); /* Every character equally wide, like on a technical drawing */
@@ -1658,6 +1664,26 @@ h1:focus {
 
 /* The narrowest phones (under 380 px wide, e.g. iPhone SE): the hint text "Enter any address" is 1 px smaller, so it
    fits next to the "My location" button. Typed text stays 16 px: iPhones zoom in on text boxes with smaller typing text. */
+/* Short phones (e.g. an iPhone in Safari with its bars showing, about 664 px tall): tighter spacing in the panel, so the
+   place buttons still fit under the intro's "How this works" line without squeezing the globe (its size is fixed) */
+@media (max-width: 899px) and (max-height: 720px) {
+  .panel {
+    padding-top: 12px; /* 4 px less space above the headline */
+  } /* End of the short-phone panel rule */
+  .search-row {
+    margin: 6px 0; /* 6 px above and below the search box instead of 12 */
+  } /* End of the short-phone search row rule */
+  .places {
+    margin-top: 6px; /* 6 px above the place buttons instead of 10 */
+  } /* End of the short-phone places rule */
+} /* End of the short-phone rules */
+/* Narrow and short phones (e.g. 360 x 640): the intro a touch smaller, so it stays on two lines instead of three */
+@media (max-width: 379px) and (max-height: 720px) {
+  .lede {
+    font-size: 14px; /* 1 px smaller than usual */
+  } /* End of the narrow short-phone intro rule */
+} /* End of the narrow short-phone rules */
+
 @media (max-width: 379px) {
   .search input::placeholder {
     font-size: 15px; /* Slightly smaller hint text */
