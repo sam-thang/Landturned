@@ -63,12 +63,18 @@ function wait(ms) {
 // The chosen place is kept in the address, e.g. "/?lat=33.97470&lon=-117.56650&name=Eastvale". So if the page is
 // reloaded (phones often do this after the browser was in the background), or the link is shared, the same place opens.
 
-// Write a place into the address bar. replaceState changes the address without reloading the page or adding a "back" step.
-function setUrlPlace(place) {
+// Write a place into the address bar, without reloading the page. With "addStep", pushState adds a step to the browser's
+// history (so its Back button returns to the landing page); otherwise replaceState swaps the current address (no new step).
+function setUrlPlace(place, addStep = false) {
   const params = new URLSearchParams({ lat: place.lat.toFixed(5), lon: place.lon.toFixed(5) }); // Build "lat=...&lon=..." safely (spaces and commas get encoded)
   if (place.name) params.set('name', place.name); // Add "&name=..." only if the place has a name (null means "no town here")
-  history.replaceState(null, '', `?${params}`); // Put it in the address bar
+  if (addStep) history.pushState(null, '', `?${params}`); // A new history step: Back now leads to the landing page's address
+  else history.replaceState(null, '', `?${params}`); // Just change the address (e.g. "Analyze this area", or opening a shared link)
 } // End of setUrlPlace
+
+// True while the result's address sits on a history step we added ourselves (chosen from the landing page). Then
+// "← New place" goes back through the browser's history, so no extra landing steps pile up.
+let addedHistoryStep = false;
 
 // Remove the place from the address bar, back to the plain landing page address
 function clearUrlPlace() {
@@ -264,7 +270,9 @@ async function selectPlace(place) {
   const cancelled = () => myTicket !== placeTicket; // A small helper: true once a newer ticket exists (the visitor went back)
   globe.clearPin(); // Remove any pin and its card, so they don't sit on top of the callout
   hideMessage(); // Clear any old message
-  setUrlPlace(place); // Put the place in the address bar right away, so a reload during loading also comes back here
+  const fromLanding = !placeFromUrl(); // No place in the address yet: chosen on the landing page (not a shared link, a reload, or Forward)
+  setUrlPlace(place, fromLanding); // Put the place in the address bar right away, so a reload during loading also comes back here; from the landing page as a new history step
+  if (fromLanding) addedHistoryStep = true; // Remember it, for "← New place"
 
   // Fill in and show the "locating" panel
   document.getElementById('locating-name').textContent = placeTitle(place); // The place name (or its coordinates if it has none)
@@ -525,8 +533,14 @@ creditToggle.addEventListener('click', () => {
 
 // Go back from a place to the landing globe. Used by "← New place" (after a result) and by "← Back to globe"
 // (while loading, to cancel, or after the map failed to load), so all of them take the same path.
-async function returnToGlobe() {
+// "fromHistory" is true when the browser's Back button started it (see the popstate listener below).
+async function returnToGlobe(fromHistory = false) {
   if (!['result', 'failed', 'locating', 'analysing'].includes(mode)) return; // Only from a result, a failed load, while loading, or while analysing an area
+  if (!fromHistory && addedHistoryStep) { // A button was pressed, and we added a history step for this place:
+    history.back(); // Step back through the browser's history instead; its popstate event comes back here with fromHistory = true
+    return; // So nothing more to do now
+  } // End of the history check
+  addedHistoryStep = false; // The step is used up (or there was none)
   mode = 'returning'; // We're busy going back: ignore place clicks until we're done
   placeTicket += 1; // A new ticket: if a place is still loading (or an area being analysed), its chain sees this and stops (that's the cancel)
   setAnalysing(null); // End any "Analysing…" state on the map
@@ -546,8 +560,15 @@ async function returnToGlobe() {
   mode = 'landing'; // Ready for a new place
 } // End of returnToGlobe
 
-document.getElementById('back').addEventListener('click', returnToGlobe); // "← New place" on the result panel
-document.getElementById('locating-back').addEventListener('click', returnToGlobe); // "← Back to globe" on the locating panel, after a failed map load
+document.getElementById('back').addEventListener('click', () => returnToGlobe()); // "← New place" on the result panel ("() =>" so the click event isn't passed in as fromHistory)
+document.getElementById('locating-back').addEventListener('click', () => returnToGlobe()); // "← Back to globe" on the locating panel, after a failed map load
+
+// The browser's Back and Forward buttons: the address has already changed when "popstate" fires, so follow it.
+window.addEventListener('popstate', () => { // Back or Forward was pressed (or history.back() was called above)
+  const place = placeFromUrl(); // The place in the address now, or null for the landing page
+  if (!place) returnToGlobe(true); // No place: back to the globe (does nothing if we're already there)
+  else if (mode === 'landing') selectPlace(place); // A place again (Forward): open it, as if chosen (the address is already right, so no new step)
+}); // End of the Back/Forward listener
 
 // ---------- Place buttons ----------
 
