@@ -585,7 +585,7 @@ wheels = [
 ]
 
 [[package]]
-name = "landturn-backend"
+name = "landturned-backend"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

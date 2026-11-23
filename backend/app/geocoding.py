@@ -30,7 +30,7 @@ MIN_GAP_S = 0.2  # The shortest time between two requests to Geoapify, in second
 MAX_WAIT_S = 3.0  # If a request would have to wait longer than this for its turn, answer "busy" instead of keeping the visitor waiting
 DAILY_LIMIT = 2900  # Requests per day we allow ourselves: safely under the free plan's 3,000 (counted per UTC day, like Geoapify)
 TIMEOUT_S = 10  # How long to wait for Geoapify's answer before giving up, in seconds
-USER_AGENT = "Landturn/0.1 (land-change portfolio project)"  # How our server introduces itself in each request
+USER_AGENT = "Landturned/0.1 (land-change portfolio project)"  # How our server introduces itself in each request
 CACHE_DIR = settings.CACHE_ROOT / "geocoding"  # backend/cache/geocoding (or on the server's disk, see settings.py): one small file per answered question (ignored by git, like the other caches)
 USAGE_FILE = CACHE_DIR / "usage.json"  # Today's request count, kept on disk so a server restart doesn't reset it
 

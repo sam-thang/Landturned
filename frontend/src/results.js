@@ -114,7 +114,7 @@ export function showResults(place, change, coordsText) {
   const heading = document.getElementById('result-name'); // The big heading (the reveal sentence)
   const stats = document.getElementById('stats'); // The list of four stat rows
   const greenLost = document.getElementById('green-lost'); // The "green space lost in total" line
-  const note = document.getElementById('result-note'); // Small print, line 1: the land cover and what Landturn does
+  const note = document.getElementById('result-note'); // Small print, line 1: the land cover and what Landturned does
 
   if (!change) { // No change data (the backend failed or has nothing here):
     document.getElementById('result-kicker').textContent = coordsText; // Just the coordinates, no years
@@ -141,7 +141,7 @@ export function showResults(place, change, coordsText) {
   greenLost.textContent = `In total, ${formatHa(s.green_lost)} ha of green space was lost: cleared, built on, or flooded.`; // The overall green-loss figure, and what it's made of (so it doesn't read as contradicting the red row)
   greenLost.hidden = false; // Show it
 
-  let noteText = `Land cover: Impact Observatory’s 10 m maps of ${from} and ${to}. Landturn compares them pixel by pixel and counts the changes; changes narrower than 30 m are left out.`; // Who made the labels, and what Landturn does with them; the 30 m rule matches remove_thin_changes in backend/app/landcover.py (" " is a non-breaking space: a number never gets split from its unit)
+  let noteText = `Land cover: Impact Observatory’s 10 m maps of ${from} and ${to}. Landturned compares them pixel by pixel and counts the changes; changes narrower than 30 m are left out.`; // Who made the labels, and what Landturned does with them; the 30 m rule matches remove_thin_changes in backend/app/landcover.py (" " is a non-breaking space: a number never gets split from its unit)
   if (s.no_data > 0) noteText += ` No data (clouds) for ${formatHa(s.no_data)} ha of the square.`; // Mention gaps, if there are any
   note.textContent = `${noteText} Estimates, not a survey.`; // Always end by saying what kind of numbers these are
 } // End of showResults

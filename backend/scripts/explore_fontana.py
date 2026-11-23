@@ -1,4 +1,4 @@
-# Exploration script: look at the real land-cover data for one place, in Landturn's six categories.
+# Exploration script: look at the real land-cover data for one place, in Landturned's six categories.
 # It is not part of the app. Run it from the backend folder with:  uv run python -m scripts.explore_fontana
 # To look at another spot, add its latitude and longitude:          uv run python -m scripts.explore_fontana 34.03 -117.47
 # ("-m" runs the file as a module, which lets it find our own code in the app folder.)
@@ -102,7 +102,7 @@ def main():
     for label, (lo, la) in zip(["top-left", "top-right", "bottom-right", "bottom-left"], corners):  # Each corner with its name
         print(f"  {label:<14}{lo:.6f}, {la:.6f}")  # 6 decimals = about 10 cm
     png = change_image.make_png(change)  # Turn the change grid into a PNG picture
-    out_path = Path(tempfile.gettempdir()) / "landturn-change.png"  # Save it in the temporary-files folder, not in the project
+    out_path = Path(tempfile.gettempdir()) / "landturned-change.png"  # Save it in the temporary-files folder, not in the project
     out_path.write_bytes(png)  # Write the PNG bytes to that file
     print(f"Change picture saved ({len(png):,} bytes): {out_path}")  # Say where it is and how big ("," adds thousands separators)
 

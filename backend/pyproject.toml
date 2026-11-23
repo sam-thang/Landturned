@@ -1,9 +1,9 @@
 # The backend's ID card and library list (the Python version of package.json). uv reads and updates this file.
 
 [project] # Basic facts about the project
-name = "landturn-backend" # The project's name
+name = "landturned-backend" # The project's name
 version = "0.1.0" # Our own version number; "0.x" means early development
-description = "Landturn backend: compares land-cover maps between years and returns the change." # One-line summary
+description = "Landturned backend: compares land-cover maps between years and returns the change." # One-line summary
 requires-python = ">=3.13" # This project needs Python 3.13 or newer
 dependencies = [
     "fastapi[standard]>=0.163.1", # FastAPI (turns Python functions into web addresses), plus Uvicorn (the server that runs it) and other helpers

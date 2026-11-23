@@ -1,5 +1,5 @@
 ---
-name: Landturn
+name: Landturned
 description: How the land around any address on Earth has changed, drawn like a site plan at night.
 colors:
   night-sheet: "#0a0c0f"
@@ -109,13 +109,13 @@ components:
     padding: "11px 0"
 ---
 
-# Design System: Landturn
+# Design System: Landturned
 
 ## Overview
 
 **Creative North Star: "The Site Plan at Night"**
 
-Landturn is a planner's drawing set laid out on a dark sheet. The satellite photo is the drawing's base layer, and everything Landturn adds sits on top of it the way annotations sit on a site plan: a square analysis boundary, a north arrow, a scale bar, a title block, a short legend, and a few lines of plain lettering. The interface is the drafting around the picture, never the picture itself. It is calm and honest: it states what was measured, where, between which years, and how rough the estimate is, without dramatising the change.
+Landturned is a planner's drawing set laid out on a dark sheet. The satellite photo is the drawing's base layer, and everything Landturned adds sits on top of it the way annotations sit on a site plan: a square analysis boundary, a north arrow, a scale bar, a title block, a short legend, and a few lines of plain lettering. The interface is the drafting around the picture, never the picture itself. It is calm and honest: it states what was measured, where, between which years, and how rough the estimate is, without dramatising the change.
 
 The sheet is dark because the photo and the four change colours need to glow against it, and because a lit plan read at night is the mood: quiet, focused, unhurried. Density is low. A visitor sees one image, one sentence and one short table at a time. Hierarchy comes from size, weight and the step from drafting ink down to pencil grey, never from boxes, fills or shadows.
 
@@ -190,7 +190,7 @@ The map itself is turned grid-up so the square analysis area sits straight, and 
 
 ## Elevation & Depth
 
-Landturn is flat. There are no shadows anywhere. Depth comes from three dark tones (Night Sheet for the page, Night Board for the panel, Night Veil over the imagery) and from 1 px lines. The only glow in the system is the faint atmosphere ring drawn around the globe, which belongs to the globe drawing, not to the interface.
+Landturned is flat. There are no shadows anywhere. Depth comes from three dark tones (Night Sheet for the page, Night Board for the panel, Night Veil over the imagery) and from 1 px lines. The only glow in the system is the faint atmosphere ring drawn around the globe, which belongs to the globe drawing, not to the interface.
 
 ### Named Rules
 **The Flat Sheet Rule.** Nothing casts a shadow. To separate a layer, use a darker tone, a translucent veil or a hairline, the way a drawing separates its parts.

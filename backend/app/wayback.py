@@ -30,7 +30,7 @@ TIMEOUT_S = 30  # Some archive versions' metadata services take ~15 s to wake up
 # The "view" we describe to the metadata service, so it answers with the photo shown at our map's zoom:
 VIEW_HALF_DEG = 0.009  # About 1 km each way: the 2 x 2 km square
 VIEW_PIXELS = 800  # ...seen on about 800 screen pixels (roughly 2.5 m per screen pixel, like the result map)
-HEADERS = {"User-Agent": "Landturn (portfolio project)"}  # A polite name for our requests
+HEADERS = {"User-Agent": "Landturned (portfolio project)"}  # A polite name for our requests
 CACHE_DIR = settings.CACHE_ROOT / "wayback"  # backend/cache/wayback (or on the server's disk, see settings.py; ignored by git, like the other cache)
 
 _config = {"loaded_at": 0, "versions": []}  # The remembered archive list ("_" = only for this module)

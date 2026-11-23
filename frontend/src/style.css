@@ -944,6 +944,11 @@ body {
   color: var(--muted); /* Grey */
 } /* End of the kicker rule */
 
+/* "Landturned · Sheet 00 · World": written in normal case (so screen readers say the name), drawn in capitals like a sheet number */
+.sheet-label {
+  text-transform: uppercase; /* Capitals on screen */
+} /* End of the sheet label rule */
+
 /* The headline */
 h1 {
   margin: 10px 0 16px; /* Space above and below (top, left/right, bottom); the bottom leaves room for the underline under "turned." */
@@ -1625,7 +1630,7 @@ h1:focus {
 /* Phones and small tablets (narrower than 900 px): make the landing panel short enough to fit below the globe without scrolling */
 @media (max-width: 899px) {
   .sheet-label {
-    display: none; /* Hide "LANDTURN · SHEET 00 · WORLD" on phones: the headline says enough */
+    display: none; /* Hide "Landturned · Sheet 00 · World" on phones: the headline says enough */
   } /* End of the sheet label rule */
 
   .panel {

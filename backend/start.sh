@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-# Starts the Landturn server in production (Render runs this from the backend folder). Locally, use
+# Starts the Landturned server in production (Render runs this from the backend folder). Locally, use
 # "uv run uvicorn app.main:app --port 8000" as usual; this script is for the server.
 
 set -e  # Stop at the first command that fails, instead of carrying on half-started

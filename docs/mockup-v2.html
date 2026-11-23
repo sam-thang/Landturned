@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Landturn mockup v2</title>
+<title>Landturned mockup v2</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
@@ -133,7 +133,7 @@ input[type=range]{width:100%;accent-color:#e6e9ee}
 
   <section class="panel">
     <div id="pLanding">
-      <p class="kicker mono">LANDTURN · SHEET 00 · WORLD</p>
+      <p class="kicker mono">LANDTURNED · SHEET 00 · WORLD</p>
       <h1>Every place on Earth has turned.</h1>
       <p class="lede">Enter any address to see how its land changed since 1985: what was built, what was cleared, what went under water.</p>
       <form class="search" id="search">
@@ -407,7 +407,7 @@ function reveal(p){
     ?`Since 1985, <b style="color:var(--water)">${ha(c.water).replace(" ha"," hectares")}</b> around <em>${n}</em> went under water.`
     :`Since 1985, <em>${n}</em> turned <b style="color:var(--built)">${ha(c.built).replace(" ha"," hectares")}</b> of open land into buildings within 1 km.`;
   $('tblock').innerHTML=[
-    ['','LANDTURN'],['SITE',p.name],['COORD',coordStr(p)],['PERIOD','1985 – 2024'],
+    ['','LANDTURNED'],['SITE',p.name],['COORD',coordStr(p)],['PERIOD','1985 – 2024'],
     ['DATA','GLC_FCS30D 30 m · IO 10 m'],['SHEET','01 · SIMULATED']
   ].map(([k,v])=>k?`<div><dt>${k}</dt><dd>${v}</dd></div>`:`<div>${v}</div>`).join('');
   show('pResult');

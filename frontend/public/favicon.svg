@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <!-- Landturn's tab icon: the four change colors stacked, in the headline underline's order, on the page's near-black.
+  <!-- Landturned's tab icon: the four change colors stacked, in the headline underline's order, on the page's near-black.
        Drawn on a 32 x 32 grid where every edge lands on a whole pixel at 16 px (bars 2 px tall, 1 px gaps), so the
        tab icon stays sharp. The other icon files (favicon.ico, apple-touch-icon.png) are made from this one. -->
   <rect width="32" height="32" fill="#0a0c0f"/> <!-- The background: the page's near-black -->

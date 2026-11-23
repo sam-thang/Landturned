@@ -11,7 +11,7 @@ After reading, a visitor can say in one sentence: *"They compare two land-cover 
 ## 3. Direction
 One vertical sheet in the drawing style, in this order:
 
-- **A. Title block:** "How Landturn estimates change", plus one framing line: estimates from satellite-based maps, not exact science.
+- **A. Title block:** "How Landturned estimates change", plus one framing line: estimates from satellite-based maps, not exact science.
 - **B. The idea as a clean diagram (made-up, labelled "Diagram"):** a minimal 2 × 2 km square becomes a grid, gets labels for two years, changed cells take their change colour, and they are counted. Hairlines, the four colours, no fluff. Each scroll step adds one stage.
 - **C. Real pixels:** a small real patch from Ontario Ranch (about 400 × 400 m, 40 × 40 pixels), 2017 and 2023. Tap a pixel to see its label in both years.
 - **D. The explorer (focal moment):** the same real patch with a year slider (2017 to the latest year), an "edge cleaning on/off" switch, and the hectares recounted live.

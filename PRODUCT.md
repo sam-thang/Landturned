@@ -18,7 +18,7 @@ When their needs conflict, the curious public wins: clarity and trust for a non-
 
 ## Product Purpose
 
-Landturn shows how the land around any address in the world has changed over time. You enter an address (or pick a highlighted place, or use your location), and Landturn compares published land-cover maps from two years across a 2 × 2 km square centred on that spot.
+Landturned shows how the land around any address in the world has changed over time. You enter an address (or pick a highlighted place, or use your location), and Landturned compares published land-cover maps from two years across a 2 × 2 km square centred on that spot.
 
 **Success:** people *see the change with their own eyes* in the before/after swipe and the color-coded change map, and leave with **one striking, honest number about their place** that they could repeat to someone else (e.g. how many hectares of open land turned into buildings).
 
@@ -26,7 +26,7 @@ Landturn shows how the land around any address in the world has changed over tim
 
 - **Any address on Earth, not a curated gallery.** Nothing is hard-coded to one country; the highlighted places are an invitation, not the limit.
 - **A planner's eye.** The result reads like a site plan: a fixed, square analysis area, a title block, a scale bar, a north arrow, and stats that describe exactly the square people see when they swipe.
-- **Honest by construction.** Landturn does not classify imagery itself. It compares published, pre-classified global land-cover maps, and says plainly that results are estimates, which datasets and years they come from, and how coarse they are.
+- **Honest by construction.** Landturned does not classify imagery itself. It compares published, pre-classified global land-cover maps, and says plainly that results are estimates, which datasets and years they come from, and how coarse they are.
 
 ## Operating Context
 
@@ -47,7 +47,7 @@ Landturn shows how the land around any address in the world has changed over tim
 
 ## Brand Commitments
 
-- Name: **Landturn**. Its voice is plain, specific and calm, stating facts, never hype.
+- Name: **Landturned**. Its voice is plain, specific and calm, stating facts, never hype.
 - Binding direction from the user (full detail in `CLAUDE.md`): dark, minimal and image-led; a planning-drawing identity; the four change colors are the only accent colors; a D3 linework globe on the landing page (not MapLibre's globe); no locator "key map" globe; don't look like watch.earth. `docs/mockup-v2.html` is the design reference, and `CLAUDE.md` wins where the two differ.
 
 ## Evidence on Hand

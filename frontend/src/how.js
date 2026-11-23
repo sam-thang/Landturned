@@ -271,7 +271,7 @@ function drawClasses(svg) {
   const RIGHT_W = 134; // ...and are this wide (ending at 340)
   const BUS_X = 167; // The upright line where merging wires meet, halfway between the two columns
   label(svg, 0, 12, 'Impact Observatory', 'start'); // Heading over the left column
-  label(svg, RIGHT_X, 12, 'Landturn', 'start'); // Heading over the right column
+  label(svg, RIGHT_X, 12, 'Landturned', 'start'); // Heading over the right column
 
   const middleOf = (row) => TOP + row * ROW + BOX / 2; // The middle height of the left box in this row
 

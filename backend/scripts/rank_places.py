@@ -140,7 +140,7 @@ def main():
     """Rank the candidates (or only the ones named on the command line) and print a table."""
     wanted = set(sys.argv[1:])  # Any ids typed after the script name, e.g. {"giga_texas", "gerd"}
     candidates = [c for c in CANDIDATES if not wanted or c[0] in wanted]  # All candidates, or only the wanted ones
-    out_dir = Path(tempfile.gettempdir()) / "landturn-places"  # A folder in the temporary-files folder for the change pictures
+    out_dir = Path(tempfile.gettempdir()) / "landturned-places"  # A folder in the temporary-files folder for the change pictures
     out_dir.mkdir(exist_ok=True)  # Create it (no error if it already exists)
 
     results = []  # One row per candidate, filled in below

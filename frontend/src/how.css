@@ -97,7 +97,7 @@ h1 {
   color: var(--muted); /* Pencil Grey, so the title leads */
 } /* End of the lede rule */
 
-/* "Impact Observatory labels the land. Landturn compares...": who does what, set apart by a hairline on its left like a
+/* "Impact Observatory labels the land. Landturned compares...": who does what, set apart by a hairline on its left like a
    note on a drawing, and in ink, so it's read before the longer paragraph */
 .roles {
   margin: 0 0 18px; /* Space below */

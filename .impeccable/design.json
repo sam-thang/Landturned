@@ -1,7 +1,7 @@
 {
   "schemaVersion": 2,
   "generatedAt": "2026-11-19T09:00:00Z",
-  "title": "Design System: Landturn",
+  "title": "Design System: Landturned",
   "extensions": {
     "colorMeta": {
       "night-sheet": { "role": "neutral", "displayName": "Night Sheet", "canonical": "#0a0c0f", "tonalRamp": ["oklch(12% 0.008 250)", "oklch(15% 0.008 250)", "oklch(20% 0.01 250)", "oklch(30% 0.012 250)", "oklch(45% 0.014 250)", "oklch(62% 0.014 250)", "oklch(80% 0.01 250)", "oklch(95% 0.005 250)"] },
@@ -101,7 +101,7 @@
   ],
   "narrative": {
     "northStar": "The Site Plan at Night",
-    "overview": "Landturn is a planner's drawing set laid out on a dark sheet. The satellite photo is the drawing's base layer, and everything Landturn adds sits on top of it the way annotations sit on a site plan: a square analysis boundary, a north arrow, a scale bar, a title block, a short legend, and a few lines of plain lettering. The interface is the drafting around the picture, never the picture itself. It is calm and honest: it states what was measured, where, between which years, and how rough the estimate is, without dramatising the change.\n\nThe sheet is dark because the photo and the four change colours need to glow against it, and because a lit plan read at night is the mood: quiet, focused, unhurried. Density is low. A visitor sees one image, one sentence and one short table at a time. Hierarchy comes from size, weight and the step from drafting ink down to pencil grey, never from boxes, fills or shadows.\n\nEverything is square-cornered and drawn with 1 px lines. Labels and buttons speak in the \"drawing voice\", small uppercase monospace lettering spread a little apart, as on an architectural sheet, while sentences people actually read stay in normal sentence case. The four change colours are the only colour in the whole system, and each one means exactly one kind of change.",
+    "overview": "Landturned is a planner's drawing set laid out on a dark sheet. The satellite photo is the drawing's base layer, and everything Landturned adds sits on top of it the way annotations sit on a site plan: a square analysis boundary, a north arrow, a scale bar, a title block, a short legend, and a few lines of plain lettering. The interface is the drafting around the picture, never the picture itself. It is calm and honest: it states what was measured, where, between which years, and how rough the estimate is, without dramatising the change.\n\nThe sheet is dark because the photo and the four change colours need to glow against it, and because a lit plan read at night is the mood: quiet, focused, unhurried. Density is low. A visitor sees one image, one sentence and one short table at a time. Hierarchy comes from size, weight and the step from drafting ink down to pencil grey, never from boxes, fills or shadows.\n\nEverything is square-cornered and drawn with 1 px lines. Labels and buttons speak in the \"drawing voice\", small uppercase monospace lettering spread a little apart, as on an architectural sheet, while sentences people actually read stay in normal sentence case. The four change colours are the only colour in the whole system, and each one means exactly one kind of change.",
     "keyCharacteristics": [
       "A dark sheet with off-white \"ink\": near-black backgrounds, light text, no light theme.",
       "The satellite photo and the globe lead; controls are quiet and drafted (thin outlines, no fills).",

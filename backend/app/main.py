@@ -1,4 +1,4 @@
-# The Landturn backend: a small web API built with FastAPI.
+# The Landturned backend: a small web API built with FastAPI.
 
 import os  # Built into Python; reads settings ("environment variables"), such as where the built website is
 import threading  # Built into Python; runs the land-cover year check in the background when the server starts
@@ -14,7 +14,7 @@ from fastapi.staticfiles import StaticFiles  # Hands out ready-made files (the b
 from app import analysis, geocoding, imagery, landcover, wayback  # Our own code: the land-cover analysis, the address search, the satellite photo, the land-cover data, and Esri's imagery archive
 
 # Create the app. The title is shown on FastAPI's automatic documentation page (at /docs).
-app = FastAPI(title="Landturn backend")
+app = FastAPI(title="Landturned backend")
 # Compress every reply bigger than 1,000 bytes for browsers that accept it (all modern ones do). The website's code
 # shrinks from about 1.8 MB to about 0.7 MB, and the analysis answers shrink too.
 app.add_middleware(GZipMiddleware, minimum_size=1000)

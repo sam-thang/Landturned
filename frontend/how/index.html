@@ -3,11 +3,18 @@
   <head> <!-- Information about the page (not shown directly) -->
     <meta charset="UTF-8" /> <!-- Use UTF-8 text encoding, so letters like × and → display correctly -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /> <!-- Make the page fit phone screens instead of showing a tiny desktop page -->
-    <title>How Landturn works</title> <!-- The name shown in the browser tab -->
+    <title>How Landturned works</title> <!-- The name shown in the browser tab -->
     <link rel="icon" href="/favicon.ico" sizes="32x32" /> <!-- The tab icon for every browser (16, 32 and 48 px versions inside; frontend/public) -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" /> <!-- The same icon as a drawing, sharp at any size; browsers that read SVG icons use this one -->
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" /> <!-- The icon when someone adds Landturn to an iPhone or iPad home screen (180 x 180) -->
-    <meta name="description" content="How Landturn estimates land change from satellite-based land-cover maps, pixel by pixel, and why the results are estimates." /> <!-- The short summary search engines and link previews show -->
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" /> <!-- The icon when someone adds Landturned to an iPhone or iPad home screen (180 x 180) -->
+    <meta name="description" content="How Landturned estimates land change from satellite-based land-cover maps, pixel by pixel, and why the results are estimates." /> <!-- The short summary search engines and link previews show -->
+    <link rel="canonical" href="https://landturned.app/how/" /> <!-- The page's one official address, so search engines treat other addresses for it (like landturn.onrender.com) as copies -->
+    <meta property="og:type" content="website" /> <!-- Link previews ("Open Graph": used by messaging apps and social sites when someone shares the link): what kind of page this is -->
+    <meta property="og:site_name" content="Landturned" /> <!-- Link previews: the site's name -->
+    <meta property="og:title" content="How Landturned works" /> <!-- Link previews: the title -->
+    <meta property="og:description" content="How Landturned estimates land change from satellite-based land-cover maps, pixel by pixel, and why the results are estimates." /> <!-- Link previews: the line under the title -->
+    <meta property="og:url" content="https://landturned.app/how/" /> <!-- Link previews: the address to open -->
+    <meta name="twitter:card" content="summary" /> <!-- Link previews on X/Twitter: a small text card (no preview picture yet) -->
     <link rel="preconnect" href="https://fonts.googleapis.com" /> <!-- Start connecting to Google Fonts early, so the fonts arrive sooner -->
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin /> <!-- Same for the server that holds the actual font files -->
     <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" /> <!-- The same two fonts as the app -->
@@ -21,10 +28,10 @@
 
     <main class="method"> <!-- The main content: one column of reading text -->
       <section class="intro" aria-labelledby="title"> <!-- Section A: the title and what the page is about -->
-        <h1 id="title">How Landturn estimates change</h1> <!-- The page title -->
-        <p class="roles">Impact Observatory labels the land. Landturn compares the years, counts the change, and lays it over satellite photos.</p> <!-- Who does what, in one line: the classifying is theirs, the comparing, counting and showing is ours -->
+        <h1 id="title">How Landturned estimates change</h1> <!-- The page title -->
+        <p class="roles">Impact Observatory labels the land. Landturned compares the years, counts the change, and lays it over satellite photos.</p> <!-- Who does what, in one line: the classifying is theirs, the comparing, counting and showing is ours -->
         <p class="lede">Impact Observatory is a mapping company. Every year, its computer model looks at that year's pictures from Sentinel-2, two European satellites that photograph all of Earth's land every few days, and gives every 10&nbsp;m square of land one label, such as trees, crops or buildings. The result is a land-cover map of the whole world, published free for anyone to use.</p> <!-- Who Impact Observatory is and what they make, for people who've never heard of them -->
-        <p class="lede">Landturn reads those maps for every year from <span data-year="first">the first year</span> to <span data-year="latest">the latest year</span> and counts the pixels that changed. The results are <strong>estimates</strong> of change from satellite-based maps, not a survey and not exact science. This page shows how they are made, and where they can go wrong.</p> <!-- What Landturn does with them (how.js fills in the years), that it estimates, and what follows -->
+        <p class="lede">Landturned reads those maps for every year from <span data-year="first">the first year</span> to <span data-year="latest">the latest year</span> and counts the pixels that changed. The results are <strong>estimates</strong> of change from satellite-based maps, not a survey and not exact science. This page shows how they are made, and where they can go wrong.</p> <!-- What Landturned does with them (how.js fills in the years), that it estimates, and what follows -->
       </section> <!-- End of section A -->
 
       <!-- PLATE 01: the whole site at a glance, as five small drawings joined by arrows (how.js draws them into the empty
@@ -93,9 +100,9 @@
            diagram (how.js draws it), with notes beside it explaining each merge -->
       <section class="plate" aria-labelledby="classes-title"> <!-- The plate -->
         <h2 id="classes-title"><span class="plate-no">03</span>Their 9 classes, our 5</h2> <!-- Plate number and title -->
-        <p class="plate-lede">Impact Observatory sorts land into 9 classes. Landturn merges them into 5 categories, plus “no data”.</p> <!-- One line of framing -->
+        <p class="plate-lede">Impact Observatory sorts land into 9 classes. Landturned merges them into 5 categories, plus “no data”.</p> <!-- One line of framing -->
         <div class="wiring"> <!-- The drawing and its notes: side by side on wide screens, stacked on phones -->
-          <svg class="art wiring-art" data-art="classes" viewBox="0 0 370 300" role="img" aria-label="Impact Observatory's 9 classes joined to Landturn's categories: trees to trees; crops, rangeland and flooded vegetation to grass or farmland; built area to built; water to water; bare ground and snow or ice to bare ground; clouds to no data. Trees and grass or farmland together count as green space."></svg> <!-- Empty drawing box; the label describes every connection for screen readers -->
+          <svg class="art wiring-art" data-art="classes" viewBox="0 0 370 300" role="img" aria-label="Impact Observatory's 9 classes joined to Landturned's categories: trees to trees; crops, rangeland and flooded vegetation to grass or farmland; built area to built; water to water; bare ground and snow or ice to bare ground; clouds to no data. Trees and grass or farmland together count as green space."></svg> <!-- Empty drawing box; the label describes every connection for screen readers -->
           <ul class="wiring-notes"> <!-- One note per merge, in the drawing's order -->
             <li> <!-- Note 1 -->
               <h3>Three green classes become one</h3> <!-- Title -->
@@ -227,7 +234,7 @@
         <dl class="sources"> <!-- Each source: what it is, its credit line, its licence -->
           <dt>Land cover</dt> <!-- Source 1: all the numbers come from here -->
           <dd><a href="https://registry.opendata.aws/io-lulc/">10m Annual Land Use Land Cover (9-class)</a>, produced by Impact Observatory, Microsoft, and Esri from ESA Sentinel-2 imagery, <span data-year="first">first year</span> to <span data-year="latest">latest year</span>. Licensed under <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>; accessed from the AWS Registry of Open Data. All numbers come from these maps.</dd> <!-- Official title (linked to its page), producers, source imagery, years (filled in by how.js), licence -->
-          <dd>Changes made by Landturn: the 9 classes are simplified into 5 categories, each later year is compared with the first, and changes narrower than about 30&nbsp;m are removed.</dd> <!-- CC BY asks users to say what they changed -->
+          <dd>Changes made by Landturned: the 9 classes are simplified into 5 categories, each later year is compared with the first, and changes narrower than about 30&nbsp;m are removed.</dd> <!-- CC BY asks users to say what they changed -->
           <dt>Satellite imagery</dt> <!-- Source 2: the photos, for looking only -->
           <dd>Powered by Esri. <a href="https://www.arcgis.com/home/item.html?id=10df2279f9684e4a9f6a7f08febac2a9">World Imagery</a>: Esri, Vantor, Earthstar Geographics, and the GIS User Community.</dd> <!-- Esri's required "Powered by Esri", and the layer's own credit line -->
           <dd><a href="https://livingatlas.arcgis.com/wayback/">World Imagery Wayback</a> (the earlier photos): each archive release carries its own credits, for recent releases Esri, Vantor, Earthstar Geographics, and the GIS User Community; older releases also credit CNES/Airbus DS, USDA FSA, USGS, Aerogrid, IGN, and IGP.</dd> <!-- The archive's credits, which differ by release -->

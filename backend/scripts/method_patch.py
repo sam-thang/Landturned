@@ -130,7 +130,7 @@ def main():
     print(f"Reading every year for {PLACE}...")  # Say what's happening
     years, grids, corners = read_all_years()  # Read the square once per year
     candidates = find_candidates(grids, years)  # Find the best patches
-    out_dir = Path(tempfile.gettempdir()) / "landturn-method"  # A folder for the pictures
+    out_dir = Path(tempfile.gettempdir()) / "landturned-method"  # A folder for the pictures
     out_dir.mkdir(exist_ok=True)  # Create it (no error if it already exists)
 
     if "--save" in sys.argv:  # Saving a chosen candidate:

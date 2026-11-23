@@ -1,5 +1,5 @@
 # Land-cover data: find the yearly maps for a place, read our 2 x 2 km square, and translate the
-# dataset's classes into Landturn's own six categories.
+# dataset's classes into Landturned's own six categories.
 # The maps are Impact Observatory's 10 m annual land cover, read from its public AWS Open Data bucket (CC BY 4.0):
 # one file per UTM grid zone per year, so the file for a place can be worked out from its coordinates (no catalog search).
 

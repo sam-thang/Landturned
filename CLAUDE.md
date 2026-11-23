@@ -19,9 +19,16 @@ The user is learning to code. Treat every task as a chance to teach as well as t
 
 ## Project overview
 
-### What Landturn is
+### Name and address
 
-Landturn is a web app that shows how the land around any address in the world has changed over time. The user types an address and sees:
+- **Name:** Landturned (renamed from Landturn on 2026-11-23).
+- **Address:** https://landturned.app (Render's own address for the service, landturn.onrender.com, also works).
+- **Naming rule:** "Landturned" (capital L, rest lowercase) in all text people read: titles, labels, docs, comments. Lowercase "landturned" only in URLs, file names and code. Folder names (`landturn/`, the GitHub repo `sam-thang/landturn`) keep the old name.
+- **Kept on purpose:** the Render service name `landturn`, its disk `landturn-cache` and the setting `LANDTURN_CACHE_DIR`. Renaming them in `render.yaml` could make Render create a second service and an empty disk, or quietly stop saving to the disk.
+
+### What Landturned is
+
+Landturned is a web app that shows how the land around any address in the world has changed over time. The user types an address and sees:
 
 - a satellite map with a before/after swipe
 - a year slider
