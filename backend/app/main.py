@@ -1,16 +1,23 @@
 # The Landturn backend: a small web API built with FastAPI.
 
+import os  # Built into Python; reads settings ("environment variables"), such as where the built website is
 import threading  # Built into Python; runs the land-cover year check in the background when the server starts
+from pathlib import Path  # Built into Python; a handy way to build file paths
 from typing import Annotated  # Lets us attach extra rules to a function input (like "must be between -90 and 90")
 
 # Bring in FastAPI, the library that turns Python functions into web addresses,
 # HTTPException (for sending back an error answer) and Query (rules for ?name=value inputs in the address)
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.gzip import GZipMiddleware  # Compresses replies (like zipping a file) so they travel faster
+from fastapi.staticfiles import StaticFiles  # Hands out ready-made files (the built website) as they are
 
 from app import analysis, geocoding, imagery, landcover, wayback  # Our own code: the land-cover analysis, the address search, the satellite photo, the land-cover data, and Esri's imagery archive
 
 # Create the app. The title is shown on FastAPI's automatic documentation page (at /docs).
 app = FastAPI(title="Landturn backend")
+# Compress every reply bigger than 1,000 bytes for browsers that accept it (all modern ones do). The website's code
+# shrinks from about 1.8 MB to about 0.7 MB, and the analysis answers shrink too.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 # Check which land-cover years exist (is a newer year than the newest known one published yet?) as soon as the server starts,
 # in the background, so the first visitor doesn't wait for it. "daemon=True": this helper never keeps the server from stopping.
@@ -118,3 +125,13 @@ def imagery_photo(
         return imagery.square_photo(round(lat, 5), round(lon, 5), year)  # Rounded to about 1 m, so the memory (cache) recognises the same place asked twice
     except LookupError as error:  # ...but if there's no data or no usable image:
         raise HTTPException(status_code=404, detail=str(error)) from error  # Answer with 404 ("not found") and the reason
+
+
+# The website itself. In production (on Render), this same server also hands out the built site ("npm run build" puts it
+# in frontend/dist), so the site and its /api share one address. This comes last, after every /api route, so the API
+# always wins. During development the site comes from Vite (npm run dev) instead: if there's no built site, nothing
+# changes. FRONTEND_DIST can point somewhere else; by default it's frontend/dist next to the backend folder.
+FRONTEND_DIST = Path(os.environ.get("FRONTEND_DIST", Path(__file__).resolve().parents[2] / "frontend" / "dist"))  # Where the built site is
+if (FRONTEND_DIST / "index.html").exists():  # A built site is there:
+    # Serve it at "/". html=True: a folder address gets its index.html, so "/" is the app and "/how/" is "How this works".
+    app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="site")
