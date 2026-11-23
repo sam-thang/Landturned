@@ -1,6 +1,8 @@
-# Landturn: current state (2026-11-21)
+# Landturn: current state (2026-11-22)
 
 A factual snapshot for performance advice. It's based on reading the code and on timings measured on 2026-11-21 (section 4). "Not checked" means I didn't verify it.
+
+**Updated 2026-11-22:** no speed changes since Phase 6. New since then (section 8): the landing hints, the map credits, the full "How this works" page, and American English for all user-facing text. The UI button is now labelled "Analyze this area"; the older sections below keep the name it had when they were written.
 
 **Speed-up phases done:** Phase 1 (quick fixes), Phase 2 (land cover read from AWS, years to 2024), Phase 3 (one analysis request, land-cover disk cache), Phase 4 (reveal sooner; the "after" photo is always the current imagery) Phase 5 (faster before-only archive lookup, zoom-14 cache) and Phase 6 (map limits) on 2026-11-21. The baseline timings stay in section 4, with each phase's re-measurement added below them.
 
@@ -35,7 +37,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `frontend/src/loading.js` | Loading steps and progress bar |
 | `frontend/src/places.js` | The 11 hotspots |
 | `frontend/src/scalebar.js` | Scale bar |
-| `frontend/how/`, `how.js`, `how.css` | "How this works" page, partly built |
+| `frontend/how/`, `how.js`, `how.css` | "How this works" page: seven numbered SVG diagrams drawn by `how.js`, plus data and credits (section 8) |
 | `backend/app/main.py` | API routes: `/api/health`, `/api/analysis` (since Phase 3; replaces `/api/change` and `/api/timeline`), `/api/wayback`, `/api/imagery` |
 | `backend/app/analysis.py` | Since Phase 3: reads all years in parallel, builds the main result plus every slider comparison, and keeps the land-cover disk cache |
 | `backend/app/landcover.py` | Works out the land-cover file from the coordinates (grid zone + year), 200 × 200 px square read, class mapping, comparison, edge cleaning, stats |
@@ -410,7 +412,7 @@ Esri's archive services vary a lot from run to run, so single-run differences of
   - **Analysing near the box's edge (fixed):** a dashed square's centre is held inside a "safe box": the 10 km box shrunk by 1 km plus the room around a framed result (worked out from the map's height) plus 200 m, the same distance on all four sides (user's choice). So a new result near the edge is framed fully, and its label (top) and "Hide land cover" (bottom) are no longer cut off. Tested at the north and south edges on phone and desktop. The edge message no longer shows right after such a result.
   - **Edge message only on people's own moves:** with equal margins, a wide desktop view can just reach the box's side after a new result. The message now changes only on moves people make (MapLibre's `originalEvent`), and a new result hides it.
   - **"Analyse this area" at the right edge (fixed):** the button no longer runs off the map when the dashed square is dragged to the far right.
-  - **Planned:** a diagram on the "How this works" page of the 20 × 20 km box and the safe box.
+  - **Done 2026-11-22:** the "How this works" page's diagram 07 shows the 20 × 20 km box and the limit for the dashed square's centre.
   - **Edge message vs "Analyse this area" (fixed):** while "Search another address to explore further." shows, a dragged dashed square stops below it, with room for its button, and the button is pushed below the message if they would overlap.
   - **Zoomed out, the centre square under the result (fixed):** when zoomed out (or held back at the edge), a centre-following square that would run into the result's labels is replaced by the beside-the-result placement.
 - **The "drag left for land cover" hint** hides while it's wider than the result's square (zoomed far out).
@@ -475,7 +477,7 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 - **Choice:** the photo whose capture date is **closest to 1 July Y**.
 - **Quick answer:** accepted only if each year's photo is within 365 days of 1 July.
 - **"After" vs current imagery:** the archive "after" photo is only used if it's closer to 1 July of the last year than Esri's current photo. Otherwise the map keeps the current imagery and the tag shows its date.
-- **Tags** show the photo's own date (for example "2017 · 21 OCT"; Stavanger's "before" is 27 May 2018).
+- **Tags** show the photo's own date, in American order since 2026-11-22 (for example "2017 · OCT 21"; Stavanger's "before" is 27 May 2018). The small print's dates read "May 23, 2026".
 
 **Timeouts and limits:**
 - 40 s imagery limit (frontend)
@@ -491,8 +493,8 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 - ~~**The Esri identify call has no timeout.**~~ Fixed in Phase 1: a 3 s timeout, and nothing waits for it.
 - ~~**`/api/wayback` runs a STAC search on every call.**~~ Fixed in Phase 2: no STAC search; a cached answer now takes 0.08 s.
 - **Places with old Esri imagery** (about 4 in 10 random land points): no sharp photo from the last land-cover year exists. The panel shows an "OLDER SATELLITE PHOTO" disclaimer, and the swipe is hidden when its photos are under 2 years apart.
-- **Weda Bay hotspot, decision pending:** with 2024 data its biggest change is built (93.7 ha), not cleared (now 23.1 ha). Its teaser and red type still show the 2017–2023 figure (30 ha cleared).
-- **Old Wayback cache files:** the files keyed `z16_…` (Phase 2–4 keys, incl. 70 keyed `…_2017_2023`) in `backend/cache/wayback/` are no longer used.
+- ~~**Weda Bay hotspot, decision pending.**~~ Decided (commit `4f1f0ad`): Weda Bay is orange, "94 ha built", and Kīlauea's 2018 lava (77.7 ha cleared) is the red place.
+- **Old Wayback cache files:** the 117 files keyed `z16_…` (Phase 2–4 keys, incl. 70 keyed `…_2017_2023`) in `backend/cache/wayback/` are no longer used and could be deleted.
 - ~~**`/api/change` reads its two years one after the other; nothing cached.**~~ Fixed in Phase 3: all years in parallel, saved on disk.
 - ~~**`/api/timeline` starts only after the reveal.**~~ Fixed in Phase 3: merged into `/api/analysis`.
 - ~~**After a server restart, the first request per grid zone costs about 1.3 s.**~~ Fixed in the Phase 3 follow-up: zone facts are saved in `zones.json`. Measured right after a restart: Fontana 0.012 s, Bergen 0.002 s. Only a zone never seen before pays once: Stavanger 1.6 s, because its zone had been deleted for the test.
@@ -511,10 +513,50 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 - `glideToMiddle` in `map.js`: exported but no longer called.
 
 **Unfinished:**
-- **Landing hints, agreed but not built:** a colour key in the globe's corner, and a "click / tap any spot to analyse it" caption.
-- "How this works" page: skeleton and data only.
+- ~~**Landing hints.**~~ Built (`4f1f0ad`, `b3c1452`): a colour key and the caption "Pick any spot on land to see how it turned."
+- ~~"How this works" page: skeleton and data only.~~ Built 2026-11-22 (section 8).
 - Not built yet: the long-view era (GLC_FCS30D, 1985–2016), the share screen, and the "new construction sites" stat.
 - **No production deployment or build** has been checked.
+
+## 8. Since the speed-up phases (2026-11-21 to 2026-11-22)
+
+None of this changes request flow or timings.
+
+**Landing** (`4f1f0ad`, `b3c1452`):
+- a colour key: one dimmed line on desktop, under the globe on phones
+- the caption "Pick any spot on land to see how it turned."
+- a water note for taps on the sea
+- Kīlauea is the red place, and Weda Bay turned orange
+
+**Credits** (`15adc2d`):
+- the map credit reads "Powered by Esri · Imagery © Esri, Vantor, Earthstar Geographics, and the GIS User Community"
+- a visible Nominatim / OpenStreetMap credit under the search box and in the result's small print
+- short phones keep the result panel at least 330 px tall
+
+**"How this works" page** (`/how/`; `ae549ef` to `1b74753`).
+- **How it's drawn:** seven numbered plates, each an SVG drawn by `how.js`, so the drawings follow the app's own rules.
+- **Shared logic:** `changeType` is the JS copy of the backend's `compare()`. The edge-cleaning diagram runs the same 3 × 3 opening as `remove_thin_changes`, checked against the backend: 36 changed pixels in, 20 out.
+- **Live years:** the years come from a new `/api/years`.
+
+| Plate | Shows |
+|---|---|
+| 01 | From address to answer: six steps |
+| 02 | The square, in pixels: 2 km → 200 × 200 pixels → one 10 m pixel |
+| 03 | Impact Observatory's 9 classes merged into our 5, plus "no data", with a muted land-cover palette (`--lc-*` in `tokens.css`) |
+| 04 | Which color a change gets: four before/after 4 × 4 pixel-grid cards, plus a "No color" line and the "green space lost" callout |
+| 05 | Cleaning the edges: raw → shrink → grow back, with pixel counts computed from the grids |
+| 06 | Why it's an estimate: wrong labels (Impact Observatory's published "over 75%" average accuracy, linked to the AWS Registry page), fuzzy edges, clouds, 10 m pixels, photo vs map dates |
+| 07 | Where you can look: the 20 × 20 km box, the dashed square, and the limit for its centre |
+
+Then a "Data and credits" section.
+
+**American English** (`3eeb60b`, 2026-11-22):
+- **Spelling:** all user-facing text, including screen-reader labels, uses American spelling: color, analyze, meter, center, labeled, neighborhood, anymore.
+- **Dates:** in American order, "May 23, 2026" and "2017 · OCT 21". The `toLocaleDateString` calls in `results.js` and `swipe.js` now use `en-US`.
+- **Not renamed:** code names such as `analyse-area`, `colours-toggle` and `coloursOn`, and code comments.
+- **The rule** is in `CLAUDE.md`.
+
+**`CLAUDE.md`** (`6ab79d6`): the data-eras table now names AWS as the land-cover source (2017–2024).
 
 ## Phase 2 findings: land-cover years (2026-11-21, research only, no code changed)
 
@@ -596,22 +638,22 @@ AWS needs no URL signing.
    - Sentinel-2 `/api/imagery`, which still uses Planetary Computer STAC but is unused
 6. **Licence:** Impact Observatory's maps are CC BY 4.0 on Planetary Computer. The licence and attribution wording for the AWS copy and for 2024: not checked; to confirm before switching.
 
-## 8. Git status
+## 9. Git status
 
-- **Branch:** `main`, in sync with `origin/main` (last push `dab77d9`).
-- **Uncommitted changes:** none, apart from this new file `docs/STATUS.md` (untracked).
+- **Branch:** `main`, in sync with `origin/main` (last push `3eeb60b`, 2026-11-22).
+- **Uncommitted changes:** none, apart from this update to `docs/STATUS.md`.
 
 **Last 10 commits:**
 
 | Commit | Message |
 |---|---|
-| `dab77d9` | Keep the analysis square clear of the scale bar on short screens by lowering the scale bar, not zooming out |
-| `ee263d1` | Make the small map lettering readable (11 px on the map, 10 px minimum on phones) |
-| `c6aa0bc` | Redraw the map's zoom buttons in the drawing style |
-| `4031330` | Say the square is 400 ha, keep the land cover button clear of the label, and focus the result sentence instead of New place |
-| `30ddc3c` | Show each change's share of the square, and clarify cleared vs green space lost |
-| `7ba18d0` | Answer the archive imagery lookup after about 5 s with the closest photos so far, finishing and saving the full answer in the background |
-| `3822346` | Make the dimmed result panel inert while a new area is analysed, so the keyboard can't change it either |
-| `2e8ab8b` | Show the analysis steps inside the dashed square, and announce them to screen readers |
-| `362e8f0` | Show the imagery lookup as two real loading steps on the globe |
-| `602e9a6` | Reveal the result once, with the imagery and before/after swipe ready, instead of swapping the imagery afterwards |
+| `3eeb60b` | American English for all user-facing text and dates in American order; CLAUDE.md rule |
+| `6ab79d6` | CLAUDE.md: land cover is read from the AWS Registry of Open Data (2017–2024), not Planetary Computer |
+| `1b74753` | How this works: diagram 07, where you can look; plate 06 tweaks (3 × 3 mislabelled field, published accuracy with source link) |
+| `3a1f422` | How this works: diagram 06, why it's an estimate |
+| `0e3a573` | How this works: diagram 05, cleaning the edges, worked out with the backend's 3 × 3 opening |
+| `aa88a6e` | How this works: diagram 04 as example cards with before/after pixel grids; land-cover category palette |
+| `2527b94` | How this works: diagram 03, Impact Observatory's 9 classes merged into our 5 |
+| `15adc2d` | Credits: "Powered by Esri" and Vantor on the map; visible OpenStreetMap/Nominatim credit; short phones keep the panel at least 330 px tall |
+| `ae549ef` | How this works: diagrams 01 (address to answer) and 02 (the square, in pixels) |
+| `b3c1452` | Calmer landing: globe caption, one-line key on desktop, water note for sea taps, bigger globe on phones |
