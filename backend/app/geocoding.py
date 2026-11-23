@@ -20,6 +20,8 @@ from pathlib import Path  # Built into Python; a handy way to build file paths
 
 from dotenv import load_dotenv  # python-dotenv: copies the settings in backend/.env into the environment
 
+from app import settings  # Our own code: where saved answers live
+
 BACKEND_DIR = Path(__file__).resolve().parents[1]  # The backend folder (this file is backend/app/geocoding.py)
 load_dotenv(BACKEND_DIR / ".env")  # Read backend/.env, if it exists (it holds GEOAPIFY_API_KEY; git never uploads it)
 
@@ -29,7 +31,7 @@ MAX_WAIT_S = 3.0  # If a request would have to wait longer than this for its tur
 DAILY_LIMIT = 2900  # Requests per day we allow ourselves: safely under the free plan's 3,000 (counted per UTC day, like Geoapify)
 TIMEOUT_S = 10  # How long to wait for Geoapify's answer before giving up, in seconds
 USER_AGENT = "Landturn/0.1 (land-change portfolio project)"  # How our server introduces itself in each request
-CACHE_DIR = BACKEND_DIR / "cache" / "geocoding"  # backend/cache/geocoding: one small file per answered question (ignored by git, like the other caches)
+CACHE_DIR = settings.CACHE_ROOT / "geocoding"  # backend/cache/geocoding (or on the server's disk, see settings.py): one small file per answered question (ignored by git, like the other caches)
 USAGE_FILE = CACHE_DIR / "usage.json"  # Today's request count, kept on disk so a server restart doesn't reset it
 
 _lock = threading.Lock()  # One lock for the shared timer and the counter below: requests handled at the same moment take turns using them

@@ -17,7 +17,6 @@ os.environ.setdefault("CPL_VSIL_CURL_ALLOWED_EXTENSIONS", ".tif")  # Only treat 
 
 import urllib.error  # Built into Python; the error raised when a web address answers "not found"
 import urllib.request  # Built into Python; asks a web server whether a file exists (a HEAD request)
-from pathlib import Path  # Built into Python; a handy way to build file paths
 
 import numpy as np  # numpy: fast math on big grids of numbers
 import planetary_computer  # Signs Planetary Computer file links so we're allowed to download them
@@ -25,6 +24,8 @@ import pystac_client  # Searches the STAC catalog (only for the Sentinel-2 photo
 import rasterio  # Reads raster files, including just a small window of a big file
 from rasterio.warp import transform  # Converts coordinates from one projection to another
 from rasterio.windows import Window, from_bounds  # Window: a block of rows and columns; from_bounds: turns a box in meters into a window
+
+from app import settings  # Our own code: where saved answers live
 
 # ---------- Settings ----------
 
@@ -244,7 +245,7 @@ def newest_year():
 # Two facts per zone are needed before a saved analysis can even be found: whether the zone has data, and its pixel grid.
 # Finding them out costs a HEAD request and a file-header read (about 1.3 s together), so they are saved in a small file
 # and survive server restarts. They never change, except "has data", which is re-checked when a new year appears.
-ZONE_FILE = Path(__file__).resolve().parents[1] / "cache" / "zones.json"  # backend/cache/zones.json (generated, ignored by git)
+ZONE_FILE = settings.CACHE_ROOT / "zones.json"  # backend/cache/zones.json (or on the server's disk, see settings.py; generated, ignored by git)
 _zone_lock = threading.Lock()  # One request at a time may change and save the facts (requests run in parallel threads)
 
 

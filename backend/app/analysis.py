@@ -4,12 +4,11 @@
 
 import json  # Built into Python; writes and reads the saved answers
 from concurrent.futures import ThreadPoolExecutor  # Built into Python; reads all the years at the same time
-from pathlib import Path  # Built into Python; a handy way to build file paths
 
-from app import change_image, landcover  # Our own code: the change picture and the land-cover data
+from app import change_image, landcover, settings  # Our own code: the change picture, the land-cover data, and where saved answers live
 
 # Saved answers, one small JSON file per square: generated data, not code (the cache folder is listed in .gitignore).
-CACHE_DIR = Path(__file__).resolve().parents[1] / "cache" / "landcover"  # backend/cache/landcover
+CACHE_DIR = settings.CACHE_ROOT / "landcover"  # backend/cache/landcover (or on the server's disk, see settings.py)
 SOURCE = "Impact Observatory annual land cover, 10 m (AWS Open Data, CC BY 4.0)"  # Where the data comes from, for the title block
 
 

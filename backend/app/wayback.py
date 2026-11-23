@@ -10,7 +10,8 @@ import urllib.parse  # Built into Python; builds the "?name=value" part of a web
 import urllib.request  # Built into Python; downloads from the internet
 from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait  # Built into Python; asks many questions at the same time, "Future" = an answer box to wait on, and "wait" waits for some of them
 from datetime import date  # Built into Python; dates we can subtract to measure how far apart they are
-from pathlib import Path  # Built into Python; a handy way to build file paths
+
+from app import settings  # Our own code: where saved answers live
 
 # ---------- Settings ----------
 
@@ -30,7 +31,7 @@ TIMEOUT_S = 30  # Some archive versions' metadata services take ~15 s to wake up
 VIEW_HALF_DEG = 0.009  # About 1 km each way: the 2 x 2 km square
 VIEW_PIXELS = 800  # ...seen on about 800 screen pixels (roughly 2.5 m per screen pixel, like the result map)
 HEADERS = {"User-Agent": "Landturn (portfolio project)"}  # A polite name for our requests
-CACHE_DIR = Path(__file__).resolve().parents[1] / "cache" / "wayback"  # backend/cache/wayback (ignored by git, like the other cache)
+CACHE_DIR = settings.CACHE_ROOT / "wayback"  # backend/cache/wayback (or on the server's disk, see settings.py; ignored by git, like the other cache)
 
 _config = {"loaded_at": 0, "versions": []}  # The remembered archive list ("_" = only for this module)
 

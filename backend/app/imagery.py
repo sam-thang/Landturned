@@ -6,7 +6,6 @@ import functools  # Built into Python; lru_cache remembers answers so the same p
 import io  # Built into Python; lets us "save a file" into memory instead of onto the disk
 import json  # Built into Python; reads and writes the saved photos as JSON text
 from concurrent.futures import ThreadPoolExecutor  # Built into Python; runs several downloads at the same time
-from pathlib import Path  # Built into Python; a handy way to build file paths
 
 import numpy as np  # numpy: fast math on big grids of numbers
 import rasterio  # Reads raster files, including just a small window of a big file
@@ -15,7 +14,7 @@ from rasterio.enums import Resampling  # The ways of filling pixels when a raste
 from rasterio.vrt import WarpedVRT  # A "virtual" raster: another raster seen through our grid, without saving a copy
 from rasterio.warp import transform  # Converts coordinates from one projection to another
 
-from app import change_image, landcover  # Our own code: data URLs (change_image) and the square's grid (landcover)
+from app import change_image, landcover, settings  # Our own code: data URLs (change_image), the square's grid (landcover), and where saved answers live (settings)
 
 # ---------- Settings ----------
 
@@ -24,7 +23,7 @@ MAX_SCENE_CLOUD = 80  # Look at images up to 80% cloudy over their whole 110 km 
 CANDIDATES = 6  # How many images to check over our square (summer and least cloudy first, so the best is nearly always among them)
 # Finished photos are saved here, one small JSON file per place and year: a photo of 2017 never changes, so once made it
 # can be reused, even after the server restarts. Generated data, not code: the folder is listed in .gitignore.
-CACHE_DIR = Path(__file__).resolve().parents[1] / "cache" / "imagery"  # backend/cache/imagery
+CACHE_DIR = settings.CACHE_ROOT / "imagery"  # backend/cache/imagery (or on the server's disk, see settings.py)
 WORKERS = 6  # How many images to open at the same time. Most of the time is spent waiting for the internet, so the waits overlap
 CLEAR_ENOUGH = 0.01  # An image is "clear" when clouds hide at most 1% of our square; among clear ones, summer wins
 # The photo covers exactly the analysed 2 x 2 km square (200 x 200 pixels): the map's surroundings use the sharp Esri
