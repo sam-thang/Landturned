@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Landturn's tab icon: the four change colors stacked, in the headline underline's order, on the page's near-black.
+       Drawn on a 32 x 32 grid where every edge lands on a whole pixel at 16 px (bars 2 px tall, 1 px gaps), so the
+       tab icon stays sharp. The other icon files (favicon.ico, apple-touch-icon.png) are made from this one. -->
+  <rect width="32" height="32" fill="#0a0c0f"/> <!-- The background: the page's near-black -->
+  <rect x="6" y="6" width="20" height="4" fill="#ffa01f"/> <!-- Orange: newly built -->
+  <rect x="6" y="12" width="20" height="4" fill="#ff5a4f"/> <!-- Red: cleared -->
+  <rect x="6" y="18" width="20" height="4" fill="#4fd98a"/> <!-- Green: green space gained -->
+  <rect x="6" y="24" width="20" height="4" fill="#3db8f5"/> <!-- Blue: new water -->
+</svg>
