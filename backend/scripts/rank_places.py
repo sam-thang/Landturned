@@ -88,6 +88,17 @@ CANDIDATES = [
     ("kilauea_2018", "Kilauea 2018 lava, Hawaii", 19.480, -154.880, "cleared"),  # The 2018 lower Puna eruption buried forest and homes (Leilani Estates to Kapoho)
     ("la_palma_2021", "La Palma 2021 lava, Spain", 28.615, -17.905, "cleared"),  # The 2021 Cumbre Vieja eruption buried banana fields, vineyards and villages
     ("atacama", "Salar de Atacama lithium ponds, Chile", -23.650, -68.360, "water"),  # Lithium evaporation ponds on the salt flat
+    # --- A stronger South American place than Cajamar (fourth run, 2026-11-23). Winner: Hidroituango (150.5 ha new water) ---
+    ("hidroituango", "Hidroituango reservoir, Colombia", 7.100, -75.700, "water"),  # Dam on the Cauca river; its reservoir flooded the forested canyon from 2018
+    ("chancay_2024", "Chancay megaport, Peru", -11.585, -77.270, "built"),  # Port opened in 2024 (re-run with 2024 data: a third of the square has no data)
+    ("lima_airport", "Lima airport new terminal, Peru", -12.030, -77.120, "built"),  # New runway and terminal, 2019-2024
+    ("upm2", "UPM pulp mill, Paso de los Toros, Uruguay", -32.835, -56.510, "built"),  # Pulp mill built 2019-2023 on farmland
+    ("cerro_dominador", "Cerro Dominador solar, Chile", -22.773, -69.483, "built"),  # Solar tower plant built 2018-2021 (its mirrors flicker between labels)
+    ("mirador", "Mirador copper mine, Ecuador", -3.592, -78.477, "built"),  # Copper mine opened 2019 in rainforest
+    ("quellaveco", "Quellaveco copper mine, Peru", -17.100, -70.620, "built"),  # Copper mine opened 2022 (found no change at this point)
+    ("cauchari", "Cauchari-Olaroz lithium ponds, Argentina", -23.440, -66.730, "water"),  # Lithium ponds built 2019-2023 (found no change at this point)
+    ("extrema", "Extrema logistics, Brazil", -22.860, -46.330, "built"),  # Warehouse boom on the Sao Paulo state border
+    ("anelo", "Anelo, Vaca Muerta, Argentina", -38.355, -68.785, "built"),  # Oil-town growth (rejected by eye: scattered blobs, green on bare desert)
 ]  # End of the candidates
 
 # ---------- Nudging settings ----------

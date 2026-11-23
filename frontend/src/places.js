@@ -25,7 +25,7 @@ export const PLACES = [
   { id: 'hasankeyf', name: 'Hasankeyf, Turkey', lon: 41.427, lat: 37.71, type: 'water', teaser: 'Ancient town → reservoir · 189 ha new water' }, // Flooded by the Ilisu Dam in 2020
   { id: 'weda_bay', name: 'Weda Bay, Indonesia', lon: 127.9625, lat: 0.4835, type: 'built', teaser: 'Rainforest → nickel industry · 94 ha built' }, // Nickel mining and smelters on Halmahera island. Until 2026-11-21 this was the red (cleared) place, 2017 -> 2023; with 2024 data the cleared land here is mostly built on (93.7 ha built, 23.1 ha cleared), so it's orange now (user's choice)
   { id: 'hcmc_east', name: 'Ho Chi Minh City, Vietnam', lon: 106.84, lat: 10.84, type: 'built', teaser: 'Fields → high-rise district · 224 ha built' }, // New districts in the city's east (Thu Duc)
-  { id: 'cajamar', name: 'Cajamar, Brazil', lon: -46.8747, lat: -23.3435, type: 'built', teaser: 'Pasture → warehouses · 48 ha built' }, // Logistics hub north of Sao Paulo
+  { id: 'hidroituango', name: 'Hidroituango, Colombia', lon: -75.6864, lat: 7.0865, type: 'water', teaser: 'River canyon → reservoir · 151 ha new water' }, // Colombia's largest dam; its reservoir flooded the forested Cauca canyon from 2018. Replaced Cajamar (Brazil, only 14% of the square changed) on 2026-11-23
   { id: 'western_sydney', name: 'Western Sydney, Australia', lon: 150.72, lat: -33.88, type: 'built', teaser: 'Farmland → new airport · 84 ha built' }, // Western Sydney International Airport, built 2018-2026
 ]; // End of the places list
 
@@ -42,9 +42,9 @@ export const BUTTON_ORDER = [
   'hasankeyf', // 47% changed: town to lake (blue)
   'giga_berlin', // 41% changed: forest to factory, one clean block
   'ontario_ranch', // 53% changed: farms to suburbs, a few mislabeled roofs
+  'hidroituango', // 38% changed: forested canyon to reservoir, one solid blue band
   'western_sydney', // 31% changed: the new airport, colors scattered
   'kilauea', // 21% changed: dramatic lava photos, labels waver (our only red place)
   'marker_wadden', // 24% changed: the islands are already there in the before photo
   'weda_bay', // 34% changed but scattered and messy
-  'cajamar', // 14% changed: clear but small
 ]; // End of the button order
