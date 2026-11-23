@@ -4,7 +4,7 @@
 
 services: # The list of things Render runs; Landturned is one web service that serves both the website and its /api
   - type: web # A web service: a program that answers web requests, with an https address
-    name: landturn # Its name in Render (kept: Render recognises the existing service by it; renaming it here could create a second service and disk). Render's own address is landturn.onrender.com; the public address is https://landturned.app
+    name: landturn # Its name in Render (kept: Render recognises the existing service by it; renaming it here could create a second service and disk). Render's own address is landturn.onrender.com; the public address is https://landturned.com
     runtime: python # Render's ready-made Python environment (it also has Node and npm, which the website build needs)
     region: oregon # Same region as the land-cover files (AWS us-west-2) and Esri's archive service, so analyses read fast
     plan: 0.5c-512mb # Render's paid starter size: 0.5 CPU, 512 MB memory (measured: about 240 MB at worst). Needed for the disk

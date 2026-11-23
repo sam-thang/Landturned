@@ -1,6 +1,6 @@
 # Landturned: current state (2026-11-23)
 
-**Live at https://landturned.app** (renamed from Landturn on 2026-11-23; Render's own address landturn.onrender.com also works). Naming rule: "Landturned" in text, lowercase "landturned" only in URLs, file names and code. The Render service `landturn`, its disk `landturn-cache` and the setting `LANDTURN_CACHE_DIR` keep the old name on purpose (see `CLAUDE.md`).
+**Live at https://landturned.com** (renamed from Landturn on 2026-11-23; Render's own address landturn.onrender.com also works). Naming rule: "Landturned" in text, lowercase "landturned" only in URLs, file names and code. The Render service `landturn`, its disk `landturn-cache` and the setting `LANDTURN_CACHE_DIR` keep the old name on purpose (see `CLAUDE.md`).
 
 **Deployed 2026-11-23 on Render** from `render.yaml`: one Python web service in Oregon (`0.5c-512mb`, about $7/month) with a 1 GB disk at `/var/data` (`LANDTURN_CACHE_DIR=/var/data/cache`, about $0.25/month); FastAPI serves the built site and `/api`; started by `backend/start.sh` (one process, `GDAL_CACHEMAX=64`); Geoapify key as a Render secret. Hotspots warmed with `cd backend && uv run --no-sync python -m scripts.warm_wayback` in Render's Shell. Live timings (2026-11-23): hotspot result with swipe 4.5-6.3 s (mostly the globe animation), Analyze this area 0.3-2.3 s, a new place's analysis 1.6 s cold / 0.6 s repeat.
 
