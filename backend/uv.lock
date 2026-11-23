@@ -593,6 +593,7 @@ dependencies = [
     { name = "pillow" },
     { name = "planetary-computer" },
     { name = "pystac-client" },
+    { name = "python-dotenv" },
     { name = "rasterio" },
 ]
 
@@ -602,6 +603,7 @@ requires-dist = [
     { name = "pillow", specifier = ">=13.0.0" },
     { name = "planetary-computer", specifier = ">=1.0.0" },
     { name = "pystac-client", specifier = ">=0.9.1" },
+    { name = "python-dotenv", specifier = ">=1.2.4" },
     { name = "rasterio", specifier = ">=1.5.2" },
 ]
 

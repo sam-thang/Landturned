@@ -7,7 +7,7 @@ from typing import Annotated  # Lets us attach extra rules to a function input (
 # HTTPException (for sending back an error answer) and Query (rules for ?name=value inputs in the address)
 from fastapi import FastAPI, HTTPException, Query
 
-from app import analysis, imagery, landcover, wayback  # Our own code: the land-cover analysis, the satellite photo, the land-cover data, and Esri's imagery archive
+from app import analysis, geocoding, imagery, landcover, wayback  # Our own code: the land-cover analysis, the address search, the satellite photo, the land-cover data, and Esri's imagery archive
 
 # Create the app. The title is shown on FastAPI's automatic documentation page (at /docs).
 app = FastAPI(title="Landturn backend")
@@ -30,6 +30,35 @@ def health() -> dict:  # "-> dict" notes that this function hands back a diction
 @app.get("/api/years")
 def years() -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
     return {"first": landcover.FIRST_YEAR, "latest": landcover.newest_year()}  # The first year, and the newest year with files
+
+
+# Address search, through Geoapify (see geocoding.py). Example: /api/search?q=Fontana, California
+# Answer: {"found": true, "lat": 34.09, "lon": -117.43, "name": "Fontana, CA, ..."} or {"found": false}.
+# Errors: 503 with "busy" (too many searches right now), "daily-limit" (today's allowance used up) or "unavailable".
+@app.get("/api/search")
+def search_route(
+    q: Annotated[str, Query(min_length=1, max_length=200, description="The address to look up")],  # The typed address: 1 to 200 characters
+) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
+    try:  # Try to look it up...
+        found = geocoding.search(q)  # The best match, or None
+    except (geocoding.GeocodingBusy, geocoding.GeocodingUnavailable) as error:  # ...but search can't be used right now:
+        raise HTTPException(status_code=503, detail=str(error)) from error  # Answer 503 ("service unavailable") with the reason
+    if found is None:  # Nothing matched:
+        return {"found": False}  # Say so
+    return {"found": True, **found}  # "**found" copies its lat, lon and name into the answer
+
+
+# The town or city at a point (for a tapped spot or an analysed area). Example: /api/place-name?lat=34.09&lon=-117.43
+# Answer: {"name": "Fontana"}, or {"name": null} where there's no town (open sea, desert). Errors as /api/search.
+@app.get("/api/place-name")
+def place_name_route(
+    lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90
+    lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
+) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
+    try:  # Try to look it up...
+        return {"name": geocoding.place_name(lat, lon)}  # The town's name, or None
+    except (geocoding.GeocodingBusy, geocoding.GeocodingUnavailable) as error:  # ...but it can't be used right now:
+        raise HTTPException(status_code=503, detail=str(error)) from error  # Answer 503 with the reason
 
 
 # The land-cover analysis of the 2 x 2 km square around a point, in one request: the main result (first year -> newest year)

@@ -10,5 +10,6 @@ dependencies = [
     "pillow>=13.0.0", # Pillow: makes and saves images; we use it to turn the change grid into a colored PNG
     "planetary-computer>=1.0.0", # Signs Planetary Computer file links (adds a temporary access key) so we're allowed to download them
     "pystac-client>=0.9.1", # Searches STAC catalogs: "which maps cover this place, for which years?"
+    "python-dotenv>=1.2.4", # Reads secret settings (like the Geoapify API key) from the file backend/.env, which git never uploads
     "rasterio>=1.5.2", # Reads raster files (like GeoTIFFs), including just a small window of a big file, and converts coordinates
 ] # The libraries the backend needs; "uv add" fills this list in for us

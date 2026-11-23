@@ -1,91 +1,43 @@
-// The web address of OpenStreetMap's free geocoding service, Nominatim
-const NOMINATIM_URL = 'https://nominatim.openstreetmap.org/search';
-// Nominatim's reverse service: coordinates in, place name out
-const NOMINATIM_REVERSE_URL = 'https://nominatim.openstreetmap.org/reverse';
-// How detailed the reverse answer should be: 10 means "city level" (18 would be a single building)
-const REVERSE_ZOOM = 10;
-// The address fields that count as a town name, from biggest to smallest. Countries label places differently
-// (Fontana is a "city", a small place is a "town" or "village", Norway uses "municipality"), so we check them all.
-const TOWN_FIELDS = ['city', 'town', 'village', 'municipality'];
+// Address search and place names. The browser asks our own backend (/api/search and /api/place-name), and the backend
+// asks Geoapify (see backend/app/geocoding.py). The backend keeps the Geoapify key secret, remembers every answer for
+// all visitors, and keeps the whole site within Geoapify's free plan (5 requests per second, 3,000 per day).
+
+// Our backend's two addresses for this (the dev server passes /api/... on to the backend, see vite.config.js)
+const SEARCH_URL = '/api/search'; // Address in, coordinates out
+const PLACE_NAME_URL = '/api/place-name'; // Coordinates in, town name out
+
+// Ask our backend and hand back its JSON answer. If search can't be used right now, throw an error whose "reason"
+// says why, so the caller can show the right message: "busy" (too many searches this moment), "daily-limit" (today's
+// free allowance is used up) or "unavailable" (anything else, e.g. no internet).
+async function askBackend(url) {
+  let response; // The backend's reply, once it arrives
+  try { // Try to reach the backend...
+    response = await fetch(url); // Send the request and wait for the reply
+  } catch { // ...but the request didn't get through at all (e.g. no internet):
+    throw Object.assign(new Error('Search request failed'), { reason: 'unavailable' }); // An error with its reason attached ("Object.assign" adds the reason to the error)
+  } // End of the try/catch
+  if (!response.ok) { // The backend answered with a problem (503 = search can't be used right now)
+    const body = await response.json().catch(() => ({})); // Its explanation, e.g. {"detail": "busy"} (or nothing if it can't be read)
+    const reason = ['busy', 'daily-limit'].includes(body.detail) ? body.detail : 'unavailable'; // One of our three reasons
+    throw Object.assign(new Error(`Search answered ${response.status}`), { reason }); // An error with that reason
+  } // End of the problem check
+  return response.json(); // The answer, turned from text into JavaScript values
+} // End of askBackend
 
 // Look up an address and return its location, or null if nothing was found.
 // "export" lets other files (like main.js) use this function.
 // "async" means the function can wait for the internet without freezing the page.
 export async function geocode(address) {
-  // Start building the full request address from the base web address
-  const url = new URL(NOMINATIM_URL);
-  // "q" is the text the user typed; URL safely encodes spaces and letters like ø or é
-  url.searchParams.set('q', address);
-  // Ask for the answer in JSON, a text format JavaScript can read easily
-  url.searchParams.set('format', 'jsonv2');
-  // We only want the single best match
-  url.searchParams.set('limit', '1');
-
-  // Send the request over the internet and wait ("await") for the reply
-  const response = await fetch(url);
-  // If the server reports a problem (for example, too many requests), stop with an error
-  if (!response.ok) {
-    // Create an error that says which status code the server sent (e.g. 429 = too many requests)
-    throw new Error(`Geocoding failed with status ${response.status}`);
-  } // End of the problem check
-
-  // Turn the reply text into a JavaScript list of results
-  const results = await response.json();
-  // An empty list means Nominatim found nothing for this address
-  if (results.length === 0) {
-    // "null" is JavaScript's way of saying "nothing"
-    return null;
-  } // End of the empty-list check
-
-  // Take the first result, which Nominatim ranks as the best match
-  const best = results[0];
-  // Hand back only what we need, as an object (a bundle of named values)
-  return {
-    lng: Number(best.lon), // Longitude (east-west); Nominatim sends numbers as text, so Number() converts them
-    lat: Number(best.lat), // Latitude (north-south), also converted from text to a number
-    name: best.display_name, // The full place name Nominatim matched, e.g. "Fontana, San Bernardino County, ..."
-  }; // End of the returned object
+  const url = `${SEARCH_URL}?q=${encodeURIComponent(address)}`; // The request; encodeURIComponent safely encodes spaces and letters like ø or é
+  const answer = await askBackend(url); // Ask and wait, e.g. {found: true, lat: 34.09, lon: -117.43, name: "Fontana, CA, ..."}
+  if (!answer.found) return null; // Nothing found: "null" is JavaScript's way of saying "nothing"
+  return { lng: answer.lon, lat: answer.lat, name: answer.name }; // Position (longitude, latitude) and the full matched name
 } // End of the geocode function
 
 // The opposite lookup ("reverse geocoding"): turn a latitude and longitude into a town name, e.g. "Fontana".
 // Returns null when there's no town there (open sea, desert, ice), so the caller can use a fallback wording.
 export async function reverseGeocode(lat, lng) {
-  // Start building the full request address from the reverse service's web address
-  const url = new URL(NOMINATIM_REVERSE_URL);
-  // The latitude (north-south) of the spot we want named
-  url.searchParams.set('lat', lat);
-  // The longitude (east-west); Nominatim calls it "lon"
-  url.searchParams.set('lon', lng);
-  // Ask for the answer in JSON, like in geocode above
-  url.searchParams.set('format', 'jsonv2');
-  // Ask for a city-level answer, not a street address
-  url.searchParams.set('zoom', REVERSE_ZOOM);
-
-  // Send the request and wait for the reply
-  const response = await fetch(url);
-  // If the server reports a problem, stop with an error (the caller decides what to show)
-  if (!response.ok) {
-    // Say which status code the server sent
-    throw new Error(`Reverse geocoding failed with status ${response.status}`);
-  } // End of the problem check
-
-  // Turn the reply text into a JavaScript object
-  const result = await response.json();
-  // Nominatim says "nothing here" with an "error" field (not an error code), e.g. in the middle of the ocean
-  if (result.error || !result.address) {
-    // No name to give
-    return null;
-  } // End of the nothing-found check
-
-  // Go through the town fields in order and return the first one this address has
-  for (const field of TOWN_FIELDS) {
-    // Does the address have this field (e.g. address.city)?
-    if (result.address[field]) {
-      // Yes: that's our town name
-      return result.address[field];
-    } // End of the field check
-  } // End of the loop over town fields
-
-  // Only bigger areas (a county, a state) were found: too big to describe a 2 × 2 km square, so no name
-  return null;
+  const url = `${PLACE_NAME_URL}?lat=${lat}&lon=${lng}`; // The request: the spot to name
+  const answer = await askBackend(url); // Ask and wait, e.g. {name: "Fontana"} or {name: null}
+  return answer.name; // The town's name, or null (errors pass on to the caller, which then shows coordinates)
 } // End of the reverseGeocode function

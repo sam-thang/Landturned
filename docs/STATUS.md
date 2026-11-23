@@ -1,6 +1,8 @@
-# Landturn: current state (2026-11-22)
+# Landturn: current state (2026-11-23)
 
 A factual snapshot for performance advice. It's based on reading the code and on timings measured on 2026-11-21 (section 4). "Not checked" means I didn't verify it.
+
+**Updated 2026-11-23:** address search and place names moved from Nominatim (called from the browser) to **Geoapify through our backend** (sections 2, 3, 5 and 8). The timing tables in section 4 were measured with Nominatim and are kept as measured.
 
 **Updated 2026-11-22:** no speed changes since Phase 6. New since then (section 8): the landing hints, the map credits, the full "How this works" page, and American English for all user-facing text. The UI button is now labelled "Analyze this area"; the older sections below keep the name it had when they were written.
 
@@ -31,7 +33,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `frontend/src/map.js` | MapLibre map: base imagery, change layer, analysis square, label, swipe handle and opening animation, colour switches, "Analyse this area" offer and head start, land cover toggle |
 | `frontend/src/swipe.js` | Builds the 2017 "before" picture from Esri archive tiles on a canvas, cut to the square |
 | `frontend/src/api.js` | Calls to our backend (`/api/analysis`, `/api/wayback`) and to Esri's identify service |
-| `frontend/src/geocode.js` | Nominatim search and reverse geocoding |
+| `frontend/src/geocode.js` | Address search and place names, through our backend (`/api/search`, `/api/place-name`); passes on "busy" / "daily-limit" / "unavailable" |
 | `frontend/src/globe.js` | D3 landing globe, hotspots, tap-to-pin |
 | `frontend/src/results.js` | Result sentence, stats rows, small print |
 | `frontend/src/loading.js` | Loading steps and progress bar |
@@ -41,6 +43,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `backend/app/main.py` | API routes: `/api/health`, `/api/analysis` (since Phase 3; replaces `/api/change` and `/api/timeline`), `/api/wayback`, `/api/imagery` |
 | `backend/app/analysis.py` | Since Phase 3: reads all years in parallel, builds the main result plus every slider comparison, and keeps the land-cover disk cache |
 | `backend/app/landcover.py` | Works out the land-cover file from the coordinates (grid zone + year), 200 × 200 px square read, class mapping, comparison, edge cleaning, stats |
+| `backend/app/geocoding.py` | Since 2026-11-23: the Geoapify relay: secret key from `backend/.env`, answers saved on disk for all visitors, at most 5 requests/s and 2,900/day for the whole site |
 | `backend/app/change_image.py` | Change grid → transparent PNG → base64 data URL |
 | `backend/app/wayback.py` | Esri Wayback lookup: which archive versions and photo dates for "before" and "after", with a disk cache |
 | `backend/app/imagery.py` | Sentinel-2 photo of the square. **The frontend no longer calls it.** |
@@ -59,7 +62,8 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | **Esri Wayback tilemap** | `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/MapServer/tilemap/{version}/16/{row}/{col}` | "Which version did this zoom-16 tile last change in?" Small JSON; chained requests walk backwards, since Phase 5 only around the first year (2016–2019) | Backend, `wayback.changed_versions` |
 | **Esri Wayback metadata** | `{version metadataLayerUrl}/identify` | Photo capture date, resolution and source at the point (2 km extent, 800 px display), since Phase 5 only for the 4–6 candidate versions around the first year (about 15 before) | Backend, `wayback.photo_in_once` |
 | **Esri Wayback tiles** | `https://wayback.maptiles.arcgis.com/arcgis/rest/services/World_Imagery/WMTS/1.0.0/default028mm/MapServer/tile/{version}/{z}/{y}/{x}` | (a) the "after" version as the map's base imagery, through MapLibre; (b) "before" tiles at zoom 16 drawn into a canvas for the swipe | Browser, `map.js setBaseImagery`, `swipe.js buildBeforeImage` |
-| **Nominatim (OpenStreetMap)** | `https://nominatim.openstreetmap.org/search` and `/reverse` | Search: `q`, `format=jsonv2`, `limit=1`. Reverse: `zoom=10` (city level) | Browser, `geocode.js` |
+| **Geoapify geocoding** (since 2026-11-23; free plan: 3,000 credits/day, 5 requests/s; OpenStreetMap data, ODbL) | `https://api.geoapify.com/v1/geocode/search` and `/reverse` | Search: `text`, `limit=1`, `format=json`. Reverse: `type=city`, point rounded to 3 decimals (about 100 m). Key in `backend/.env` (git-ignored) | Backend, `geocoding.py`, via `/api/search` and `/api/place-name` |
+| ~~**Nominatim (OpenStreetMap)**~~ | `nominatim.openstreetmap.org` | Used until 2026-11-23 from the browser. Dropped for a public site: its limit of 1 request/s counts for the whole app, and its policy threatens bans for heavy use | Not used any more |
 | **Google Fonts** | `fonts.googleapis.com`, `fonts.gstatic.com` | Two font families | Browser, `index.html` |
 | **Sentinel-2 L2A** (Planetary Computer) | collection `sentinel-2-l2a` | Bands B04/B03/B02 and SCL, warped to the square's grid, JPEG; the clearest summer image of the requested year | Backend, `imagery.py`, via `/api/imagery?lat&lon&year`. **Unused by the frontend** (a fallback for old Esri imagery was tried and rejected, see section 4) |
 
@@ -67,7 +71,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 
 ### a) Search from the landing page, up to the full result
 
-1. **Browser → Nominatim search.** Sequential; everything else waits for it.
+1. **Browser → `/api/search` → Geoapify** (since 2026-11-23; Nominatim before). Sequential; everything else waits for it. A repeated search is answered from the backend's disk memory in a few ms.
 2. **These all start at the same moment, in parallel:**
    - **Browser:** the globe turns and zooms (1.6 s animation). MapLibre is downloaded if not yet loaded (lazy import), and the map is created hidden. **Esri current tiles** load.
    - **Browser → Esri identify:** the current photo date.
@@ -99,7 +103,7 @@ The 2017 photo races a **40 s deadline** counted from the place being chosen. If
 
 1. **Head start:** once the map has been still for **0.5 s** (1.5 s before Phase 1) (counted from MapLibre `moveend`, so after inertia) with the offer visible, the browser sends `/api/wayback` for the map centre and throws the answer away. The backend shares a running lookup per tile, so a later request joins it.
 2. **On press, in parallel:**
-   - Nominatim reverse geocode
+   - place name: `/api/place-name` → Geoapify (Nominatim before 2026-11-23)
    - Esri identify
    - `/api/wayback`
    - `/api/analysis`
@@ -431,6 +435,7 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 | What | Where | Key | Lifetime |
 |---|---|---|---|
 | Wayback answer (the earlier photo: date, source, resolution, tile URL) | Disk: `backend/cache/wayback/z14_*.json` | Since Phase 5 `z14_{row}_{col}_{firstYear}`: the zoom-14 Web Mercator tile (about 2.4 km at the equator, 2.0 km near Ontario, 1.2 km in Norway) plus the first year, so neighbouring squares share it. The photo is the one at the first lookup's point; at a few spots another patch of the photo mosaic shows at the exact centre | Forever. The best photo of all candidates is saved, even when an early answer was shown first |
+| Geoapify answers (search and place names) | Disk: `backend/cache/geocoding/{hash}.json`, plus today's request count in `usage.json` | Search: the text, lower-case, spaces tidied. Place name: the point rounded to 3 decimals | Forever (failed requests aren't saved). The count restarts each UTC day |
 | Wayback lookups in progress | Memory (`Future` per cache path) | Same path | While running; concurrent requests share one lookup |
 | Wayback version list | Memory | — | 24 h |
 | Sentinel-2 photo (unused endpoint) | Disk `cache/imagery` plus `lru_cache` | Lat/lon rounded to 5 decimals, plus year | Forever |
@@ -502,7 +507,8 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 - ~~**The reveal waits for all archive tiles.**~~ Fixed in Phase 4: the reveal waits for neither the archive answer nor its tiles; only the 2017 photo's tiles load (25–56), for the swipe.
 - ~~**The backend still finds an archive "after" photo.**~~ Dropped in Phase 5.
 - **The head start only helps** if the user waits at least 0.5 s after the map stops moving (including its glide); before Phase 1 it was 1.5 s.
-- **Nominatim:** the browser calls it directly with no custom User-Agent and no rate limiting in code. Usage-policy compliance: **not checked**.
+- ~~**Nominatim usage policy.**~~ Solved 2026-11-23 by switching to Geoapify through the backend (one shared limit, shared memory, key kept on the server).
+- **Geoapify key:** the current key appeared in a chat transcript. **Before sharing the site publicly:** make a fresh key and, once deployed, restrict it to the server's address in Geoapify's dashboard.
 
 **Data quality:**
 - Impact Observatory labels flicker between years at quiet rural spots, giving implausible colours. A "change must persist two years" filter is parked.
@@ -557,6 +563,15 @@ Then a "Data and credits" section.
 - **The rule** is in `CLAUDE.md`.
 
 **`CLAUDE.md`** (`6ab79d6`): the data-eras table now names AWS as the land-cover source (2017–2024).
+
+**Credits and caption** (`1ee87e6`, `0e41e6b`, 2026-11-22): the OpenStreetMap credit left the landing page; the globe caption got its survey-mark icon and fade; hotspot rings stop short of the caption; the phone panel minimum is 290 px.
+
+**Address search through Geoapify** (2026-11-23).
+- **Why:** Nominatim allows 1 request/s for the whole app, so a public launch could get the site banned; a queue in front of it would make visitors wait at busy moments.
+- **How:** the browser asks `/api/search` and `/api/place-name`; `backend/app/geocoding.py` asks Geoapify with the key from `backend/.env`, saves every answer on disk for all visitors, spaces requests 0.2 s apart (5/s), answers "busy" if a visitor would wait over 3 s, and stops at 2,900 requests per UTC day ("daily-limit"). The search shows a message for each.
+- **Tested:** with a pretend Geoapify, 12 searches at once were all answered 0.2 s apart; 25 at once gave 16 answers and 9 immediate "busy"; the daily limit stops new searches while saved answers still work. With the real key: Fontana 2.3 s, place name 1.2 s, the repeat 0.006 s; Stavanger named; open ocean gives no name. The browser sends no requests to Nominatim or Geoapify.
+- **Credits** (Geoapify's free plan and OpenStreetMap both require one near the information, not only on a credits page): "Place names: Geoapify · © OpenStreetMap contributors" in the result's small print; the How page's "Data and credits"; nothing on the landing page; the map's credit line names only the imagery.
+- **Cost:** free plan. Next step if the site gets busy: Geoapify's paid plan (about $59/month for 10,000 requests/day, checked 2026-11-23).
 
 ## Phase 2 findings: land-cover years (2026-11-21, research only, no code changed)
 
@@ -640,7 +655,7 @@ AWS needs no URL signing.
 
 ## 9. Git status
 
-- **Branch:** `main`, in sync with `origin/main` (last push `3eeb60b`, 2026-11-22).
+- **Branch:** `main`, in sync with `origin/main` (last push: this update, 2026-11-23).
 - **Uncommitted changes:** none, apart from this update to `docs/STATUS.md`.
 
 **Last 10 commits:**

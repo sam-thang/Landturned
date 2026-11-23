@@ -592,7 +592,11 @@ form.addEventListener('submit', async (event) => {
     selectPlace({ name: address, lon: result.lng, lat: result.lat, source: 'search' }); // Found it: choose it, named as the user typed it ("source" sets the callout label)
   } catch (error) { // If something went wrong:
     console.error(error); // Print the details in the developer console (F12), for us
-    showMessage('The address search is not responding. Please try again in a moment.'); // Friendly message
+    const messages = { // A friendly message for each reason geocode.js gives
+      busy: 'Search is busy right now. Try again in a moment.', // Too many searches this very moment
+      'daily-limit': 'Address search is resting for today. Try a place below, or tap the globe.', // Today's free allowance is used up (place buttons and the globe still work)
+    }; // End of the messages
+    showMessage(messages[error.reason] ?? 'The address search is not responding. Please try again in a moment.'); // The matching message, or the general one ("??" = use the right side if the left is missing)
   } finally { // Always runs at the end:
     searchButton.disabled = false; // Make the button clickable again
     searchButton.setAttribute('aria-label', 'Show change'); // Put the normal label back
@@ -628,8 +632,8 @@ locateButton.addEventListener('click', () => {
       const lon = Number(position.coords.longitude.toFixed(LOCATE_DECIMALS)); // Longitude, rounded the same way
       let name = null; // The town name; stays null if there's no town here or the lookup fails
       try { // Try the lookup; if anything goes wrong, jump to "catch" instead of crashing
-        name = await reverseGeocode(lat, lon); // Ask Nominatim which town this is, e.g. "Fontana" (the button still says "Locating…" meanwhile)
-      } catch { // The lookup failed (no internet, Nominatim busy):
+        name = await reverseGeocode(lat, lon); // Ask which town this is, e.g. "Fontana" (the button still says "Locating…" meanwhile)
+      } catch { // The lookup failed (no internet, search busy or resting for today):
         name = null; // Carry on without a name; the analysis matters more than the label
       } // End of the try/catch
       resetLocateButton(); // Back to normal

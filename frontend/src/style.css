@@ -599,12 +599,6 @@ body {
   font: 11px / 1.3 var(--sans); /* Small text (11 px), 1.3 line spacing */
 } /* End of the credit rule */
 
-/* The OpenStreetMap link in the credit: same grey as the text, underlined so it reads as a link without colour */
-.credit-text a {
-  color: inherit; /* The credit's grey */
-  text-underline-offset: 2px; /* The underline a little below the letters */
-} /* End of the credit link rule */
-
 /* The ⓘ button: only used on narrow screens, so hidden by default */
 .credit-toggle {
   display: none; /* Not shown on wide screens */
