@@ -99,7 +99,7 @@
         <p class="kicker sheet-label">Landturned · Sheet 00 · World</p> <!-- Small label above the headline, styled like a drawing sheet number (CSS draws it in capitals); hidden on phones to save space -->
         <h1 id="landing-title" tabindex="-1">Every place on Earth has <span class="turned">turned.</span></h1> <!-- The main headline; "turned." is bright white with a four-color underline (see style.css). tabindex="-1" lets code move focus here (e.g. after "← New place") without adding it to the Tab order -->
         <p class="lede">From farmland to warehouses, forest to fields: see how any place has changed since 2017.</p> <!-- The intro text ("lede" is a newspaper word for the opening lines) -->
-        <p class="lede-link"><a class="note-link" href="/how/">How this works →</a></p> <!-- The method page, right under the promise it explains, so it can be found before choosing a place (the result panel's small print links there too) -->
+        <p class="lede-link"><a class="note-link" href="/how/">How this works →</a><span class="lede-link-dot" aria-hidden="true"> · </span><a class="note-link" href="mailto:hello@landturned.com">Contact</a></p> <!-- The method page and a plain email link, on one line (so the panel gets no taller). The method page, right under the promise it explains, so it can be found before choosing a place (the result panel's small print links there too) -->
         <div class="search-row"> <!-- The search box and the "My location" button, side by side -->
         <form id="search" class="search"> <!-- The search form; its id lets main.js find it -->
           <svg class="search-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M12.5 12.5 L17 17" /></svg> <!-- A magnifying glass: a circle (the lens) and a short diagonal line (the handle); decoration only, so screen readers skip it -->
@@ -159,7 +159,8 @@
           <p id="result-note" class="note"></p> <!-- Small print, line 1: where the land cover comes from, what Landturned does with it, that it's an estimate -->
           <p id="photo-note" class="note"></p> <!-- Small print, line 2: the satellite imagery's source and date, and why the coloured areas may not line up with it -->
           <p class="note">Place names: <a class="note-link" href="https://www.geoapify.com/" target="_blank" rel="noopener">Geoapify</a> · © <a class="note-link" href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap contributors</a></p> <!-- Small print, line 3: searched, "My location" and analyzed-area place names come from Geoapify, using OpenStreetMap data. Both ask for a visible credit near the information (Geoapify's free plan: a link "near the map or information provided by the service"; OpenStreetMap: in the vicinity, without people having to look for it), so it sits here, next to the place name, and not only on the How page (checked 2026-11-23) -->
-          <p class="note"><a class="note-link" href="/how/">How this works →</a></p> <!-- Small print, line 4: the method page -->
+          <p class="note"><a id="feedback-link" class="note-link" href="mailto:hello@landturned.com">Something look wrong here? Tell us.</a></p> <!-- Small print, line 4: opens an email to us; results.js adds a subject naming this place and its coordinates -->
+          <p class="note"><a class="note-link" href="/how/">How this works →</a></p> <!-- Small print, line 5: the method page -->
         </div> <!-- End of the result section -->
       </section> <!-- End of the panel -->
     </div> <!-- End of the app -->

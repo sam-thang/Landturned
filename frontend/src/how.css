@@ -536,6 +536,7 @@ dd {
 
 /* Links in the credits (dataset page, licence, OpenStreetMap's copyright page) and in the cards (plate 06's accuracy source): underlined ink, readable as links without colour */
 .sources a,
+.contact a,
 .example a {
   color: var(--ink); /* Off-white */
   text-decoration: underline; /* Underlined... */
@@ -543,6 +544,7 @@ dd {
   text-underline-offset: 3px; /* A little below the letters */
 } /* End of the credit link rule */
 .sources a:hover,
+.contact a:hover,
 .example a:hover {
   text-decoration-color: var(--ink); /* The underline brightens on hover */
 } /* End of the credit link hover rule */

@@ -17,6 +17,16 @@ function highlight(hectares, colorVar) {
   return b; // Hand back the finished element
 } // End of highlight
 
+// The small print's "Something look wrong here? Tell us." link: an email to us whose subject names the place and its
+// coordinates, e.g. "Landturned feedback: Ontario Ranch (33.9785, -117.5962)", so a report says where it's about.
+// A place without a name (a tapped spot in the sea or desert) gets just its coordinates.
+function setFeedbackLink(place) {
+  const where = `${place.lat.toFixed(4)}, ${place.lon.toFixed(4)}`; // The coordinates, 4 decimals (about 10 m), like the panel shows
+  const subject = place.name ? `Landturned feedback: ${place.name} (${where})` : `Landturned feedback: ${where}`; // The subject line
+  // encodeURIComponent makes the subject safe inside a link (spaces, commas and letters like ø become codes the email app turns back)
+  document.getElementById('feedback-link').href = `mailto:hello@landturned.com?subject=${encodeURIComponent(subject)}`;
+} // End of setFeedbackLink
+
 // Make the place name for the reveal sentence, underlined like in the mockup.
 // The name may be typed by the user, so it only ever goes in as plain text (textContent), never as HTML.
 // A place with no town name (null) becomes the plain words "this area", without an underline, since it isn't a name.
@@ -111,6 +121,7 @@ function setStat(id, hectares, totalHectares) {
 // Fill in the result panel for a place. "change" is the backend's answer, or null if there is none. "export" lets main.js use it.
 // Every year shown comes from "change", so when a year slider changes the years, the text follows automatically.
 export function showResults(place, change, coordsText) {
+  setFeedbackLink(place); // The small print's "Tell us" email link names this place
   const heading = document.getElementById('result-name'); // The big heading (the reveal sentence)
   const stats = document.getElementById('stats'); // The list of four stat rows
   const greenLost = document.getElementById('green-lost'); // The "green space lost in total" line
