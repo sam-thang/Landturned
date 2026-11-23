@@ -90,6 +90,26 @@ Not part of the first version, so don't build these yet:
 - Share screen (download image, PDF summary, copy link)
 - Long view era (GLC_FCS30D, 1985 to 2016)
 - "Analyse this area" button: when people pan away so the analysis square is mostly off-screen, offer to re-run the analysis for the new map center (like "Search this area" on Google Maps). Never recalculate automatically on every map move: each analysis takes seconds, and jumping numbers would confuse people
+- **Long view: how it turned since 1985** (planned, version 2)
+  - **Purpose:** show long-term change at city scale, from about 1985 to today, as photos only. No land-cover measurement.
+  - **Entry point:** a quiet link under the result sentence: "See how it turned since 1985 →". The main flow stays unchanged.
+  - **View:** a full-screen overlay:
+    - centered on the searched address, covering about 15 × 15 km, so 30 m imagery looks like a real photo
+    - the current 2 × 2 km analysis square outlined, for context
+    - a year scrubber with one frame about every 5 years (1985, 1990 … latest), plus a play button
+    - the title block labelled "Photos only · 30 m · not measured"
+    - closing it returns to the map exactly where the user was
+  - **Data:** the Landsat Collection 2 Level-2 archive on Planetary Computer (`landsat-c2-l2`):
+    - Landsat 5 (1984–2011) and Landsat 8/9 (2013 onward)
+    - never Landsat 7 after 2003, because a sensor fault left stripes across its images
+    - never mix Landsat with Esri photos in the same view
+  - **Speed:**
+    - pre-cut crops from Planetary Computer's item/bbox endpoint, one image per frame, on the same UTM grid so frames line up
+    - choose one tile and orbit for all years where possible
+    - check clouds at the place with a small cloud mask before downloading
+    - cache by rounded coordinates
+    - precompute frames for the globe hotspots
+  - **Build order:** after the speed work and the first deployment.
 
 ### Purpose
 
