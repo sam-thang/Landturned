@@ -45,6 +45,9 @@ const ticks = document.getElementById('longview-ticks'); // Its ticks
 const note = document.getElementById('longview-note'); // One line about the loading or the shown photo
 const progress = document.getElementById('longview-progress'); // The progress bar...
 const progressFill = progress.querySelector('i'); // ...and its fill
+const squareToggle = document.getElementById('longview-square-toggle'); // The "Analysis area" switch
+const layersLabel = document.getElementById('longview-layers-label'); // Its "Show on photo" label
+const layers = squareToggle.closest('ul'); // The list holding it
 
 // ---------- State ----------
 
@@ -68,6 +71,8 @@ export function openLongView(place, analysisCorners, coordsText) {
   squareTrack.removeAttribute('points'); // No square yet (it's drawn once the photos' corners are known)
   squareLine.removeAttribute('points'); // ...
   squareLabel.hidden = true; // ...and no label
+  layersLabel.hidden = !analysisCorners; // The "Show on photo" switch only when there's a square to switch...
+  layers.hidden = !analysisCorners; // ...(its state stays as the person left it, for the whole visit)
   buildTicks(DEFAULT_SLOTS); // The usual slots, until the backend says which
   setControlsReady(false); // Slider and play button wait for the photos
   writeHeading(DEFAULT_SLOTS); // "Fontana from 1985 to 2025" and the top line, with the usual slots until the backend says
@@ -252,6 +257,13 @@ function stopPlaying() {
   play.classList.remove('is-playing'); // The play drawing again
   play.setAttribute('aria-label', 'Play'); // What screen readers say
 } // End of stopPlaying
+
+// The "Analysis area" switch: show or hide the square and its label on the photo (playing carries on either way)
+squareToggle.addEventListener('click', () => {
+  const on = squareToggle.getAttribute('aria-pressed') !== 'true'; // The new state: the opposite of now
+  squareToggle.setAttribute('aria-pressed', String(on)); // Tell screen readers (and CSS, which dims the row when off)
+  frame.classList.toggle('square-off', !on); // Hide or show the square on the photo (style.css)
+}); // End of the switch listener
 
 play.addEventListener('click', () => { if (open?.timer) stopPlaying(); else startPlaying(); }); // The button plays or pauses
 range.addEventListener('input', () => { stopPlaying(); showIndex(Number(range.value)); }); // Moving the slider (or arrow keys) stops playing and shows that year

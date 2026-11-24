@@ -162,7 +162,7 @@ export function showResults(place, change, coordsText) {
 // Make the four stats rows work as on/off switches for the map's colours. "onChange" is called after every press with the
 // change types that are switched on, e.g. ['built', 'gained'] ("export" lets main.js use it).
 export function setUpColourSwitches(onChange) {
-  const switches = [...document.querySelectorAll('.stat-switch')]; // The four row buttons ("[...]" turns the found list into a normal array)
+  const switches = [...document.querySelectorAll('.stat-switch[data-change]')]; // The four colour rows only ("[data-change]": the long view's "Analysis area" switch looks the same but isn't one of them) ("[...]" turns the found list into a normal array)
   for (const button of switches) { // For each row:
     button.addEventListener('click', () => { // When it's pressed (click, tap, or Enter/Space on the keyboard):
       const on = button.getAttribute('aria-pressed') === 'true'; // Is it on right now?
@@ -174,10 +174,10 @@ export function setUpColourSwitches(onChange) {
 
 // The change types whose switch is on, e.g. ['built', 'cleared', 'gained', 'water'] when all are on ("export" lets main.js use it)
 export function shownChanges() {
-  return [...document.querySelectorAll('.stat-switch[aria-pressed="true"]')].map((button) => button.dataset.change); // "dataset.change" reads data-change
+  return [...document.querySelectorAll('.stat-switch[data-change][aria-pressed="true"]')].map((button) => button.dataset.change); // "dataset.change" reads data-change
 } // End of shownChanges
 
 // Switch all four back on (for a new place)
 export function resetColourSwitches() {
-  for (const button of document.querySelectorAll('.stat-switch')) button.setAttribute('aria-pressed', 'true'); // Every row on
+  for (const button of document.querySelectorAll('.stat-switch[data-change]')) button.setAttribute('aria-pressed', 'true'); // Every colour row on (not the long view's switch, which keeps its state)
 } // End of resetColourSwitches

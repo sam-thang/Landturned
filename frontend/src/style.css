@@ -1939,6 +1939,23 @@ h1:focus {
 .longview-play.is-playing .icon-play { display: none; } /* Playing: no triangle... */
 .longview-play.is-playing .icon-pause { display: inline; } /* ...but the two bars */
 
+/* "Show on photo": the analysis square's switch, built like the result's colour switches (.stats, .stat-switch) */
+.longview-layers {
+  margin-bottom: 14px; /* Space before the loading line or the title block */
+} /* End of the switch list rule */
+.square-icon {
+  flex: none; /* Never shrink */
+  width: 12px; /* The size of the colour swatches... */
+  height: 12px; /* ...in the result's rows */
+  box-shadow: inset 0 0 0 1.25px var(--ink); /* An outlined square, like the one on the photo (drawn inside, so the size stays 12 px) */
+} /* End of the icon rule */
+.stat-switch[aria-pressed='false'] .square-icon {
+  box-shadow: inset 0 0 0 1.25px var(--muted); /* Off: the outline dims with the row */
+} /* End of the off icon rule */
+.longview-frame.square-off :is(.longview-square, .longview-square-label) {
+  display: none; /* Switched off: no square and no label on the photo */
+} /* End of the hidden square rule */
+
 /* The loading line and progress bar under the scrubber */
 #longview-note:empty {
   display: none; /* No empty line when there's nothing to say */

@@ -212,6 +212,10 @@
               </div> <!-- End of the slider -->
             </div> <!-- End of the controls -->
           </div> <!-- End of the scrubber -->
+          <p id="longview-layers-label" class="stats-label">Show on photo</p> <!-- Says the row below is a switch for what's drawn on the photo, like "Show on map" on the result -->
+          <ul class="stats longview-layers" aria-labelledby="longview-layers-label"> <!-- One switch row, built like the result's colour switches -->
+            <li><button id="longview-square-toggle" class="stat-switch" type="button" aria-pressed="true"><i class="square-icon"></i>Analysis area<b>2 × 2 km</b></button></li> <!-- Shows or hides the analysis square and its label on the photo (longview.js); aria-pressed tells screen readers whether it's on -->
+          </ul> <!-- End of the switch -->
           <p id="longview-note" class="stat-total" aria-live="polite"></p> <!-- One line about the shown photo or the loading: "Finding summer photos · 3 of 9", "No clear summer photo in 1985; this one is from 1986." -->
           <div id="longview-progress" class="progress" aria-hidden="true"><i></i></div> <!-- How many of the photos are in (real progress: one step per photo) -->
           <dl class="title-block"> <!-- A title block, like the box in the corner of a drawing sheet -->
