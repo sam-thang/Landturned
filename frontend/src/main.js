@@ -461,7 +461,7 @@ onOfferSettled((center) => { // When the offer has settled (map.js), with the da
 // ---------- Year slider: compare the first year with any later year ----------
 
 const timeline = document.getElementById('timeline'); // The whole slider block
-const timelineLabel = document.getElementById('timeline-label'); // e.g. "Since 2017"
+const timelineLabel = document.getElementById('timeline-label'); // e.g. "Land cover since 2017"
 const timelineYear = document.getElementById('timeline-year'); // The chosen end year, large
 const timelineRange = document.getElementById('timeline-range'); // The slider itself
 const timelineTicks = document.getElementById('timeline-ticks'); // The tick marks and year labels under it
@@ -515,7 +515,7 @@ function setUpTimeline(place, change, coordsText) {
   const changes = {}; // year -> that comparison's answer, e.g. changes[2020] = 2017 -> 2020
   for (const step of change.steps) changes[step.years.to] = step; // Fill it in
   shown = { place, coordsText, changes }; // Everything needed to show any year
-  timelineLabel.textContent = `Since ${from}`; // e.g. "Since 2017"
+  timelineLabel.textContent = `Land cover since ${from}`; // e.g. "Land cover since 2017": says that only the colors follow the slider, not the photos
   timelineRange.disabled = false; // Ready to use
 } // End of setUpTimeline
 

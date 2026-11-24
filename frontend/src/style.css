@@ -1207,7 +1207,7 @@ h1:focus {
   margin: 0 0 24px; /* Space below, before the stats */
 } /* End of the slider block rule */
 
-/* The head: "SINCE 2017" on the left, the chosen year on the right, on one baseline */
+/* The head: "LAND COVER SINCE 2017" on the left, the chosen year on the right, on one baseline */
 .timeline-head {
   display: flex; /* Side by side */
   align-items: baseline; /* The small label and the big year sit on the same text line */
@@ -1215,7 +1215,7 @@ h1:focus {
   margin-bottom: 6px; /* Space before the track */
 } /* End of the head rule */
 
-/* "SINCE 2017": a small drawing-voice label */
+/* "LAND COVER SINCE 2017": a small drawing-voice label */
 .timeline-label {
   color: var(--muted); /* Pencil Grey */
   font-family: var(--mono); /* Drawing lettering */
@@ -1339,7 +1339,7 @@ h1:focus {
   border-top: 1px solid var(--line); /* A thin line above the first row */
 } /* End of the stats rule */
 
-/* "SHOW ON MAP": the label above the rows, in the same drawing voice as "SINCE 2017" */
+/* "SHOW ON MAP": the label above the rows, in the same drawing voice as "LAND COVER SINCE 2017" */
 .stats-label {
   margin: 0 0 10px; /* No space above; the usual label-to-control gap below */
   color: var(--muted); /* Pencil Grey */
