@@ -267,6 +267,8 @@ async function showFinishedResult(place, change, swipeJob, photoDate, cancelled,
   return swipe; // The swipe, so the caller can play the opening (or null: none yet)
 } // End of showFinishedResult
 
+let longViewOnArrival = false; // True when the page was opened from a shared long-view link, until that place's result is in
+
 // What happens when a place is chosen (button, hotspot, or search).
 // "place" has a name, lon, and lat, and sometimes a teaser.
 async function selectPlace(place) {
@@ -277,6 +279,8 @@ async function selectPlace(place) {
   const cancelled = () => myTicket !== placeTicket; // A small helper: true once a newer ticket exists (the visitor went back)
   globe.clearPin(); // Remove any pin and its card, so they don't sit on top of the callout
   hideMessage(); // Clear any old message
+  const openLongNow = longViewOnArrival; // Was this place opened from a shared long-view link? (Only the first place after loading the page can be)
+  longViewOnArrival = false; // Used up: a later place, or this one chosen again, opens normally
   const fromLanding = !placeFromUrl(); // No place in the address yet: chosen on the landing page (not a shared link, a reload, or Forward)
   setUrlPlace(place, fromLanding); // Put the place in the address bar right away, so a reload during loading also comes back here; from the landing page as a new history step
   if (fromLanding) addedHistoryStep = true; // Remember it, for "← New place"
@@ -359,6 +363,7 @@ async function selectPlace(place) {
   document.getElementById('result-name').focus({ preventScroll: true }); // Move keyboard focus to the result sentence: screen readers read it out, and the next Tab goes on to the year slider (without scrolling the panel)
   await wait(CROSSFADE_MS); // Wait until the crossfade has finished
   if (mode === 'result') globe.setVisible(false); // Still showing the map? Then stop drawing the hidden globe, to save battery (skip if the user already went back)
+  if (openLongNow && mode === 'result' && !cancelled()) { openLong(); return; } // A shared long-view link: open the long view over the result (no opening sweep under it)
   if (early && !cancelled()) playOpening(); // The opening: sweep from 2017 to 2023, show the colours, then glide to the middle
 } // End of selectPlace
 
@@ -806,6 +811,7 @@ document.getElementById('pin-go').addEventListener('click', () => {
 // ---------- Opening a place from the address ----------
 
 const startPlace = placeFromUrl(); // Is there a place in the address (after a reload, or from a shared link)?
+longViewOnArrival = Boolean(startPlace) && new URLSearchParams(location.search).get('view') === 'long'; // A shared long-view link ("&view=long")? Then open it once the result is in
 if (startPlace) selectPlace(startPlace); // Then go straight to it: the globe turns there and the result loads, as if it had been chosen
 
 // ---------- Colour switches (the stats rows) ----------
