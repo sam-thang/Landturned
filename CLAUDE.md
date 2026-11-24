@@ -98,7 +98,7 @@ Not part of the first version, so don't build these yet:
 - **Long view: how it turned since 1985** (planned, version 2)
   - **Purpose:** show long-term change at city scale, from about 1985 to today, as photos only. No land-cover measurement.
   - **Entry point:** a quiet link under the result sentence: "See how it turned since 1985 →". The main flow stays unchanged.
-  - **View:** a full-screen overlay:
+  - **View:** the photo replaces the map on the stage, and the panel switches to the long view's own (user's choice 2026-11-24, instead of a full-screen overlay; it plays once from 1985 on opening, except with reduced motion):
     - centered on the searched address, covering about 15 × 15 km, so 30 m imagery looks like a real photo
     - the current 2 × 2 km analysis square outlined, for context
     - a year scrubber with one frame about every 5 years (1985, 1990 … latest), plus a play button

@@ -26,6 +26,38 @@ export async function fetchWayback(lat, lon) {
   return response.json(); // Read the reply as JSON and hand it back
 } // End of fetchWayback
 
+// Ask the backend for the long view: one Landsat photo per 5-year slot of the 15 × 15 km square around a point.
+// The answer comes piece by piece (one line of JSON per piece) as the backend makes each photo, so this calls onHead once
+// with { centre, corners, slots }, then onFrame once per slot as each arrives (in any order), with { slot, date, year,
+// substituted, satellite, missing, image, ... }. Returns a Promise that finishes when every piece is in; it fails if the
+// request fails, the backend reports an error, or "signal" cancels it (when the long view is closed).
+export async function streamLongView(lat, lon, onHead, onFrame, signal) {
+  const params = new URLSearchParams({ lat, lon }); // Build the "?lat=...&lon=..." part safely
+  const response = await fetch(`/api/longview?${params}`, { signal }); // Send the request; the reply starts at once and keeps coming
+  if (!response.ok) { // Not a success (e.g. 422 for impossible coordinates, or 502 because the backend isn't running)?
+    throw new Error(`Long view request failed: ${response.status}`); // Stop with an error, including the status number for the console
+  } // End of the error check
+  const reader = response.body.pipeThrough(new TextDecoderStream()).getReader(); // Read the reply as text, chunk by chunk, as it arrives
+  let waiting = ''; // Text received but not yet a whole line
+  for (;;) { // Keep reading until the reply ends
+    const { value, done } = await reader.read(); // The next chunk of text (or done = true at the end)
+    if (done) break; // The reply has ended
+    waiting += value; // Add the chunk to what's waiting
+    let end = waiting.indexOf('\n'); // Where the first whole line ends (-1 if there's none yet)
+    while (end >= 0) { // For every whole line we have:
+      const line = waiting.slice(0, end); // The line...
+      waiting = waiting.slice(end + 1); // ...taken off the waiting text
+      if (line) { // Skip empty lines
+        const piece = JSON.parse(line); // Read the line as JSON
+        if (piece.type === 'head') onHead(piece); // The first piece: centre, corners, slots
+        else if (piece.type === 'frame') onFrame(piece); // A photo (or a year without one)
+        else if (piece.type === 'error') throw new Error(`Long view failed: ${piece.detail}`); // The backend failed halfway
+      } // End of the line
+      end = waiting.indexOf('\n'); // The next line, if there is one
+    } // End of the lines loop
+  } // End of the reading loop
+} // End of streamLongView
+
 // Esri's metadata service: for any point it says which piece of photo World Imagery shows there, and when it was taken.
 const ESRI_IDENTIFY = 'https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/identify';
 // The longest we wait for Esri's photo date, in milliseconds. It usually answers in under a second; when it doesn't,

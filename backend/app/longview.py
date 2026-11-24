@@ -11,7 +11,7 @@ import io  # Built into Python; lets us "save a file" into memory instead of ont
 import json  # Built into Python; reads and writes the frame records as JSON text
 import math  # Built into Python; math.floor for the UTM zone, cos and hypot for distances
 import os  # Built into Python; os.environ sets options for GDAL, the library rasterio uses to read files
-from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait  # Built into Python; runs several downloads at the same time, and waits for the first of them to finish
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait  # Built into Python; runs several downloads at the same time, waits for the first of them, and hands out results as they finish
 from datetime import date  # Built into Python; today's date, to know which slots may still get newer photos
 
 # Don't let GDAL list the folder around each file before opening it: online that's a slow, useless extra request
@@ -328,32 +328,47 @@ def corners_lonlat(crs, grid):
     return [[lo, la] for lo, la in zip(lons, lats)]  # Pair them up
 
 
-def long_view(lat, lon):
-    """All nine frames for a place, from the cache where possible. Returns a dictionary with the square's centre and
-    corners, and one entry per slot: its record (plus "cached": True/False) and its JPEG bytes (None when missing)."""
+def long_view_parts(lat, lon):
+    """The long view of a place, piece by piece, as each piece is ready (a "generator": it hands out one piece at a time
+    with "yield", so the app can show progress and the first photos while the rest are still being made).
+    First piece: a dictionary with the square's centre and corners and the slots. Then one (record, JPEG bytes or None)
+    pair per slot, in the order they're ready: saved frames at once, new ones as each is made (about 15-25 s for all nine).
+    Each record has "cached": True when it came from the disk."""
     centre_lat, centre_lon = centre_of(lat, lon)  # The shared, rounded centre
     crs, grid = square_grid(centre_lat, centre_lon)  # Our 15 x 15 km grid around it
+    yield {  # The first piece: what the frames will show
+        "centre": [centre_lon, centre_lat],  # the square's centre as [longitude, latitude]
+        "corners": corners_lonlat(crs, grid),  # its four corners as [longitude, latitude], to line things up with the photos
+        "slots": SLOTS,  # the slots that will follow
+    }  # End of the first piece
     folder = place_dir(centre_lat, centre_lon)  # Where its frames are saved
-    saved = {slot: load_frame(folder, slot) for slot in SLOTS}  # Every slot's saved frame (None where there isn't a usable one)
-    to_make = [slot for slot in SLOTS if saved[slot] is None]  # The slots still to make
-    frames = {}  # Slot -> (record, JPEG bytes), filled in below
-    for slot in SLOTS:  # The saved ones first
-        if saved[slot] is not None:  # Saved and still good:
-            record, jpeg = saved[slot]  # use it
-            frames[slot] = ({**record, "cached": True}, jpeg)  # marked as coming from the cache
-    if to_make:  # Some slots need making (this is the slow part, about 15 s for all nine):
-        # All slots are worked on at the same time: each one mostly waits for the internet, so the waits overlap.
-        # Two groups of helpers: one per slot (each finds its frame), and a shared group that reads the files. A slot
-        # helper waits for file readers, never the other way round, so they can't get stuck waiting for each other.
-        with ThreadPoolExecutor(max_workers=WORKERS) as pool, ThreadPoolExecutor(max_workers=len(SLOTS)) as slot_pool:  # The file readers, and one helper per slot
-            preferred = main_path_row(centre_lat, centre_lon, pool)  # The main path/row (searches every slot year, at the same time)
-            made = list(slot_pool.map(lambda slot: make_frame(slot, preferred, centre_lat, centre_lon, crs, grid, pool), to_make))  # The new frames
-        for slot, (record, jpeg) in zip(to_make, made):  # Each new frame
+    to_make = []  # The slots still to make, filled in below
+    for slot in SLOTS:  # Saved frames first: they're instant
+        saved = load_frame(folder, slot)  # The saved frame (None where there isn't a usable one)
+        if saved is None:  # Not saved, or too old:
+            to_make.append(slot)  # make it below
+        else:  # Saved and still good:
+            record, jpeg = saved  # its record and photo
+            yield {**record, "cached": True}, jpeg  # hand it out, marked as coming from the cache
+    if not to_make:  # Everything was saved:
+        return  # done
+    # All slots are worked on at the same time: each one mostly waits for the internet, so the waits overlap.
+    # Two groups of helpers: one per slot (each finds its frame), and a shared group that reads the files. A slot
+    # helper waits for file readers, never the other way round, so they can't get stuck waiting for each other.
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool, ThreadPoolExecutor(max_workers=len(SLOTS)) as slot_pool:  # The file readers, and one helper per slot
+        preferred = main_path_row(centre_lat, centre_lon, pool)  # The main path/row (searches every slot year, at the same time)
+        jobs = [slot_pool.submit(make_frame, slot, preferred, centre_lat, centre_lon, crs, grid, pool) for slot in to_make]  # Start every slot's frame ("submit" hands back a "future": a result still to come)
+        for job in as_completed(jobs):  # Each frame as soon as it's finished, whichever comes first
+            record, jpeg = job.result()  # Its record and photo (an error while making it is passed on here)
             if jpeg is not None:  # A real photo (a missing slot isn't saved, so it's tried again next time):
                 save_frame(folder, record, jpeg)  # save it for next time
-            frames[slot] = ({**record, "cached": False}, jpeg)  # marked as just made
-    return {  # The answer:
-        "centre": [centre_lon, centre_lat],  # the square's centre as [longitude, latitude]
-        "corners": corners_lonlat(crs, grid),  # its four corners, to place the photos on a map
-        "frames": [frames[slot] for slot in SLOTS],  # every slot's (record, JPEG bytes), in slot order
-    }  # End of the answer
+            yield {**record, "cached": False}, jpeg  # hand it out, marked as just made
+
+
+def long_view(lat, lon):
+    """All nine frames for a place at once (the test script uses this). Returns the first piece of long_view_parts plus
+    "frames": every slot's (record, JPEG bytes or None), in slot order."""
+    parts = long_view_parts(lat, lon)  # The pieces, still to come
+    head = next(parts)  # The first piece: centre, corners and slots
+    frames = {record["slot"]: (record, jpeg) for record, jpeg in parts}  # Every frame, by slot (this waits until all are in)
+    return {**head, "frames": [frames[slot] for slot in SLOTS]}  # The first piece plus the frames in slot order

@@ -1767,6 +1767,232 @@ h1:focus {
   } /* End of the narrow placeholder rule */
 } /* End of the narrowest-phone rules */
 
+/* ---------- The long view: Landsat photos since 1985 (longview.js) ---------- */
+
+/* "See how it turned since 1985 →": a quiet link under the reveal sentence, underlined faintly like "How this works →" */
+.longview-link {
+  display: block; /* Its own line */
+  margin: -10px 0 24px; /* Pulled up under the sentence (whose bottom margin is 22 px), then the usual space before the slider */
+  padding: 0; /* No button padding */
+  background: none; /* No button fill */
+  border: 0; /* No button border */
+  color: var(--muted); /* Pencil Grey: quiet, a step below the sentence */
+  font: inherit; /* The panel's font, not the browser's button font */
+  font-size: 14px; /* Readable, smaller than the sentence */
+  text-align: left; /* Starts at the left like the text above */
+  text-decoration: underline; /* Underlined, so it reads as a link... */
+  text-decoration-color: var(--line); /* ...faintly */
+  text-underline-offset: 4px; /* A little below the letters */
+  cursor: pointer; /* Pointing hand */
+} /* End of the long view link rule */
+.longview-link:hover {
+  color: var(--ink); /* Brighter when pointed at */
+  text-decoration-color: var(--muted); /* And a clearer underline */
+} /* End of the link hover rule */
+.longview-link:focus-visible {
+  outline: 2px solid var(--water); /* The usual blue focus outline for keyboard users */
+  outline-offset: 2px; /* A small gap around it */
+} /* End of the link focus rule */
+
+/* The stage while the long view is open: the photo centred on the dark sheet, covering the map (which stays underneath) */
+.longview {
+  position: absolute; /* Placed freely over the stage... */
+  inset: 0; /* ...covering all of it */
+  display: grid; /* So the frame can be centred... */
+  place-items: center; /* ...both ways */
+  background: var(--bg); /* The night sheet */
+  z-index: 10; /* Above everything drawn on the map (the swipe handle, its tags, the zoom buttons), which sit on raised layers of their own */
+} /* End of the long view rule */
+
+/* The square photo area (longview.js sets its width and height to fit the stage) */
+.longview-frame {
+  position: relative; /* The photos, the square and the labels are placed inside it */
+  outline: 1px solid var(--line); /* A hairline around the photo, like a viewport drawn on a sheet */
+} /* End of the frame rule */
+
+/* The photos: stacked on top of each other, only the shown one visible */
+.longview-photos img {
+  position: absolute; /* All in the same spot... */
+  inset: 0; /* ...filling the frame */
+  width: 100%; /* Full frame width */
+  height: 100%; /* Full frame height */
+  display: block; /* No gap under the image */
+  opacity: 0; /* Hidden... */
+  transition: opacity 0.3s ease-out; /* ...and fading quickly between years, so playing reads as one place changing */
+} /* End of the photo rule */
+.longview-photos img.is-shown {
+  opacity: 1; /* The shown year */
+} /* End of the shown photo rule */
+
+/* In place of a photo: "Finding summer photos…" or "No clear summer photo" */
+.longview-empty {
+  position: absolute; /* Over the frame... */
+  inset: 0; /* ...filling it */
+  display: grid; /* So the words can be centred... */
+  place-items: center; /* ...both ways */
+  margin: 0; /* No paragraph spacing */
+  padding: 0 16px; /* Never touching the frame's sides */
+  color: var(--muted); /* Pencil Grey */
+  font-size: 11px; /* The kicker size */
+  letter-spacing: 0.12em; /* Spread like a drawing label */
+  text-transform: uppercase; /* Capitals: it's a label */
+  text-align: center; /* Centred if it wraps */
+} /* End of the empty rule */
+
+/* The 2 × 2 km analysis square, drawn over the photo in its own pixels (viewBox 0 0 500 500), so it scales with it */
+.longview-square {
+  position: absolute; /* Over the photo... */
+  inset: 0; /* ...exactly covering it */
+  width: 100%; /* Full width */
+  height: 100%; /* Full height */
+  overflow: visible; /* A line on the edge isn't cut */
+  pointer-events: none; /* Never in the way */
+} /* End of the square rule */
+.longview-square polygon {
+  fill: none; /* Just the outline */
+  vector-effect: non-scaling-stroke; /* The line keeps its width however big the photo is drawn */
+  stroke-linejoin: miter; /* Square corners */
+} /* End of the polygon rule */
+.longview-square-track {
+  stroke: rgba(10, 12, 15, 0.75); /* A dark line underneath, like the dashed square's... */
+  stroke-width: 3.25px; /* ...a little wider, so it frames the light line on both sides */
+} /* End of the track rule */
+.longview-square-line {
+  stroke: var(--ink); /* Drafting Ink on top */
+  stroke-width: 1.25px; /* The drawing marks' line weight */
+} /* End of the line rule */
+
+/* The square's label and the year tag: the map's label look (.area-label), placed by longview.js and CSS */
+.longview-square-label {
+  position: absolute; /* longview.js sets left and top to the square's top-left corner */
+  margin: 0; /* No paragraph spacing */
+  transform: translateY(calc(-100% - 4px)); /* Lifted to sit just above the corner, 4 px clear of the line */
+  text-transform: uppercase; /* Capitals, like the map's "ANALYSIS AREA" */
+} /* End of the square label rule */
+.longview-tag {
+  position: absolute; /* In the photo's top-left corner */
+  top: 8px; /* 8 px in from the top... */
+  left: 8px; /* ...and from the left */
+  margin: 0; /* No paragraph spacing */
+  text-transform: uppercase; /* Capitals, like the swipe's year tags */
+} /* End of the tag rule */
+/* While no photo is shown (loading, or a year without one), the square and its label step aside for the words in the frame */
+.longview-frame:has(.longview-empty:not([hidden])) :is(.longview-square, .longview-square-label) {
+  visibility: hidden; /* Hidden, but still in place for when the photo arrives */
+} /* End of the hidden square rule */
+.longview-tag:empty {
+  display: none; /* No backing box while there's no year to show */
+} /* End of the empty tag rule */
+
+/* North arrow and scale bar in the photo's bottom-left corner (the map's marks, a little closer to the corner) */
+.longview-marks {
+  left: 8px; /* 8 px in from the left */
+  bottom: 8px; /* ...and from the bottom */
+} /* End of the marks rule */
+
+/* While the photos load or play, the panel's heading gets focus from code, but it isn't something to press */
+#longview-title:focus { outline: none; }
+
+/* The play button beside the slider: a square outlined button, like "← Back to map", with a drawn play or pause sign */
+.longview-controls {
+  display: flex; /* Button and slider in a row */
+  align-items: flex-start; /* Both from the top, so the button can be centred on the track (below) */
+  gap: 14px; /* Space between them */
+} /* End of the controls rule */
+.longview-slider {
+  flex: 1; /* The slider takes the rest of the width */
+  min-width: 0; /* ...and may shrink below its content's width */
+} /* End of the slider wrapper rule */
+.longview-play {
+  flex: none; /* Never squeezed */
+  display: grid; /* So the drawing can be centred... */
+  place-items: center; /* ...both ways */
+  width: 36px; /* A comfortable target... */
+  height: 36px; /* ...square */
+  margin-top: -8px; /* Centred on the slider's track (the slider is 20 px tall, its track in the middle) */
+  padding: 0; /* The size above is the whole button */
+  background: none; /* No fill */
+  border: 1px solid var(--line); /* Thin outline, like the other buttons */
+  color: var(--ink); /* The drawing's colour */
+  cursor: pointer; /* Pointing hand */
+} /* End of the play button rule */
+.longview-play:hover {
+  border-color: var(--muted); /* Brighter outline when pointed at, like the other buttons */
+} /* End of the play hover rule */
+.longview-play:focus-visible {
+  outline: 2px solid var(--water); /* The blue focus outline for keyboard users */
+  outline-offset: 2px; /* A small gap around it */
+} /* End of the play focus rule */
+.longview-play:disabled {
+  opacity: 0.35; /* Faded until every photo is in */
+  cursor: progress; /* The "busy" cursor */
+} /* End of the disabled play rule */
+.longview-play .icon-play {
+  fill: currentColor; /* A solid triangle */
+} /* End of the play sign rule */
+.longview-play .icon-pause {
+  display: none; /* Hidden unless playing */
+  fill: none; /* Two lines... */
+  stroke: currentColor; /* ...in the drawing's colour... */
+  stroke-width: 2.5; /* ...a little heavy, so they read at 16 px */
+} /* End of the pause sign rule */
+.longview-play.is-playing .icon-play { display: none; } /* Playing: no triangle... */
+.longview-play.is-playing .icon-pause { display: inline; } /* ...but the two bars */
+
+/* The loading line and progress bar under the scrubber */
+#longview-note:empty {
+  display: none; /* No empty line when there's nothing to say */
+} /* End of the empty note rule */
+#longview-progress {
+  margin: 0 0 18px; /* No space above (the note has its own), the usual space below */
+} /* End of the progress rule */
+#longview-progress i {
+  transition: width 0.3s ease-out; /* The fill grows smoothly as each photo comes in */
+} /* End of the progress fill rule */
+
+/* The title block: a small boxed table, like the one in the corner of a drawing sheet */
+.title-block {
+  margin: 4px 0 18px; /* A little space above, the usual space below */
+  border: 1px solid var(--line); /* A hairline box */
+} /* End of the title block rule */
+.title-block-head {
+  padding: 8px 10px; /* Room inside */
+  border-bottom: 1px solid var(--line); /* A hairline under the heading row */
+  color: var(--ink); /* Drafting Ink: this line matters */
+  font: 11px / 1.3 var(--mono); /* The drawing voice */
+  letter-spacing: 0.12em; /* Spread out */
+  text-transform: uppercase; /* Capitals */
+} /* End of the head rule */
+.title-block > div:not(.title-block-head) {
+  display: grid; /* Label and value side by side... */
+  grid-template-columns: 76px 1fr; /* ...the label column fixed, the value the rest */
+} /* End of the row rule */
+.title-block > div:not(.title-block-head) + div {
+  border-top: 1px solid var(--line); /* A hairline between rows */
+} /* End of the row divider rule */
+.title-block dt {
+  padding: 7px 10px; /* Room inside */
+  border-right: 1px solid var(--line); /* A hairline between label and value */
+  color: var(--muted); /* Pencil Grey */
+  font: 11px / 1.4 var(--mono); /* The drawing voice */
+  letter-spacing: 0.12em; /* Spread out */
+  text-transform: uppercase; /* Capitals */
+} /* End of the label rule */
+.title-block dd {
+  margin: 0; /* No browser indent */
+  padding: 6px 10px; /* Room inside */
+  font-size: 13px; /* Small reading text */
+  line-height: 1.45; /* Comfortable spacing */
+} /* End of the value rule */
+
+/* People who asked for less motion: years switch at once, and the progress bar jumps */
+@media (prefers-reduced-motion: reduce) {
+  .longview-photos img,
+  #longview-progress i {
+    transition: none; /* No fading or growing */
+  } /* End of the reduced-motion long view rule */
+} /* End of the reduced-motion rules */
+
 /* ---------- Drawing voice ---------- */
 /* Labels, buttons, and tags are lettered like the annotations on an architectural drawing: mono font, uppercase,
    slightly spread out, the same family as the small "kicker" labels. Reading text (headline, intro, the reveal
@@ -1775,6 +2001,7 @@ h1:focus {
 .locate,
 .place-button,
 .back,
+.longview-empty,
 .pin-card button,
 .stats li {
   font-family: var(--mono); /* Technical-drawing style font */

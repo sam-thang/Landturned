@@ -1,5 +1,6 @@
 # The Landturned backend: a small web API built with FastAPI.
 
+import json  # Built into Python; writes the long view's pieces as JSON text
 import os  # Built into Python; reads settings ("environment variables"), such as where the built website is
 import threading  # Built into Python; runs the land-cover year check in the background when the server starts
 from pathlib import Path  # Built into Python; a handy way to build file paths
@@ -9,9 +10,10 @@ from typing import Annotated  # Lets us attach extra rules to a function input (
 # HTTPException (for sending back an error answer) and Query (rules for ?name=value inputs in the address)
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.gzip import GZipMiddleware  # Compresses replies (like zipping a file) so they travel faster
+from fastapi.responses import StreamingResponse  # A reply sent piece by piece, as each piece is ready (the long view)
 from fastapi.staticfiles import StaticFiles  # Hands out ready-made files (the built website) as they are
 
-from app import analysis, geocoding, imagery, landcover, wayback  # Our own code: the land-cover analysis, the address search, the satellite photo, the land-cover data, and Esri's imagery archive
+from app import analysis, change_image, geocoding, imagery, landcover, longview, wayback  # Our own code: the land-cover analysis, data URLs (change_image), the address search, the satellite photo, the land-cover data, the long view's Landsat photos, and Esri's imagery archive
 
 # Create the app. The title is shown on FastAPI's automatic documentation page (at /docs).
 app = FastAPI(title="Landturned backend")
@@ -127,7 +129,31 @@ def imagery_photo(
         raise HTTPException(status_code=404, detail=str(error)) from error  # Answer with 404 ("not found") and the reason
 
 
-# The website itself. In production (on Render), this same server also hands out the built site ("npm run build" puts it
+# The long view: one Landsat photo of the 15 x 15 km square around a place for each 5-year slot from 1985 to 2025.
+# Photos only (nothing measured). Example: /api/longview?lat=34.0922&lon=-117.4350
+# The first answer for an area takes about 15-25 s; the frames are saved on disk (nearby addresses within about 1 km
+# share them), so every later answer is instant. A plain "def": FastAPI runs it in a worker thread while it waits.
+# The answer is "streamed": sent piece by piece as each is ready, one line of JSON per piece ("NDJSON", newline-delimited
+# JSON). First line: {"type": "head", centre, corners, slots}. Then one line per slot, in the order they're ready:
+# {"type": "frame", slot, date, satellite, ..., image} (image is a data URL, or null when no photo was found).
+# So the app can show real progress ("3 of 9") and the first photos while the rest are still being made.
+@app.get("/api/longview")
+def long_view_route(
+    lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90
+    lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
+) -> StreamingResponse:  # Hands back a reply that is sent piece by piece
+    def lines():  # The reply's lines, one at a time (a generator, like long_view_parts)
+        try:  # Make the pieces...
+            parts = longview.long_view_parts(lat, lon)  # The long view's pieces, still to come (see longview.py)
+            yield json.dumps({"type": "head", **next(parts)}) + "\n"  # The first piece: centre, corners, slots
+            for record, jpeg in parts:  # Each frame as it's ready
+                image = change_image.to_data_url(jpeg, "image/jpeg") if jpeg is not None else None  # The photo as a data URL, which the browser reads like an image link
+                yield json.dumps({"type": "frame", **record, "image": image}) + "\n"  # One line per frame
+        except Exception as error:  # ...but if something fails halfway (e.g. Planetary Computer is down), the reply has already started, so an error status can't be sent any more:
+            yield json.dumps({"type": "error", "detail": str(error)}) + "\n"  # say so in a last line instead
+    # "Content-Encoding: identity" (not compressed) keeps the compression step from holding lines back until it has
+    # enough to squeeze; JPEG photos hardly compress anyway. FastAPI runs the generator in a worker thread.
+    return StreamingResponse(lines(), media_type="application/x-ndjson", headers={"Content-Encoding": "identity"})  # Send the lines as they come (on Render), this same server also hands out the built site ("npm run build" puts it
 # in frontend/dist), so the site and its /api share one address. This comes last, after every /api route, so the API
 # always wins. During development the site comes from Vite (npm run dev) instead: if there's no built site, nothing
 # changes. FRONTEND_DIST can point somewhere else; by default it's frontend/dist next to the backend folder.

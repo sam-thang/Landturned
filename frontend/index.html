@@ -72,6 +72,30 @@
             <span id="credit-text" class="credit-text">Powered by Esri · Imagery © Esri, Vantor, Earthstar Geographics, and the GIS User Community</span> <!-- The credit text: "Powered by Esri" (Esri's terms require it), then World Imagery's own credit line as Esri publishes it (checked 2026-11-22; Vantor is Maxar's new name). The place names' credit (Geoapify, OpenStreetMap) sits in the result's small print instead, next to the place name it belongs to -->
           </div> <!-- End of the credit -->
         </div> <!-- End of the map wrapper -->
+        <!-- THE LONG VIEW: one Landsat photo of the 15 × 15 km square around the place per 5-year slot, 1985 to today (longview.js).
+             It covers the map while open; the map stays underneath, untouched, so closing it returns to exactly the same view. -->
+        <div id="longview" class="longview" hidden> <!-- Hidden until "See how it turned since 1985" is pressed -->
+          <div id="longview-frame" class="longview-frame"> <!-- The square photo area; longview.js sizes it to fit the stage -->
+            <div id="longview-photos" class="longview-photos"></div> <!-- One <img> per year, stacked; longview.js adds them as they arrive and shows one at a time -->
+            <p id="longview-empty" class="longview-empty mono" hidden></p> <!-- Shown in place of a photo: "Finding summer photos…" while loading, or "No clear summer photo" for a year without one -->
+            <svg id="longview-square" class="longview-square" viewBox="0 0 500 500" aria-hidden="true"> <!-- The 2 × 2 km analysis square, drawn in the photo's own 500 × 500 pixels so it scales with it; decorative (the panel says what it is) -->
+              <polygon class="longview-square-track" /> <!-- A dark line underneath, so the square shows on bright and dark ground alike -->
+              <polygon class="longview-square-line" /> <!-- The off-white line on top -->
+            </svg> <!-- End of the square -->
+            <p id="longview-square-label" class="area-label longview-square-label" aria-hidden="true">Analysis area</p> <!-- Its label, just above its top-left corner, like on the map (longview.js places it) -->
+            <p id="longview-tag" class="area-label longview-tag" aria-hidden="true"></p> <!-- The shown year in the photo's top-left corner, e.g. "1995 · AUG 9 · LANDSAT 5" (the panel says the same for screen readers) -->
+            <div class="map-marks longview-marks"> <!-- North arrow and scale bar, the same drawing marks as on the map -->
+              <svg id="longview-north" class="north-arrow" viewBox="4.5 0 11 26" width="11" height="26" role="img" aria-label="North arrow, pointing to true north"> <!-- The same arrow as the map's; longview.js turns it to true north -->
+                <path class="north-head" d="M10 0 L15.5 15 L10 12 L4.5 15 Z" /> <!-- The arrowhead -->
+                <text class="north-letter" x="10" y="26" text-anchor="middle">N</text> <!-- The "N" -->
+              </svg> <!-- End of the north arrow -->
+              <div id="longview-scale" class="scale"> <!-- The scale bar; longview.js sets its width to a real distance on the photo -->
+                <div class="scale-blocks"><span></span><span></span></div> <!-- Two blocks: light and dark -->
+                <div class="scale-labels mono"><span>0</span><span id="longview-scale-mid"></span><span id="longview-scale-end"></span></div> <!-- "0", the middle and the end, e.g. "0 1 2 km" -->
+              </div> <!-- End of the scale bar -->
+            </div> <!-- End of the marks -->
+          </div> <!-- End of the frame -->
+        </div> <!-- End of the long view -->
         <div id="teaser" class="teaser" hidden><strong></strong><small></small></div> <!-- The hover box for hotspots; globe.js fills in the name and teaser, and shows it -->
         <div id="pin-card" class="pin-card" hidden aria-live="polite"> <!-- The card beside a tapped spot: globe.js moves it with the pin, main.js fills it in. aria-live makes screen readers announce the coordinates when they change -->
           <strong id="pin-coords" class="mono"></strong> <!-- The spot's coordinates, labelled like a survey point (no name: at globe zoom a tap is too rough for one) -->
@@ -137,6 +161,7 @@
           <button id="back" class="back" type="button">← New place</button> <!-- Goes back to the globe to choose another place -->
           <p id="result-kicker" class="kicker"></p> <!-- Coordinates and period, e.g. "33.9747° N, 117.5665° W · 2017 → 2023" -->
           <h2 id="result-name" class="reveal" tabindex="-1"></h2> <!-- The reveal sentence (results.js fills it in). tabindex="-1": main.js can move focus here when the result appears (screen readers then read it out), but Tab doesn't stop on it -->
+          <button id="longview-open" class="longview-link" type="button">See how it turned since 1985 →</button> <!-- Opens the long view (main.js): a quiet link-like button under the sentence; a button, not a link, because it opens a view rather than going to another page -->
           <div id="timeline" class="timeline" hidden> <!-- The year slider: compare the first year with any later year (main.js shows it when there is change data) -->
             <div class="timeline-head"> <!-- The label on the left, the chosen year on the right -->
               <span id="timeline-label" class="timeline-label"></span> <!-- e.g. "Since 2017" (main.js fills it in with the result; every year comes with the analysis) -->
@@ -165,6 +190,39 @@
           <p class="note"><a id="feedback-link" class="note-link" href="mailto:hello@landturned.com">Something look wrong here? Tell us.</a></p> <!-- Small print, line 4: opens an email to us; results.js adds a subject naming this place and its coordinates -->
           <p class="note"><a class="note-link" href="/how/">How this works →</a></p> <!-- Small print, line 5: the method page -->
         </div> <!-- End of the result section -->
+        <div id="panel-longview" hidden> <!-- Panel contents while the long view is open; hidden until then -->
+          <button id="longview-back" class="back" type="button">← Back to map</button> <!-- Closes the long view: the map and the result come back exactly as they were -->
+          <p id="longview-kicker" class="kicker"></p> <!-- Coordinates and period, like the result's, e.g. "34.0922° N, 117.4350° W · 1985 → 2025" -->
+          <h2 id="longview-title" class="reveal" tabindex="-1"></h2> <!-- e.g. "Fontana from 1985 to 2025"; tabindex="-1": focus moves here when the view opens, so screen readers announce it -->
+          <div class="timeline longview-timeline"> <!-- The year scrubber, built like the result's year slider -->
+            <div class="timeline-head"> <!-- The shown photo's date on the left, its year large on the right -->
+              <span id="longview-date" class="timeline-label"></span> <!-- e.g. "Aug 9, 1995 · Landsat 5" -->
+              <output id="longview-year" class="timeline-year" for="longview-range"></output> <!-- The slot's year, large -->
+            </div> <!-- End of the head -->
+            <div class="longview-controls"> <!-- The play button and the slider side by side -->
+              <button id="longview-play" class="longview-play" type="button" aria-label="Play"> <!-- Plays the years one after another (longview.js switches the label and the drawing to "Pause" while playing) -->
+                <svg viewBox="0 0 20 20" width="16" height="16" aria-hidden="true"> <!-- Both drawings; CSS shows the one that fits -->
+                  <path class="icon-play" d="M6 4 L16 10 L6 16 Z" /> <!-- Play: a triangle -->
+                  <path class="icon-pause" d="M6 4 V16 M14 4 V16" /> <!-- Pause: two bars -->
+                </svg> <!-- End of the drawings -->
+              </button> <!-- End of the play button -->
+              <div class="longview-slider"> <!-- The slider and its ticks -->
+                <input id="longview-range" class="timeline-range" type="range" min="0" max="8" step="1" value="0" disabled aria-label="Year" /> <!-- One step per slot (0 = 1985); longview.js sets what screen readers say -->
+                <div id="longview-ticks" class="timeline-ticks" aria-hidden="true"></div> <!-- One tick per slot, labelled '85, '90 … (longview.js builds them) -->
+              </div> <!-- End of the slider -->
+            </div> <!-- End of the controls -->
+          </div> <!-- End of the scrubber -->
+          <p id="longview-note" class="stat-total" aria-live="polite"></p> <!-- One line about the shown photo or the loading: "Finding summer photos · 3 of 9", "No clear summer photo in 1985; this one is from 1986." -->
+          <div id="longview-progress" class="progress" aria-hidden="true"><i></i></div> <!-- How many of the photos are in (real progress: one step per photo) -->
+          <dl class="title-block"> <!-- A title block, like the box in the corner of a drawing sheet -->
+            <div class="title-block-head">Photos only · 30 m · not measured</div> <!-- What this view is, and isn't: the land-cover numbers don't come from these photos -->
+            <div><dt>Area</dt><dd>15 × 15 km around the place</dd></div> <!-- Row: the area shown -->
+            <div><dt>Season</dt><dd>Summer, one photo every 5 years</dd></div> <!-- Row: when the photos were taken -->
+            <div><dt>Source</dt><dd>Landsat 5, 7, 8, 9 · USGS</dd></div> <!-- Row: where they come from -->
+          </dl> <!-- End of the title block -->
+          <p class="note">The outlined square is the 2 × 2 km area measured on the map. These are satellite photos as delivered: colors shift a little between satellites and seasons, so compare shapes, not shades. Where a year had no clear summer photo, the nearest year's is shown and labeled.</p> <!-- Small print, line 1: what to look at, and why colors may differ -->
+          <p class="note">Landsat imagery courtesy of the U.S. Geological Survey, via Microsoft Planetary Computer.</p> <!-- Small print, line 2: the credit USGS asks for -->
+        </div> <!-- End of the long view section -->
       </section> <!-- End of the panel -->
     </div> <!-- End of the app -->
     <script type="module" src="/src/main.js"></script> <!-- Load our JavaScript; "module" lets it use import statements -->

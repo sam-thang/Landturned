@@ -16,6 +16,8 @@ import { geocode, reverseGeocode } from './geocode.js';
 import { showPlace, showChange, swapChange, setBaseImagery, showSwipe, playOpening, glideToMiddle, resetSwipe, setShownChanges, getAnalyseSpot, setAnalysing, onOfferSettled, showFindingTag, hideFindingTag, endFindingTag } from './map.js';
 // Bring in the function that builds the 2017 picture for the before/after swipe, from swipe.js
 import { buildBeforeImage, tagText } from './swipe.js';
+// Bring in the long view (Landsat photos since 1985), from longview.js
+import { openLongView, closeLongView } from './longview.js';
 
 // ---------- Globe ----------
 
@@ -93,7 +95,7 @@ function placeFromUrl() {
 
 // Show one panel section (by its id) and hide the others
 function showPanel(id) {
-  for (const sectionId of ['panel-landing', 'panel-locating', 'panel-result']) { // Go through all panel sections
+  for (const sectionId of ['panel-landing', 'panel-locating', 'panel-result', 'panel-longview']) { // Go through all panel sections
     document.getElementById(sectionId).hidden = sectionId !== id; // Hide every section except the chosen one
   } // End of the sections loop
 } // End of showPanel
@@ -138,8 +140,12 @@ const HOLD_MS = 500;
 const IMAGERY_LIMIT_MS = 120000;
 
 // Which state the app is in: 'landing' (choosing a place), 'locating' (zooming in and loading),
-// 'result' (map shown), 'failed' (the map couldn't load; only "← Back to globe" works), or 'returning' (going back to the globe)
+// 'result' (map shown), 'failed' (the map couldn't load; only "← Back to globe" works), 'returning' (going back to the globe),
+// or 'longview' (the Landsat photos since 1985 cover the map)
 let mode = 'landing';
+
+// The result now on screen, for the long view: { place, corners } ("corners" are the analysis square's, or null without one)
+let currentResult = null;
 
 // A ticket number for the place being loaded. Choosing a place takes a new ticket; going back (or cancelling) takes one too.
 // Loading a place is a chain of waits; after each wait the chain checks its ticket, and if a newer one exists it was
@@ -255,6 +261,7 @@ async function showFinishedResult(place, change, swipeJob, photoDate, cancelled,
       announce('Earlier imagery added: drag the handle on the map to compare.'); // Tell screen-reader users (no year: the photo's real date is on its tag)
     }); // End of the late swipe
   } // End of the swipe check
+  currentResult = { place, corners: change ? change.image.corners : null }; // Remember the place and its square, for the long view
   showResults(place, change, formatCoords(place.lon, place.lat)); // The reveal sentence, stats, and notes (or a "not available" message if change is null)
   setUpTimeline(place, change, formatCoords(place.lon, place.lat)); // The year slider, ready at once (every year came with the analysis)
   return swipe; // The swipe, so the caller can play the opening (or null: none yet)
@@ -517,6 +524,52 @@ function showYear(year) {
 
 timelineRange.addEventListener('input', () => { resetSwipe(); showYear(Number(timelineRange.value)); }); // Handle back to the left edge first, so the changing colours can be seen; then the year // "input" fires on every step while dragging (and on arrow keys), so the result follows the handle live
 
+// ---------- The long view: Landsat photos since 1985 ----------
+// "See how it turned since 1985 →" covers the map with the long view and swaps the result panel for its own. Opening it
+// adds a step to the browser's history ("&view=long" in the address), so the Back button closes it again, like
+// "← Back to map" and the Escape key. The map underneath is never touched, so closing it returns exactly to where it was.
+
+let addedLongViewStep = false; // True while the long view's address is a history step we added (then closing goes back through it)
+
+// Open the long view for the result on screen. "fromHistory" is true when the browser's Forward button opened it.
+function openLong(fromHistory = false) {
+  if (mode !== 'result' || !currentResult) return; // Only from a finished result
+  mode = 'longview'; // Now the long view is open
+  if (!fromHistory) { // Opened with the link: add a history step, so Back closes it
+    const params = new URLSearchParams(location.search); // The place in the address (lat, lon, name)
+    params.set('view', 'long'); // ...plus "view=long"
+    history.pushState(null, '', `?${params}`); // A new step in the browser's history
+    addedLongViewStep = true; // Remember it, for closing
+  } // End of the history step
+  const { place, corners } = currentResult; // The place and its analysis square
+  openLongView(place, corners, formatCoords(place.lon, place.lat)); // Show the photos on the stage (longview.js)
+  document.querySelector('.map-layer').inert = true; // The covered map can't be clicked, tabbed to or read out meanwhile
+  showPanel('panel-longview'); // Swap the result panel for the long view's
+  document.querySelector('.panel').scrollTop = 0; // Start at the top of the panel
+  document.getElementById('longview-title').focus({ preventScroll: true }); // Keyboard focus to its heading: screen readers announce it
+} // End of openLong
+
+// Close the long view and bring the result back. "fromHistory" is true when the browser's Back button closed it.
+function closeLong(fromHistory = false) {
+  if (mode !== 'longview') return; // Not open
+  if (!fromHistory && addedLongViewStep) { // Closed with the button or Escape, and we added a history step:
+    history.back(); // Step back through the history instead; its popstate event comes back here with fromHistory = true
+    return; // So nothing more to do now
+  } // End of the history check
+  addedLongViewStep = false; // The step is used up
+  closeLongView(); // Stop playing and uncover the map (longview.js)
+  document.querySelector('.map-layer').inert = false; // The map works again
+  showPanel('panel-result'); // The result panel again
+  mode = 'result'; // Back to the result
+  document.getElementById('longview-open').focus({ preventScroll: true }); // Keyboard focus back on the link that opened it
+} // End of closeLong
+
+document.getElementById('longview-open').addEventListener('click', () => openLong()); // The link under the result sentence ("() =>" so the click event isn't passed in as fromHistory)
+document.getElementById('longview-back').addEventListener('click', () => closeLong()); // "← Back to map"
+document.addEventListener('keydown', (event) => { // Any key pressed anywhere on the page:
+  if (event.key === 'Escape' && mode === 'longview') closeLong(); // Escape closes the long view
+}); // End of the key listener
+
 // ---------- Imagery credit (phones: opened and closed with the ⓘ button) ----------
 
 const credit = document.getElementById('map-credit'); // The credit element
@@ -535,7 +588,10 @@ creditToggle.addEventListener('click', () => {
 // (while loading, to cancel, or after the map failed to load), so all of them take the same path.
 // "fromHistory" is true when the browser's Back button started it (see the popstate listener below).
 async function returnToGlobe(fromHistory = false) {
-  if (!['result', 'failed', 'locating', 'analysing'].includes(mode)) return; // Only from a result, a failed load, while loading, or while analysing an area
+  if (!['result', 'failed', 'locating', 'analysing', 'longview'].includes(mode)) return; // Only from a result, a failed load, while loading, while analysing an area, or from the long view (the Back button pressed twice quickly)
+  closeLongView(); // Close the long view if it's open (nothing happens if it isn't)
+  document.querySelector('.map-layer').inert = false; // ...and wake the map it covered
+  addedLongViewStep = false; // Its history step, if any, is behind us now
   if (!fromHistory && addedHistoryStep) { // A button was pressed, and we added a history step for this place:
     history.back(); // Step back through the browser's history instead; its popstate event comes back here with fromHistory = true
     return; // So nothing more to do now
@@ -566,8 +622,11 @@ document.getElementById('locating-back').addEventListener('click', () => returnT
 // The browser's Back and Forward buttons: the address has already changed when "popstate" fires, so follow it.
 window.addEventListener('popstate', () => { // Back or Forward was pressed (or history.back() was called above)
   const place = placeFromUrl(); // The place in the address now, or null for the landing page
+  const longView = new URLSearchParams(location.search).get('view') === 'long'; // Does the address ask for the long view?
   if (!place) returnToGlobe(true); // No place: back to the globe (does nothing if we're already there)
   else if (mode === 'landing') selectPlace(place); // A place again (Forward): open it, as if chosen (the address is already right, so no new step)
+  else if (mode === 'longview' && !longView) closeLong(true); // Back from the long view: close it
+  else if (mode === 'result' && longView) openLong(true); // Forward into the long view again: open it
 }); // End of the Back/Forward listener
 
 // ---------- Place buttons ----------
