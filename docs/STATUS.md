@@ -1,10 +1,12 @@
-# Landturned: current state (2026-11-23)
+# Landturned: current state (2026-11-24)
 
 **Live at https://landturned.com** (renamed from Landturn on 2026-11-23; Render's own address landturn.onrender.com also works). Naming rule: "Landturned" in text, lowercase "landturned" only in URLs, file names and code. The Render service `landturn`, its disk `landturn-cache` and the setting `LANDTURN_CACHE_DIR` keep the old name on purpose (see `CLAUDE.md`).
 
 **Deployed 2026-11-23 on Render** from `render.yaml`: one Python web service in Oregon (`0.5c-512mb`, about $7/month) with a 1 GB disk at `/var/data` (`LANDTURN_CACHE_DIR=/var/data/cache`, about $0.25/month); FastAPI serves the built site and `/api`; started by `backend/start.sh` (one process, `GDAL_CACHEMAX=64`); Geoapify key as a Render secret. Hotspots warmed with `cd backend && uv run --no-sync python -m scripts.warm_wayback` in Render's Shell. Live timings (2026-11-23): hotspot result with swipe 4.5-6.3 s (mostly the globe animation), Analyze this area 0.3-2.3 s, a new place's analysis 1.6 s cold / 0.6 s repeat.
 
 A factual snapshot for performance advice. It's based on reading the code and on timings measured on 2026-11-21 (section 4). "Not checked" means I didn't verify it.
+
+**Updated 2026-11-24:** the **long view** is built ("See how it turned since 1985 →": one Landsat photo of the 15 × 15 km square every 5 years, photos only), with its own backend module, a streamed `/api/longview`, a disk cache and pre-made photos for the hotspots (section 8, end).
 
 **Updated 2026-11-23 (later):** the place buttons follow a measured order (`BUTTON_ORDER` in `places.js`), Hidroituango replaced Cajamar, the Geoapify key is locked to Render's servers, and the map now says why the earlier imagery didn't come (section 8, end).
 
@@ -45,8 +47,10 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `frontend/src/loading.js` | Loading steps and progress bar |
 | `frontend/src/places.js` | The 12 hotspots, and `BUTTON_ORDER`: the order of the place buttons |
 | `frontend/src/scalebar.js` | Scale bar |
+| `frontend/src/longview.js` | The long view: loads the photos as they stream in, shows one year at a time with the analysis square, north arrow and scale bar on the photo, the year scrubber and play button |
 | `frontend/how/`, `how.js`, `how.css` | "How this works" page: seven numbered SVG diagrams drawn by `how.js`, plus data and credits (section 8) |
-| `backend/app/main.py` | API routes: `/api/health`, `/api/analysis` (since Phase 3; replaces `/api/change` and `/api/timeline`), `/api/wayback`, `/api/imagery` |
+| `backend/app/main.py` | API routes: `/api/health`, `/api/analysis` (since Phase 3; replaces `/api/change` and `/api/timeline`), `/api/wayback`, `/api/imagery`, `/api/longview` (streamed) |
+| `backend/app/longview.py` | The long view: Landsat Collection 2 Level-2 search on Planetary Computer, the clearest summer scene per 5-year slot at the place (QA_PIXEL), the 500 × 500 px true-color crop, and its disk cache |
 | `backend/app/analysis.py` | Since Phase 3: reads all years in parallel, builds the main result plus every slider comparison, and keeps the land-cover disk cache |
 | `backend/app/landcover.py` | Works out the land-cover file from the coordinates (grid zone + year), 200 × 200 px square read, class mapping, comparison, edge cleaning, stats |
 | `backend/app/geocoding.py` | Since 2026-11-23: the Geoapify relay: secret key from `backend/.env`, answers saved on disk for all visitors, at most 5 requests/s and 2,900/day for the whole site |
@@ -54,6 +58,8 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `backend/app/wayback.py` | Esri Wayback lookup: which archive versions and photo dates for "before" and "after", with a disk cache |
 | `backend/app/imagery.py` | Sentinel-2 photo of the square. **The frontend no longer calls it.** |
 | `backend/scripts/warm_wayback.py` | Pre-fills the Wayback cache for the hotspots |
+| `backend/scripts/warm_longview.py` | Pre-fills the long view for the hotspots, on this computer or on the live site (`uv run python -m scripts.warm_longview https://landturned.com`) |
+| `backend/scripts/longview_test.py` | Draws a place's nine long-view photos side by side as one contact sheet, for checking by eye |
 | `backend/scripts/rank_places.py`, `explore_fontana.py`, `method_patch.py` | Dev and analysis scripts, not part of the app |
 
 ## 2. Data sources
@@ -430,6 +436,7 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 ## 5. Loading and caching
 
 **Preloaded:**
+- **Long view:** `warm_longview.py` makes the hotspots' Landsat photos in advance; after a deploy it's run against the live site (it asks `/api/longview` like a browser does).
 - **Hotspots:** `warm_wayback.py` pre-fills the Wayback cache for the hotspots. Run on the server at deploy (2026-11-23). Hidroituango, added later, was filled by visiting it on the live site.
 - **Head start:** `/api/wayback` starts 0.5 s after the "Analyse this area" offer has settled.
 - **Map during the globe turn:** MapLibre and the map start loading while the globe turns.
@@ -528,7 +535,7 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 **Unfinished:**
 - ~~**Landing hints.**~~ Built (`4f1f0ad`, `b3c1452`): a colour key and the caption "Pick any spot on land to see how it turned."
 - ~~"How this works" page: skeleton and data only.~~ Built 2026-11-22 (section 8).
-- Not built yet: the long-view era (GLC_FCS30D, 1985–2016), the share screen, and the "new construction sites" stat.
+- ~~The long view~~ built 2026-11-24, as photos only (section 8, end). Not built yet: measured land cover for 1985–2016 (GLC_FCS30D, maybe later), the share screen, and the "new construction sites" stat.
 - **No production deployment or build** has been checked.
 
 ## 8. Since the speed-up phases (2026-11-21 to 2026-11-22)
@@ -591,6 +598,22 @@ Then a "Data and credits" section.
 - **Before:** after 40 s the "FINDING EARLIER IMAGERY…" label just vanished, which looked like a bug.
 - **Now:** the page waits up to 2 minutes. If no earlier photo comes, the label says why for 5 s without its pulse: "EARLIER IMAGERY TOOK TOO LONG" (time ran out) or "NO EARLIER IMAGERY HERE" (none found, or under 2 years older than the current photo). Screen readers hear the same. A new place or analysis removes it at once.
 - **Tested:** in the dev app with a faked archive (never answers / answers "none"), desktop and 390 px phone: right message, gone after 5 s, no page errors.
+
+**The long view** (branch `long-view`, 2026-11-23 to 24; merged 2026-11-24).
+- **What people see:** "See how it turned since 1985 →" under the result sentence. The photo takes the map's place on the stage (the map stays underneath, untouched and inert) and the panel switches to the long view's: the year scrubber (’85 to ’25) with a play button, a title block ("Photos only · 30 m · not measured", area, season, source), and small print with the USGS credit. It plays once from 1985 on opening (not with reduced motion). "← Back to map", Escape and the browser's Back button close it (a `view=long` history step).
+- **Data:** Landsat Collection 2 Level-2 on Planetary Computer (`landsat-c2-l2`): Landsat 5, 8 and 9, and Landsat 7 only before its 31 May 2003 fault; **Tier 1 only** (a Tier 2 Stavanger scene was 50 km off). Summer only (May–Sep north, Nov–Mar south, any month in the tropics).
+- **Choosing the photo:** for each slot (1985, 1990 … 2025) the slot year first, then ±1 and ±2 years. In each year the 8 least-cloudy scenes are checked at the place itself with QA_PIXEL (no data, near cloud, cirrus, cloud, shadow); "clear" = at most 2% of the square hidden. The main WRS-2 path/row is the one whose scenes are centered closest to the place. Without any clear scene, the least hidden one is used.
+- **Photos as delivered:** pixels are copied unchanged (nearest) when the scene's UTM zone matches the square's; only the app's fixed display stretch is applied. Tried and **dropped** (user's rule: photos as is, fast, any location): a haze score and a Landsat 8/9 blue-color fix. So some frames show haze, and Landsat 8/9 frames show a few yellow specks next to bright roofs (from USGS's own processing).
+- **Speed:** catalog searches ask only for the slot year's summer, filter Tier 1 / satellite / cloud on the server and ask only for the fields used (12 s → about 3 s); a stuck search gets a backup request after 6 s; the nine slots run at the same time. The answer is streamed (one line per photo), so the panel shows real progress.
+- **Cache:** `cache/longview/<lat>_<lon>/<slot>.jpg` + `.json`, center rounded to 0.01° (about 1 km), so nearby addresses share; about 600 KB per place (about 1,500 places on the 1 GB disk). Old slots are kept forever; a slot reaching the present (2025) is remade after 30 days; a missing slot isn't saved.
+
+| Measured (dev, 2026-11-24) | Time |
+|---|---|
+| A place seen before | 0.1 s backend, under 1 s in the browser |
+| A new place | 13–25 s (Planetary Computer's catalog sometimes stalls; before the backup request: 34–59 s) |
+| All 12 hotspots warmed, 3 at a time | 93 s |
+
+- **Hotspots:** 10 of 12 have all nine years. Kīlauea has 6 (no scene at all near 1985, 1995 and 2010; its 2000 slot is a 1999 photo 24% under cloud) and Weda Bay 7, both cloudy tropical places; the panel says when a year has no photo.
 
 ## Phase 2 findings: land-cover years (2026-11-21, research only, no code changed)
 

@@ -246,6 +246,15 @@ A legend and a schedule in one: four rows, each with a 12 px square swatch in it
 ### Title-block marks
 Over the map: a solid Drafting Ink north arrow with an "N", a two-block scale bar (one solid, one dark) with 0 / middle / end labels in mono, and the "ANALYSIS AREA · 2 × 2 KM" label at the boundary's corner, all on Night Veil backings.
 
+### Long view
+The Landsat photos since 1985, a second sheet in the same set: the photo takes the map's place on the stage and the panel switches to its own contents (the user chose this over a full-screen overlay, 2026-11-24).
+- **Link:** "See how it turned since 1985 →" under the reveal sentence, in Pencil Grey sentence case with a faint Hairline underline (like "How this works →"), brightening to Drafting Ink on hover.
+- **Stage:** the photo is the largest square that fits, on Night Sheet, inside a 1 px Hairline frame. Over it: the analysis square as a 1.25 px Drafting Ink line on a darker track, labelled "ANALYSIS AREA" above its top-left corner; the year tag ("1995 · JUL 24 · LANDSAT 5") in the top-left corner; the map's north arrow (turned to true north) and a 1, 2 or 5 km scale bar on a Night Veil backing in the bottom-left corner. All labels use the map's `.area-label` look. Years cross-fade in 0.3 s (instantly with reduced motion).
+- **Panel:** "← BACK TO MAP", the kicker (coordinates · 1985 → 2025), the heading in the Headline style ("Fontana from 1985 to 2025", the name underlined like in the reveal sentence), then the year scrubber, built like the result's year slider (square hollow handle, ink-filled track, ’85 … ’25 ticks), with a 36 px square outlined play button whose drawn play/pause sign is Drafting Ink.
+- **Loading:** "Finding summer photos · 3 of 9" in Pencil Grey and the 2 px progress bar, one step per photo; the frame shows "FINDING SUMMER PHOTOS…" in the drawing voice, and the square steps aside until a photo is there.
+- **Title block:** a Hairline box: a heading row "PHOTOS ONLY · 30 M · NOT MEASURED" in Drafting Ink, then label/value rows (AREA, SEASON, SOURCE) with mono Pencil Grey labels in a 76 px column and values in small reading text, divided by Hairlines like a drawing's title block.
+- **Honesty:** the photos are shown as delivered (no color fixes or haze removal); the small print says colors shift between satellites and seasons, and a substituted year is named under the scrubber.
+
 ## Do's and Don'ts
 
 ### Do:
