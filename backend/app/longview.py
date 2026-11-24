@@ -83,8 +83,12 @@ MAKING = threading.Semaphore(1)  # One turn
 
 
 def utm_crs(lat, lon):
-    """The UTM projection of the zone the place is in, e.g. "EPSG:32611" (Fontana). UTM measures in meters."""
-    zone = math.floor((lon + 180) / 6) + 1  # UTM zones are 6 degrees of longitude wide, numbered from 1 at 180°W
+    """The UTM projection of the zone the place is in, e.g. "EPSG:32611" (Fontana). UTM measures in meters.
+    The zone follows the same rule as the land-cover files (landcover.grid_zone), including the grid's exceptions, such as
+    Norway's west coast, which uses zone 32 instead of 31. Otherwise the long view's photos and the analysis square would sit
+    on two different zones' grids, and the square would look turned (about 4° in Stavanger, found 2026-11-24)."""
+    grid = landcover.grid_zone(lat, lon)  # The land-cover grid zone, e.g. "32V" (None near the poles, outside the grid)
+    zone = int(grid[:-1]) if grid else math.floor((lon + 180) / 6) + 1  # Its number ("32V" -> 32); near the poles, the plain 6-degree rule
     return f"EPSG:{32600 + zone}" if lat >= 0 else f"EPSG:{32700 + zone}"  # 326xx is the northern half, 327xx the southern
 
 
@@ -289,8 +293,10 @@ def centre_of(lat, lon):
 
 
 def place_dir(centre_lat, centre_lon):
-    """The folder of one place's frames, e.g. backend/cache/longview/34.09_-117.44."""
-    return CACHE_DIR / f"{centre_lat:.{CENTRE_DECIMALS}f}_{centre_lon:.{CENTRE_DECIMALS}f}"  # Named after the rounded centre
+    """The folder of one place's frames, e.g. backend/cache/longview/34.09_-117.44_32611. The projection's number is part of
+    the name, so frames made on another zone's grid (before the zone fix of 2026-11-24) are never used again."""
+    epsg = utm_crs(centre_lat, centre_lon).split(":")[1]  # e.g. "32611"
+    return CACHE_DIR / f"{centre_lat:.{CENTRE_DECIMALS}f}_{centre_lon:.{CENTRE_DECIMALS}f}_{epsg}"  # Named after the rounded centre and the zone
 
 
 def still_good(record):
@@ -374,6 +380,20 @@ def make_missing(to_make, folder, centre_lat, centre_lon, crs, grid):
             if jpeg is not None:  # A real photo (a missing slot isn't saved, so it's tried again next time):
                 save_frame(folder, record, jpeg)  # save it for next time
             yield {**record, "cached": False}, jpeg  # hand it out, marked as just made
+
+
+def saved_long_view(lat, lon):
+    """The frames already saved for a place, without making any (for link previews, which mustn't wait 15 s).
+    Returns the first piece of long_view_parts plus "frames": {slot: (record, JPEG bytes)} for the saved slots only."""
+    centre_lat, centre_lon = centre_of(lat, lon)  # The shared, rounded centre
+    crs, grid = square_grid(centre_lat, centre_lon)  # Its grid (for the corners)
+    folder = place_dir(centre_lat, centre_lon)  # Where its frames are saved
+    frames = {}  # Slot -> (record, JPEG bytes), filled in below
+    for slot in SLOTS:  # Each slot
+        saved = load_frame(folder, slot)  # Its saved frame, or None
+        if saved is not None:  # Saved:
+            frames[slot] = saved  # keep it
+    return {"centre": [centre_lon, centre_lat], "corners": corners_lonlat(crs, grid), "slots": SLOTS, "frames": frames}  # Like long_view, but only what's saved
 
 
 def long_view(lat, lon):

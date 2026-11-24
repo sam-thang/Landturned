@@ -1,6 +1,7 @@
 # The Landturned backend: a small web API built with FastAPI.
 
 import json  # Built into Python; writes the long view's pieces as JSON text
+import re  # Built into Python; makes safe file names for downloads
 import os  # Built into Python; reads settings ("environment variables"), such as where the built website is
 import threading  # Built into Python; runs the land-cover year check in the background when the server starts
 from pathlib import Path  # Built into Python; a handy way to build file paths
@@ -8,12 +9,12 @@ from typing import Annotated  # Lets us attach extra rules to a function input (
 
 # Bring in FastAPI, the library that turns Python functions into web addresses,
 # HTTPException (for sending back an error answer) and Query (rules for ?name=value inputs in the address)
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.gzip import GZipMiddleware  # Compresses replies (like zipping a file) so they travel faster
-from fastapi.responses import StreamingResponse  # A reply sent piece by piece, as each piece is ready (the long view)
+from fastapi.responses import HTMLResponse, StreamingResponse  # A web page reply, and a reply sent piece by piece as each piece is ready (the long view)
 from fastapi.staticfiles import StaticFiles  # Hands out ready-made files (the built website) as they are
 
-from app import analysis, change_image, geocoding, imagery, landcover, longview, wayback  # Our own code: the land-cover analysis, data URLs (change_image), the address search, the satellite photo, the land-cover data, the long view's Landsat photos, and Esri's imagery archive
+from app import analysis, change_image, geocoding, imagery, landcover, longview, share, wayback  # Our own code: the land-cover analysis, data URLs (change_image), the address search, the satellite photo, the land-cover data, the long view's Landsat photos, sharing pictures (share), and Esri's imagery archive
 
 # Create the app. The title is shown on FastAPI's automatic documentation page (at /docs).
 app = FastAPI(title="Landturned backend")
@@ -153,11 +154,64 @@ def long_view_route(
             yield json.dumps({"type": "error", "detail": str(error)}) + "\n"  # say so in a last line instead
     # "Content-Encoding: identity" (not compressed) keeps the compression step from holding lines back until it has
     # enough to squeeze; JPEG photos hardly compress anyway. FastAPI runs the generator in a worker thread.
-    return StreamingResponse(lines(), media_type="application/x-ndjson", headers={"Content-Encoding": "identity"})  # Send the lines as they come (on Render), this same server also hands out the built site ("npm run build" puts it
+    return StreamingResponse(lines(), media_type="application/x-ndjson", headers={"Content-Encoding": "identity"})  # Send the lines as they come
+
+
+# ---------- Sharing: downloads and link previews (see share.py) ----------
+
+def file_name(name, ending):
+    """A download's file name, e.g. "landturned-fontana-1985-2025.gif": letters and digits only, so every system accepts it."""
+    slug = re.sub(r"[^a-z0-9]+", "-", (share.short_name(name) or "place").lower()).strip("-") or "place"  # "New Capital" -> "new-capital"
+    return f"landturned-{slug}-{longview.SLOTS[0]}-{longview.SLOTS[-1]}.{ending}"  # The full name
+
+
+# The long view as an animated GIF, downloaded as a file. Example: /api/longview/gif?lat=34.0922&lon=-117.435&name=Fontana
+# "square=false" leaves the analysis square off (the long view's "Show on photo" switch). The photos are normally saved
+# already (people download after watching), so this takes about a second.
+@app.get("/api/longview/gif")
+def long_view_gif_route(
+    lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90
+    lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
+    name: Annotated[str | None, Query(max_length=120, description="The place's name, for the footer and file name")] = None,  # Optional
+    square: bool = True,  # Draw the analysis square? ("true" or "false" in the address)
+) -> Response:  # Hands back the file itself
+    data = share.long_view_gif(lat, lon, name, square)  # Draw it (see share.py)
+    return Response(data, media_type="image/gif", headers={"Content-Disposition": f'attachment; filename="{file_name(name, "gif")}"'})  # "attachment": the browser saves it as a file
+
+
+# The long view as one picture: all nine years in a 3 x 3 grid under a title block (JPEG). Same settings as the GIF.
+@app.get("/api/longview/sheet")
+def long_view_sheet_route(
+    lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90
+    lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
+    name: Annotated[str | None, Query(max_length=120, description="The place's name, for the heading and file name")] = None,  # Optional
+    square: bool = True,  # Draw the analysis square?
+) -> Response:  # Hands back the file itself
+    data = share.long_view_sheet(lat, lon, name, square)  # Draw it (see share.py)
+    return Response(data, media_type="image/jpeg", headers={"Content-Disposition": f'attachment; filename="{file_name(name, "jpg")}"'})  # Saved as a file
+
+
+# The link-preview card (1200 x 630) that messaging apps and social sites show under a shared link: the site's own card,
+# a result's card (?lat=...&lon=...&name=...), or a long view's (...&view=long). Apps may keep it for a day.
+@app.get("/api/preview.jpg")
+def preview_route(request: Request) -> Response:  # "request" gives us the address's settings as they are
+    data = share.card_for(dict(request.query_params))  # The right card (see share.py; it checks the settings itself)
+    return Response(data, media_type="image/jpeg", headers={"Cache-Control": "public, max-age=86400"})  # Allowed to be kept for a day (86,400 s)
+
+
+# The website itself. In production (on Render), this same server also hands out the built site ("npm run build" puts it
 # in frontend/dist), so the site and its /api share one address. This comes last, after every /api route, so the API
 # always wins. During development the site comes from Vite (npm run dev) instead: if there's no built site, nothing
 # changes. FRONTEND_DIST can point somewhere else; by default it's frontend/dist next to the backend folder.
 FRONTEND_DIST = Path(os.environ.get("FRONTEND_DIST", Path(__file__).resolve().parents[2] / "frontend" / "dist"))  # Where the built site is
 if (FRONTEND_DIST / "index.html").exists():  # A built site is there:
+    INDEX_PAGE = (FRONTEND_DIST / "index.html").read_text(encoding="utf-8")  # The page's text, read once at start
+
+    # The page itself ("/"), with link-preview tags for the place in its address (share.py), so a shared link shows that
+    # place's card. Registered before the files below, so it wins for "/"; every other file is served as it is.
+    @app.api_route("/", methods=["GET", "HEAD"], include_in_schema=False)  # GET, and HEAD (some link checkers only ask for the headers)
+    def page_route(request: Request) -> HTMLResponse:  # Hands back the page as HTML
+        return HTMLResponse(share.page_for(INDEX_PAGE, dict(request.query_params), str(request.base_url)))  # The page with its tags filled in
+
     # Serve it at "/". html=True: a folder address gets its index.html, so "/" is the app and "/how/" is "How this works".
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="site")

@@ -388,7 +388,7 @@ function setResultBusy(busy) {
   resultPanel.classList.toggle('is-busy', busy); // The dimmed look (style.css)
   resultPanel.setAttribute('aria-busy', String(busy)); // Tells screen readers this part is being updated
   for (const part of resultPanel.children) { // Each part of the panel (the year slider, the stats rows, the notes...)
-    if (!part.classList.contains('back')) part.inert = busy; // ...except "← New place": asleep while busy, awake again after
+    if (!part.classList.contains('panel-actions')) part.inert = busy; // ...except the top row ("← New place" and Share): asleep while busy, awake again after
   } // End of the parts loop
 } // End of setResultBusy
 
@@ -569,6 +569,41 @@ document.getElementById('longview-back').addEventListener('click', () => closeLo
 document.addEventListener('keydown', (event) => { // Any key pressed anywhere on the page:
   if (event.key === 'Escape' && mode === 'longview') closeLong(); // Escape closes the long view
 }); // End of the key listener
+
+// ---------- Sharing ----------
+// The address bar always holds what's on screen (the place, and "view=long" in the long view), so sharing means sharing
+// that address. When a messaging app or social site opens it, the server answers with a preview card for that place
+// (backend/app/share.py), so the shared link shows the place instead of a plain link.
+
+const SHARED_MS = 2000; // How long the button says "Link copied" before saying "Share" again
+
+// Share the current address: phones get their own share sheet (Messages, WhatsApp...); computers copy the link
+async function shareLink(button) {
+  const url = location.href; // The address now on screen
+  const touch = window.matchMedia('(pointer: coarse)').matches; // A finger-operated device (a phone or tablet)?
+  if (touch && navigator.share) { // Phones: the system's share sheet
+    try { // Open it...
+      await navigator.share({ title: document.title, url }); // ...with the page's title and the address
+    } catch { // ...the person closed it without sharing (or sharing failed):
+      // nothing to do
+    } // End of the share sheet
+    return; // Done
+  } // End of the phone case
+  let words = 'Link copied'; // What the button will say...
+  try { // Copy the address to the clipboard
+    await navigator.clipboard.writeText(url); // (the browser only allows this on secure, https pages, which the site is)
+  } catch { // Copying isn't allowed here:
+    words = "Couldn't copy"; // ...say so instead
+  } // End of the copy
+  button.textContent = words; // Show what happened on the button itself
+  announce(`${words}.`); // ...and tell screen-reader users
+  setTimeout(() => { button.textContent = 'Share'; }, SHARED_MS); // Back to "Share" after a moment
+} // End of shareLink
+
+for (const id of ['share-result', 'share-longview']) { // The two Share buttons (result and long view)
+  const button = document.getElementById(id); // The button
+  button.addEventListener('click', () => shareLink(button)); // Share when pressed
+} // End of the Share buttons
 
 // ---------- Imagery credit (phones: opened and closed with the ⓘ button) ----------
 

@@ -48,6 +48,9 @@ const progressFill = progress.querySelector('i'); // ...and its fill
 const squareToggle = document.getElementById('longview-square-toggle'); // The "Analysis area" switch
 const layersLabel = document.getElementById('longview-layers-label'); // Its "Show on photo" label
 const layers = squareToggle.closest('ul'); // The list holding it
+const downloads = document.getElementById('longview-downloads'); // The download buttons' row
+const gifLink = document.getElementById('longview-gif'); // "↓ GIF"
+const sheetLink = document.getElementById('longview-sheet'); // "↓ Sheet"
 
 // ---------- State ----------
 
@@ -73,6 +76,7 @@ export function openLongView(place, analysisCorners, coordsText) {
   squareLabel.hidden = true; // ...and no label
   layersLabel.hidden = !analysisCorners; // The "Show on photo" switch only when there's a square to switch...
   layers.hidden = !analysisCorners; // ...(its state stays as the person left it, for the whole visit)
+  downloads.hidden = true; // No downloads until every photo is in
   buildTicks(DEFAULT_SLOTS); // The usual slots, until the backend says which
   setControlsReady(false); // Slider and play button wait for the photos
   writeHeading(DEFAULT_SLOTS); // "Fontana from 1985 to 2025" and the top line, with the usual slots until the backend says
@@ -175,6 +179,8 @@ function showProgress() {
 function everythingIn(state) {
   progress.hidden = true; // No more progress to show
   setControlsReady(true); // Slider and play button work now
+  setDownloadLinks(); // The downloads' addresses...
+  downloads.hidden = false; // ...and show them
   showIndex(state.index); // Refresh the line under the slider (it no longer says "Finding…")
   if (reduceMotion.matches) return; // Less motion: stay on 1985; the play button is there
   setTimeout(() => { if (state === open && state.index === 0 && !state.timer) startPlaying(); }, AUTOPLAY_DELAY_MS); // A moment on 1985, then play (unless the person already moved the slider)
@@ -263,7 +269,18 @@ squareToggle.addEventListener('click', () => {
   const on = squareToggle.getAttribute('aria-pressed') !== 'true'; // The new state: the opposite of now
   squareToggle.setAttribute('aria-pressed', String(on)); // Tell screen readers (and CSS, which dims the row when off)
   frame.classList.toggle('square-off', !on); // Hide or show the square on the photo (style.css)
+  setDownloadLinks(); // The downloads follow the switch (with or without the square)
 }); // End of the switch listener
+
+// Point the download buttons at the backend's GIF and sheet for this place, with or without the square like the photo
+function setDownloadLinks() {
+  if (!open) return; // Closed: nothing to point at
+  const params = new URLSearchParams({ lat: open.place.lat, lon: open.place.lon }); // The place
+  if (open.place.name) params.set('name', open.place.name); // Its name, for the picture's heading and the file's name
+  params.set('square', String(Boolean(open.analysisCorners) && squareToggle.getAttribute('aria-pressed') === 'true')); // The square only if there is one and it's switched on
+  gifLink.href = `/api/longview/gif?${params}`; // The GIF (the backend sends it as a file to save)
+  sheetLink.href = `/api/longview/sheet?${params}`; // The sheet
+} // End of setDownloadLinks
 
 play.addEventListener('click', () => { if (open?.timer) stopPlaying(); else startPlaying(); }); // The button plays or pauses
 range.addEventListener('input', () => { stopPlaying(); showIndex(Number(range.value)); }); // Moving the slider (or arrow keys) stops playing and shows that year

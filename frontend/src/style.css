@@ -336,7 +336,7 @@ body {
 .analyse-area[aria-disabled='true'] { cursor: progress; } /* While analysing: the "busy" mouse pointer (the marching dashes show it's working too) */
 
 /* While a new area is analysed, the old result stays but dims (only "← New place" stays bright, to cancel), and its controls rest */
-#panel-result.is-busy > :not(.back) {
+#panel-result.is-busy > :not(.panel-actions) {
   opacity: 0.4; /* Faded: this result is about to be replaced (main.js also makes these parts "inert": no clicks, taps or keys) */
   transition: opacity 0.3s ease; /* Fade rather than jump */
 } /* End of the busy rule */
@@ -1938,6 +1938,27 @@ h1:focus {
 } /* End of the pause sign rule */
 .longview-play.is-playing .icon-play { display: none; } /* Playing: no triangle... */
 .longview-play.is-playing .icon-pause { display: inline; } /* ...but the two bars */
+
+/* The panel's top row: "← New place" (or "← Back to map") and "Share" side by side */
+.panel-actions {
+  display: flex; /* In a row */
+  gap: 8px; /* The usual space between paired controls */
+  margin-bottom: 20px; /* The space the back button had below it */
+} /* End of the top row rule */
+.panel-actions .back {
+  margin-bottom: 0; /* The row carries the space below now */
+} /* End of the top row button rule */
+
+/* The long view's downloads: two outlined buttons in a row, like the top row */
+.longview-downloads {
+  display: flex; /* In a row */
+  gap: 8px; /* Space between them */
+  margin: 0 0 18px; /* Space below, before the loading line and the title block */
+} /* End of the downloads rule */
+.longview-downloads .back {
+  margin: 0; /* No extra space of their own */
+  text-decoration: none; /* Links, but drawn as buttons: no underline */
+} /* End of the download button rule */
 
 /* "Show on photo": the analysis square's switch, built like the result's colour switches (.stats, .stat-switch) */
 .longview-layers {

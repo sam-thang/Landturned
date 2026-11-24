@@ -11,7 +11,8 @@
     <meta property="og:title" content="Landturned" /> <!-- Link previews: the title -->
     <meta property="og:description" content="Every place on Earth has turned. See how the land around any address on Earth has changed since 2017: newly built, cleared, greened or flooded, measured from satellite-based land-cover maps." /> <!-- Link previews: the line under the title -->
     <meta property="og:url" content="https://landturned.com/" /> <!-- Link previews: the address to open -->
-    <meta name="twitter:card" content="summary" /> <!-- Link previews on X/Twitter: a small text card (no preview picture yet) -->
+    <meta property="og:image" content="https://landturned.com/api/preview.jpg" /> <!-- Link previews: the picture (1200 × 630, drawn by the server, backend/app/share.py). For a shared place the server swaps in that place's card -->
+    <meta name="twitter:card" content="summary_large_image" /> <!-- Link previews on X/Twitter: the big-picture card -->
     <link rel="icon" href="/favicon.ico" sizes="32x32" /> <!-- The tab icon for every browser (16, 32 and 48 px versions inside; frontend/public) -->
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" /> <!-- The same icon as a drawing, sharp at any size; browsers that read SVG icons use this one -->
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" /> <!-- The icon when someone adds Landturned to an iPhone or iPad home screen (180 x 180) -->
@@ -158,7 +159,10 @@
 
         </div> <!-- End of the locating section -->
         <div id="panel-result" hidden> <!-- Panel contents once the map is shown; hidden until then -->
-          <button id="back" class="back" type="button">← New place</button> <!-- Goes back to the globe to choose another place -->
+          <div class="panel-actions"> <!-- The top row: going back on the left, sharing beside it -->
+            <button id="back" class="back" type="button">← New place</button> <!-- Goes back to the globe to choose another place -->
+            <button id="share-result" class="back share-button" type="button">Share</button> <!-- Shares this result's link: the phone's share sheet, or copied on a computer (main.js) -->
+          </div> <!-- End of the top row -->
           <p id="result-kicker" class="kicker"></p> <!-- Coordinates and period, e.g. "33.9747° N, 117.5665° W · 2017 → 2023" -->
           <h2 id="result-name" class="reveal" tabindex="-1"></h2> <!-- The reveal sentence (results.js fills it in). tabindex="-1": main.js can move focus here when the result appears (screen readers then read it out), but Tab doesn't stop on it -->
           <button id="longview-open" class="longview-link" type="button">See how it turned since 1985 →</button> <!-- Opens the long view (main.js): a quiet link-like button under the sentence; a button, not a link, because it opens a view rather than going to another page -->
@@ -191,7 +195,10 @@
           <p class="note"><a class="note-link" href="/how/">How this works →</a></p> <!-- Small print, line 5: the method page -->
         </div> <!-- End of the result section -->
         <div id="panel-longview" hidden> <!-- Panel contents while the long view is open; hidden until then -->
-          <button id="longview-back" class="back" type="button">← Back to map</button> <!-- Closes the long view: the map and the result come back exactly as they were -->
+          <div class="panel-actions"> <!-- The top row, like the result's -->
+            <button id="longview-back" class="back" type="button">← Back to map</button> <!-- Closes the long view: the map and the result come back exactly as they were -->
+            <button id="share-longview" class="back share-button" type="button">Share</button> <!-- Shares the long view's link (it opens straight into the long view) -->
+          </div> <!-- End of the top row -->
           <p id="longview-kicker" class="kicker"></p> <!-- Coordinates and period, like the result's, e.g. "34.0922° N, 117.4350° W · 1985 → 2025" -->
           <h2 id="longview-title" class="reveal" tabindex="-1"></h2> <!-- e.g. "Fontana from 1985 to 2025"; tabindex="-1": focus moves here when the view opens, so screen readers announce it -->
           <div class="timeline longview-timeline"> <!-- The year scrubber, built like the result's year slider -->
@@ -216,6 +223,10 @@
           <ul class="stats longview-layers" aria-labelledby="longview-layers-label"> <!-- One switch row, built like the result's colour switches -->
             <li><button id="longview-square-toggle" class="stat-switch" type="button" aria-pressed="true"><i class="square-icon"></i>Analysis area<b>2 × 2 km</b></button></li> <!-- Shows or hides the analysis square and its label on the photo (longview.js); aria-pressed tells screen readers whether it's on -->
           </ul> <!-- End of the switch -->
+          <div id="longview-downloads" class="longview-downloads" hidden> <!-- Downloads, once every photo is in (longview.js sets their addresses, with or without the square) -->
+            <a id="longview-gif" class="back" href="#" download>↓ GIF</a> <!-- The years as an animated GIF, looping -->
+            <a id="longview-sheet" class="back" href="#" download>↓ Sheet</a> <!-- All nine years on one picture -->
+          </div> <!-- End of the downloads -->
           <p id="longview-note" class="stat-total" aria-live="polite"></p> <!-- One line about the shown photo or the loading: "Finding summer photos · 3 of 9", "No clear summer photo in 1985; this one is from 1986." -->
           <div id="longview-progress" class="progress" aria-hidden="true"><i></i></div> <!-- How many of the photos are in (real progress: one step per photo) -->
           <dl class="title-block"> <!-- A title block, like the box in the corner of a drawing sheet -->
