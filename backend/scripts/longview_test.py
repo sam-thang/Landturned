@@ -8,6 +8,7 @@
 # Or for any place (latitude, longitude, name):   uv run python -m scripts.longview_test 34.09 -117.43 "My place"
 # The contact sheet and a small report are saved in backend/cache/longview_test/ (ignored by git).
 
+import functools  # Built into Python; lru_cache remembers answers so the same search isn't made twice
 import json  # Built into Python; saves the report as JSON text
 import math  # Built into Python; math.floor to find the UTM zone number
 import os  # Built into Python; os.environ sets options for GDAL, the library rasterio uses to read files
@@ -44,9 +45,24 @@ GRID_OFFSET_M = 15  # Where Landsat's pixel edges sit within each 30 m step
 SATELLITES = {"landsat-5": "Landsat 5", "landsat-7": "Landsat 7", "landsat-8": "Landsat 8", "landsat-9": "Landsat 9"}  # Allowed satellites and their names on the sheet
 L7_BROKEN = "2003-05-31"  # The day Landsat 7's scan line corrector broke: after it, its images have striped gaps
 MAX_SCENE_CLOUD = 80  # Skip scenes over 80% cloudy overall: our square is unlikely to be clear in those
+# The catalog checks these itself, so scenes we'd throw away are never sent to us (written in "CQL2", the catalog's filter language):
+SERVER_FILTER = {"op": "and", "args": [  # All of these must be true:
+    {"op": "=", "args": [{"property": "landsat:collection_category"}, "T1"]},  # Tier 1 (see allowed)
+    {"op": "in", "args": [{"property": "platform"}, ["landsat-5", "landsat-7", "landsat-8", "landsat-9"]]},  # one of our satellites
+    {"op": "<", "args": [{"property": "eo:cloud_cover"}, MAX_SCENE_CLOUD]},  # not mostly cloud
+]}  # End of the filter
+# Each scene's description normally lists about 25 files and many details (about 30 KB); we only need these (about 5 KB).
+# Asking for fewer made the searches about 3 times faster. The first five are the basics every scene description needs.
+FIELDS = {"include": [  # Only send these parts:
+    "type", "stac_version", "stac_extensions", "geometry", "bbox", "id", "collection",  # the basics
+    "properties.datetime", "properties.platform", "properties.eo:cloud_cover",  # when, which satellite, how cloudy overall
+    "properties.landsat:wrs_path", "properties.landsat:wrs_row", "properties.landsat:collection_category",  # path, row, tier
+    "properties.proj:code", "properties.proj:epsg",  # the projection its files are stored in
+    "assets.qa_pixel.href", "assets.red.href", "assets.green.href", "assets.blue.href",  # links to the four files we read
+], "exclude": []}  # Leave nothing else out
 CHECK = 8  # How many scenes per year to check at the place itself (main path/row and least cloudy first)
 CLEAR_ENOUGH = 0.02  # A scene is "clear" when clouds, shadows or missing data hide at most 2% of our square
-WORKERS = 8  # How many files to read at the same time
+WORKERS = 16  # How many files to read at the same time (shared by all nine slots, which run at the same time)
 # The QA_PIXEL band's flags (bits) that mean "we can't see the ground here":
 # bit 0 no data, bit 1 near a cloud, bit 2 thin cirrus (Landsat 8/9 only), bit 3 cloud, bit 4 cloud shadow.
 HIDDEN_BITS = 0b11111  # Bits 0 to 4 all set: 1 + 2 + 4 + 8 + 16 = 31
@@ -106,9 +122,13 @@ def in_summer(item, lat):
 
 
 def allowed(item):
-    """True for Landsat 5, 8 and 9, and for Landsat 7 only before its fault in 2003."""
+    """True for Tier 1 scenes of Landsat 5, 8 and 9, and of Landsat 7 only before its fault in 2003."""
     platform = item.properties["platform"]  # e.g. "landsat-5"
     if platform not in SATELLITES:  # Landsat 4 and anything else:
+        return False  # not used
+    # USGS sorts scenes into Tier 1 (placed on the map accurately enough to line up year after year) and Tier 2 (not:
+    # one Stavanger scene from Sep 2000 showed mountains 50 km away instead of the city). Only Tier 1 can be compared.
+    if item.properties["landsat:collection_category"] != "T1":  # Tier 2 (or not yet sorted):
         return False  # not used
     return platform != "landsat-7" or item.properties["datetime"][:10] <= L7_BROKEN  # Landsat 7 only up to the fault
 
@@ -118,16 +138,37 @@ def path_row(item):
     return f'{item.properties["landsat:wrs_path"]}/{item.properties["landsat:wrs_row"]}'  # Path first, then row
 
 
-def search_slot(lat, lon, slot):
-    """Every usable summer scene covering the place from two years before the slot to two years after."""
+def distance_from_centre(item, lat, lon):
+    """How far the place is from the middle of the scene's outline, in degrees of latitude (roughly 111 km each).
+    The scene with its middle closest to the place has our square well inside it, far from its edges."""
+    west, south, east, north = item.bbox  # The scene's outline as a box: its western, southern, eastern and northern edges
+    across = ((west + east) / 2 - lon) * math.cos(math.radians(lat))  # East-west gap; a degree of longitude shrinks towards the poles, so it's scaled down
+    up = (south + north) / 2 - lat  # North-south gap
+    return math.hypot(across, up)  # The straight-line distance (Pythagoras)
+
+
+def season_dates(lat, year):
+    """The dates to ask the catalog for, as "start/end": the northern summer, or the whole year elsewhere.
+    The catalog takes one date range per search. The southern summer (Nov-Mar) crosses New Year and the tropics have no
+    summer, so there we ask for the whole year and drop the other months afterwards (in_summer)."""
+    if imagery.summer_months(lat) == imagery.NORTH_SUMMER:  # North of the tropics:
+        return f"{year}-05-01/{year}-09-30"  # May 1 to Sep 30 (the app's northern summer)
+    return f"{year}-01-01/{year}-12-31"  # Elsewhere: the whole year
+
+
+@functools.lru_cache(maxsize=256)  # Remember answers, so a year asked for again (as a neighbour of a slot) isn't searched twice
+def search_year(lat, lon, year):
+    """Every usable summer scene covering the place in one year."""
     catalog = landcover.open_catalog()  # The Planetary Computer catalog (file links signed automatically)
     found = catalog.search(  # Ask the catalog:
         collections=[COLLECTION],  # Landsat Collection 2 Level-2,
         intersects={"type": "Point", "coordinates": [lon, lat]},  # covering our place,
-        datetime=f"{slot - 2}-01-01/{slot + 2}-12-31",  # within two years of the slot,
-        query={"eo:cloud_cover": {"lt": MAX_SCENE_CLOUD}},  # and not mostly cloud
+        datetime=season_dates(lat, year),  # taken in that year's summer (or that year),
+        filter=SERVER_FILTER, filter_lang="cql2-json",  # Tier 1, our satellites, not mostly cloud (checked by the catalog itself)
+        fields=FIELDS,  # only the parts of each scene's description we use
+        limit=1000,  # up to 1,000 scenes per page, so one page is almost always enough
     )  # End of the search
-    return [item for item in found.items() if allowed(item) and in_summer(item, lat)]  # Keep allowed satellites in summer
+    return tuple(item for item in found.items() if allowed(item) and in_summer(item, lat))  # Double-check (and drop Landsat 7 after 2003, and winter in the south); a tuple can't be changed by accident once remembered
 
 # ---------- Checking clouds at the place ----------
 
@@ -154,9 +195,20 @@ def pick(items, year, preferred, lat, crs, grid, pool):
 # ---------- The photo ----------
 
 
+def scene_crs(item):
+    """The projection the scene's files are stored in, e.g. "EPSG:32611"."""
+    code = item.properties.get("proj:code")  # Newer catalog entries write it as "EPSG:32611"...
+    return code or f'EPSG:{item.properties["proj:epsg"]}'  # ...older ones as the number 32611
+
+
 def true_colour(item, crs, grid, pool):
-    """The scene's red, green and blue bands on our grid as a 500 x 500 x 3 picture, with the app's colour stretch."""
-    raws = list(pool.map(lambda band: read_on_grid(item.assets[band].href, crs, grid, Resampling.bilinear, 0), ["red", "green", "blue"]))  # The three bands, read at the same time (0 means no data)
+    """The scene's red, green and blue bands on our grid as a 500 x 500 x 3 picture, with the app's colour stretch.
+    The pixel values are used as USGS delivers them: the only change is the display stretch, the same for every pixel and year."""
+    # When the scene is stored in our UTM zone, our pixels sit exactly on Landsat's own pixels (see GRID_OFFSET_M),
+    # so "nearest" just copies them, unchanged. A scene from another zone is turned slightly against our grid, so its
+    # pixels must be blended into ours (bilinear).
+    resampling = Resampling.nearest if scene_crs(item) == crs else Resampling.bilinear  # Copy when aligned, blend when not
+    raws = list(pool.map(lambda band: read_on_grid(item.assets[band].href, crs, grid, resampling, 0), ["red", "green", "blue"]))  # The three bands, read at the same time (0 means no data)
     channels = []  # Red, green, blue after the stretch, filled in below
     for raw in raws:  # Each band in turn
         reflectance = np.clip(raw.astype(float) * SCALE + OFFSET, 0, None)  # Stored numbers to reflectance (0 to about 1); never below 0
@@ -167,7 +219,7 @@ def true_colour(item, crs, grid, pool):
 # ---------- One frame per slot ----------
 
 
-def make_frame(slot, items, preferred, lat, crs, grid, pool):
+def make_frame(slot, preferred, lat, lon, crs, grid, pool):
     """Find and download the frame for one slot. Returns a dictionary describing it (with the picture under "image")."""
     started = time.perf_counter()  # Start this slot's stopwatch
     tried = []  # Every scene checked, for the report
@@ -176,6 +228,7 @@ def make_frame(slot, items, preferred, lat, crs, grid, pool):
         year = slot + step  # The year to try
         if year > this_year:  # In the future:
             continue  # skip it
+        items = search_year(lat, lon, year)  # That year's scenes (already remembered for the slot year; searched now for a neighbour)
         winner, checked = pick(items, year, preferred, lat, crs, grid, pool)  # The clearest scene that year, if any
         tried += checked  # Remember what was checked
         if winner is not None:  # Found a clear one:
@@ -217,7 +270,7 @@ def contact_sheet(name, lat, lon, frames):
     height = TITLE_H + SIZE_PX + LABEL_H  # Title, frames, labels
     sheet = Image.new("RGB", (width, height), BACKGROUND)  # A blank dark sheet
     draw = ImageDraw.Draw(sheet)  # A pen for that sheet
-    title = f"{name}  ·  {lat:.4f}, {lon:.4f}  ·  15 x 15 km  ·Landsat Collection 2 Level-2, true color, 30 m  ·  photos only, not measured"  # The title text
+    title = f"{name}  ·  {lat:.4f}, {lon:.4f}  ·  15 x 15 km  ·  Landsat Collection 2 Level-2, true color, 30 m  ·  photos only, not measured"  # The title text
     draw.text((GAP, 20), title, fill=INK, font=font(24))  # Write it at the top
     for index, frame in enumerate(frames):  # Each frame, left to right
         x = GAP + index * (SIZE_PX + GAP)  # Its left edge on the sheet
@@ -244,27 +297,31 @@ def run(name, lat, lon):
     started = time.perf_counter()  # Start the overall stopwatch
     crs, grid = square_grid(lat, lon)  # Our 15 x 15 km grid
     with ThreadPoolExecutor(max_workers=len(SLOTS)) as pool:  # One helper per slot, so the nine searches happen at the same time
-        found = list(pool.map(lambda slot: search_slot(lat, lon, slot), SLOTS))  # Each slot's scenes
+        found = list(pool.map(lambda slot: search_year(lat, lon, slot), SLOTS))  # Each slot year's scenes (neighbouring years are searched later, only if needed)
     searched = time.perf_counter() - started  # How long the searching took
-    counts = Counter(path_row(item) for items in found for item in items)  # How many scenes each path/row has
-    preferred = counts.most_common(1)[0][0] if counts else None  # The most common one becomes the main path/row
+    counts = Counter(path_row(item) for items in found for item in items)  # How many scenes each path/row has in the slot years (for the printout)
+    # The main path/row: the one whose scenes are centred closest to the place, so our square sits well inside every
+    # one of its photos. (Counting scenes doesn't work: in Stavanger the most common path/row only just reaches the city.)
+    every = [item for items in found for item in items]  # All the slot years' scenes in one list
+    preferred = path_row(min(every, key=lambda item: distance_from_centre(item, lat, lon))) if every else None  # The path/row of the best-centred scene
     print(f"\n{name}: {sum(counts.values())} summer scenes found in {searched:.1f} s; path/rows {dict(counts)}; main {preferred}")  # What the searches found
-    frames = []  # One per slot, filled in below
-    with ThreadPoolExecutor(max_workers=WORKERS) as pool:  # Helpers for reading files at the same time
-        for slot, items in zip(SLOTS, found):  # Each slot in turn (one at a time, so each slot's time is its own)
-            frame = make_frame(slot, items, preferred, lat, crs, grid, pool)  # Find and download its frame
-            frames.append(frame)  # Keep it
-            if frame["missing"]:  # Nothing found:
-                print(f'  {slot}: MISSING (checked {frame["checked"]} scenes) {frame["seconds"]} s')  # say so
-            else:  # Found:
-                note = f' (substitute: {frame["year"]})' if frame["substituted"] else ""  # mention a substitute year
-                print(f'  {slot}: {frame["date"]} {frame["satellite"]} {frame["path_row"]} hidden {frame["hidden"] * 100:.1f}% '  # its details...
-                      f'(scene {frame["scene_cloud"]:.0f}%), checked {frame["checked"]}, {frame["seconds"]} s{note}')  # ...and how long it took
+    # All nine slots are worked on at the same time: each one mostly waits for the internet, so the waits overlap.
+    # Two groups of helpers: one per slot (each finds its frame), and a shared group that reads the files. A slot
+    # helper waits for file readers, never the other way round, so they can't get stuck waiting for each other.
+    with ThreadPoolExecutor(max_workers=WORKERS) as pool, ThreadPoolExecutor(max_workers=len(SLOTS)) as slot_pool:  # The file readers, and one helper per slot
+        frames = list(slot_pool.map(lambda slot: make_frame(slot, preferred, lat, lon, crs, grid, pool), SLOTS))  # Every slot's frame, in slot order
+    for slot, frame in zip(SLOTS, frames):  # Print each slot's result (its time overlaps the others', so they don't add up to the total)
+        if frame["missing"]:  # Nothing found:
+            print(f'  {slot}: MISSING (checked {frame["checked"]} scenes) {frame["seconds"]} s')  # say so
+        else:  # Found:
+            note = f' (substitute: {frame["year"]})' if frame["substituted"] else ""  # mention a substitute year
+            print(f'  {slot}: {frame["date"]} {frame["satellite"]} {frame["path_row"]} hidden {frame["hidden"] * 100:.1f}% '  # its details...
+                  f'(scene {frame["scene_cloud"]:.0f}%), checked {frame["checked"]}, {frame["seconds"]} s{note}')  # ...and how long it took
     total = time.perf_counter() - started  # The whole run
     print(f"  total {total:.1f} s")  # Print it
     OUT_DIR.mkdir(parents=True, exist_ok=True)  # Create the output folder the first time
     slug = name.split(",")[0].lower().replace(" ", "_")  # A file-name version of the name, e.g. "fontana"
-    contact_sheet(name, lat, lon, frames).save(OUT_DIR / f"{slug}_sheet.jpg", quality=90)  # Save the contact sheet
+    contact_sheet(name, lat, lon, frames).save(OUT_DIR / f"{slug}_sheet.jpg", quality=92, subsampling=0)  # Save the contact sheet; subsampling=0 keeps color at full sharpness (by default JPEG halves it, which smears color across roof edges)
     report = {"name": name, "lat": lat, "lon": lon, "main_path_row": preferred, "search_seconds": round(searched, 1),  # The report: place and searching...
               "total_seconds": round(total, 1), "frames": [{k: v for k, v in f.items() if k != "image"} for f in frames]}  # ...total time and every frame without its picture
     (OUT_DIR / f"{slug}_report.json").write_text(json.dumps(report, indent=2), encoding="utf-8")  # Save the report
