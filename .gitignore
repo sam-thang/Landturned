@@ -155,5 +155,8 @@ vite.config.ts.timestamp-*
 __pycache__/
 *.pyc
 
-# Landturned: generated satellite photos saved by backend/app/imagery.py (made again on demand, so not kept in git)
+# Landturned: saved answers (analyses, archive lookups, long-view photos), made again on demand, so not kept in git
 backend/cache/
+
+# The portfolio case study (HTML source and PDF): kept on this computer only, not in the public repository
+docs/case-study/

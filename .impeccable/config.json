@@ -11,6 +11,11 @@
         ],
         "createdAt": "2026-11-19T11:28:38.565Z",
         "reason": "Claude, verified: the page loads how.css through how.js (Vite import), so the static scan sees every role at the 16px default; rendered sizes are h1 30-40px, h2 24px, h3 17px, body 16px (measured in Chrome)"
+      },
+      {
+        "rule": "overused-font",
+        "value": "space grotesk",
+        "createdAt": "2026-11-24T22:01:18.216Z"
       }
     ]
   }
