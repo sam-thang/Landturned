@@ -194,17 +194,24 @@ def long_view_material(lat, lon, square, saved_only=False):
 # ---------- Long-view downloads ----------
 
 GIF_SIZE = 500  # Each GIF frame's photo: 500 x 500 pixels, the photos' own size
-GIF_FOOTER = 64  # The strip under the photo with the place, the address and the credit
+GIF_FOOTER = 84  # The strip under the photo: the place and years, the coordinates, and the credit
 GIF_STEP_MS = 900  # Each year shows this long...
 GIF_LAST_MS = 2500  # ...and the last one longer, before the loop starts again
 
 
-def footer(draw, y, width, name, first, last):
-    """The strip under a GIF frame: the place and years on the left, the site's address on the right, the credit below."""
+def coordinates(lat, lon):
+    """Coordinates written like on the site, e.g. "30.0150° N, 31.7256° E" (4 decimals: about 10 m)."""
+    return f"{abs(lat):.4f}° {'N' if lat >= 0 else 'S'}, {abs(lon):.4f}° {'E' if lon >= 0 else 'W'}"  # North/south first, as people usually say it
+
+
+def footer(draw, y, width, name, first, last, lat, lon):
+    """The strip under a GIF frame: the place and years on the left, the site's address on the right, then the place's
+    coordinates, then the credit."""
     draw.rectangle([0, y, width, y + GIF_FOOTER], fill=SHEET)  # The strip's background
     draw.text((14, y + 10), f"{short_name(name) or 'This place'} · {first} → {last}", font=font("sans", 20, "Medium"), fill=INK)  # e.g. "Fontana · 1985 → 2025"
     draw_label(draw, (width - 14 - label_width(SITE, 12), y + 16), SITE, 12, MUTED)  # The address, right-aligned
-    draw_label(draw, (14, y + 42), "Photos only · " + CREDIT, 9, FAINT, spacing=0.06)  # The small print
+    draw_label(draw, (14, y + 42), coordinates(lat, lon), 12, MUTED, spacing=0.06)  # The coordinates, e.g. "30.0150° N, 31.7256° E"
+    draw_label(draw, (14, y + 64), "Photos only · " + CREDIT, 9, FAINT, spacing=0.06)  # The small print
 
 
 def long_view_gif(lat, lon, name, square):
@@ -216,7 +223,7 @@ def long_view_gif(lat, lon, name, square):
         record, jpeg = frames[slot]  # Its photo
         canvas = Image.new("RGB", (GIF_SIZE, GIF_SIZE + GIF_FOOTER), SHEET)  # The photo plus the footer strip
         canvas.paste(frame_picture(record, jpeg, points, GIF_SIZE), (0, 0))  # The photo at the top
-        footer(ImageDraw.Draw(canvas), GIF_SIZE, GIF_SIZE, name, slots[0], slots[-1])  # The strip below
+        footer(ImageDraw.Draw(canvas), GIF_SIZE, GIF_SIZE, name, slots[0], slots[-1], lat, lon)  # The strip below
         pictures.append(canvas.quantize(colors=256, method=Image.Quantize.MEDIANCUT))  # GIFs hold 256 colours per frame: pick the best 256 for this one
     buffer = io.BytesIO()  # A "file" in memory
     durations = [GIF_STEP_MS] * (len(pictures) - 1) + [GIF_LAST_MS]  # How long each frame shows (the last one longer)
@@ -240,7 +247,7 @@ def long_view_sheet(lat, lon, name, square):
     height = SHEET_HEADER + rows * (SHEET_CELL + SHEET_LABEL + SHEET_GAP) + 40  # Its height, with room for the credit at the bottom
     sheet = Image.new("RGB", (width, height), SHEET)  # A blank dark sheet
     draw = ImageDraw.Draw(sheet)  # A pen for it
-    draw_label(draw, (SHEET_GAP, 22), f"Landturned · Long view · {slots[0]} → {slots[-1]}", 13, MUTED)  # The kicker
+    draw_label(draw, (SHEET_GAP, 22), f"Landturned · Long view · {coordinates(lat, lon)} · {slots[0]} → {slots[-1]}", 13, MUTED)  # The kicker, like the panel's top line: coordinates and years
     draw.text((SHEET_GAP, 44), f"{short_name(name) or 'This place'} from {slots[0]} to {slots[-1]}", font=font("sans", 44, "Medium"), fill=INK)  # The heading, like the site's
     block = "Photos only · 30 m · not measured"  # The title block's line
     draw_label(draw, (width - SHEET_GAP - label_width(block, 14), 30), block, 14, INK)  # Right-aligned at the top
