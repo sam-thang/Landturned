@@ -1964,15 +1964,25 @@ h1:focus {
 .longview-layers {
   margin-bottom: 14px; /* Space before the loading line or the title block */
 } /* End of the switch list rule */
-.square-icon {
+/* A drawn checkbox: a ticked box while the square is shown, an empty box while it's hidden */
+.check-icon {
   flex: none; /* Never shrink */
-  width: 12px; /* The size of the colour swatches... */
-  height: 12px; /* ...in the result's rows */
-  box-shadow: inset 0 0 0 1.25px var(--ink); /* An outlined square, like the one on the photo (drawn inside, so the size stays 12 px) */
-} /* End of the icon rule */
-.stat-switch[aria-pressed='false'] .square-icon {
-  box-shadow: inset 0 0 0 1.25px var(--muted); /* Off: the outline dims with the row */
-} /* End of the off icon rule */
+  fill: none; /* Lines only */
+  stroke: var(--ink); /* Drafting Ink */
+} /* End of the checkbox rule */
+.check-box {
+  stroke-width: 1.5; /* The box's outline */
+} /* End of the box rule */
+.check-tick {
+  stroke-width: 1.8; /* The tick, a little heavier so it reads at 14 px */
+  stroke-linecap: square; /* Square ends, like the rest of the drawing */
+} /* End of the tick rule */
+.stat-switch[aria-pressed='false'] .check-icon {
+  stroke: var(--muted); /* Off: the box dims with the row... */
+} /* End of the off box rule */
+.stat-switch[aria-pressed='false'] .check-tick {
+  display: none; /* ...and has no tick */
+} /* End of the off tick rule */
 .longview-frame.square-off :is(.longview-square, .longview-square-label) {
   display: none; /* Switched off: no square and no label on the photo */
 } /* End of the hidden square rule */
