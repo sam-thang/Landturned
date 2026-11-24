@@ -15,7 +15,7 @@ from concurrent.futures import ThreadPoolExecutor  # Built into Python; works on
 from app import longview  # Our own code: the long view (used when warming this computer's cache)
 from scripts.warm_wayback import read_places  # The hotspot list from places.js (the same reader the other warm-up uses)
 
-PARALLEL = 3  # How many places at once: quicker than one by one, gentler on the server (512 MB) and Planetary Computer than all at once
+PARALLEL = 2  # How many places at once (the server makes one new place at a time anyway, so a second one just waits its turn)
 TIMEOUT_S = 180  # The longest to wait for one place's answer (a new place takes about 15-25 s)
 
 

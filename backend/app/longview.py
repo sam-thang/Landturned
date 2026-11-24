@@ -11,6 +11,7 @@ import io  # Built into Python; lets us "save a file" into memory instead of ont
 import json  # Built into Python; reads and writes the frame records as JSON text
 import math  # Built into Python; math.floor for the UTM zone, cos and hypot for distances
 import os  # Built into Python; os.environ sets options for GDAL, the library rasterio uses to read files
+import threading  # Built into Python; a "semaphore" lets only one new place be made at a time
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait  # Built into Python; runs several downloads at the same time, waits for the first of them, and hands out results as they finish
 from datetime import date  # Built into Python; today's date, to know which slots may still get newer photos
 
@@ -73,6 +74,10 @@ JPEG_QUALITY = 85  # Photo quality (0-100): 85 looks the same as the original at
 # Old years never get new photos, so their frames are kept forever. A slot whose years reach the present (slot + 2 years
 # or later) can still get better photos as new ones arrive, so its frame is made again when it's older than this:
 REFRESH_DAYS = 30  # Days
+# Making a new place's photos uses about 110 MB of memory for 15-25 s. The server has 512 MB, and three at once made Render
+# restart it (2026-11-24). So only one place is made at a time: a second visitor waits for the first (still seeing their
+# "Finding summer photos" line), while places already saved are never held up. A "semaphore" is a counter of free turns.
+MAKING = threading.Semaphore(1)  # One turn
 
 # ---------- The grid ----------
 
@@ -352,6 +357,12 @@ def long_view_parts(lat, lon):
             yield {**record, "cached": True}, jpeg  # hand it out, marked as coming from the cache
     if not to_make:  # Everything was saved:
         return  # done
+    with MAKING:  # Wait for our turn: only one place's photos are made at a time on this server (see MAKING)
+        yield from make_missing(to_make, folder, centre_lat, centre_lon, crs, grid)  # Make them, handing each out as it's ready
+
+
+def make_missing(to_make, folder, centre_lat, centre_lon, crs, grid):
+    """Make the given slots' frames, saving each and handing it out as (record, JPEG bytes or None) when it's ready."""
     # All slots are worked on at the same time: each one mostly waits for the internet, so the waits overlap.
     # Two groups of helpers: one per slot (each finds its frame), and a shared group that reads the files. A slot
     # helper waits for file readers, never the other way round, so they can't get stuck waiting for each other.

@@ -9,6 +9,11 @@ set -e  # Stop at the first command that fails, instead of carrying on half-star
 # (measured: about 240 MB in total with 4 analyses at once). A value set in Render's dashboard wins over this one.
 export GDAL_CACHEMAX="${GDAL_CACHEMAX:-64}"
 
+# Linux's memory manager gives many threads their own memory pools ("arenas"), and with the long view's many reading
+# threads the server's memory grew past 512 MB and Render restarted it (2026-11-24). Two pools is the usual cure for
+# servers that read rasters in threads; it costs a little speed, nothing else. A value set in Render's dashboard wins.
+export MALLOC_ARENA_MAX="${MALLOC_ARENA_MAX:-2}"
+
 # Believe Render's front door when it says the visitor came over https, so the server's own redirects (like /how -> /how/)
 # keep visitors on https. "*" = trust it from any address (Render's front door is the only way in). Given as a setting, not
 # on the command line: on Windows, a lone * on the command line gets expanded into the folder's file names.
