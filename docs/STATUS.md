@@ -617,6 +617,13 @@ Then a "Data and credits" section.
 - **Live warm-up** (`warm_longview.py https://landturned.com`, 2 at a time): all 12 hotspots in 147 s; a second run 9 s (1.5–1.7 s each, all saved).
 - **Hotspots:** 10 of 12 have all nine years. Kīlauea has 6 (no scene at all near 1985, 1995 and 2010; its 2000 slot is a 1999 photo 24% under cloud) and Weda Bay 7, both cloudy tropical places; the panel says when a year has no photo.
 
+**Sharing** (`f81238a`, 2026-11-24, live).
+- **Share** beside "← New place" and "← Back to map": the phone's share sheet, or the link copied on a computer ("Link copied"). The address holds the place (and `view=long`), so the link reopens what was on screen.
+- **Link previews:** the server answers "/" itself (`share.page_for` in `main.py`) and fills the og/twitter tags for a shared place: its title, its result sentence, and a 1200 × 630 card from `/api/preview.jpg` (the change square in the four colors, "No colored change" when there's none; for a long-view link the first and newest saved photo; the site's own card without a place). Names are escaped. Live: the card answers in about 1 s.
+- **Long-view downloads:** "↓ GIF" (`/api/longview/gif`, looping, about 2 MB, 2.9 s live) and "↓ Sheet" (`/api/longview/sheet`, 3 × 3 grid with a title block, about 0.6 MB, 1.7 s live), with or without the analysis square (the "Show on photo" switch). Files are named like `landturned-new-capital-1985-2025.gif`.
+- **Only Landsat (public domain, USGS credit) and our own change maps are drawn** in shared pictures, never Esri imagery (its export terms weren't checked). Fonts: Space Grotesk and JetBrains Mono (OFL) in `backend/assets/fonts/`.
+- **Zone fix, same commit:** the long view now takes its UTM zone from the land-cover grid (`landcover.grid_zone`), so Norway's 32V exception no longer tilts the analysis square in Stavanger (about 4°). Cache folders include the projection; hotspots re-warmed live in 151 s.
+
 ## Phase 2 findings: land-cover years (2026-11-21, research only, no code changed)
 
 **Source checked:** Impact Observatory's public AWS Open Data bucket `s3://io-10m-annual-lulc`, read over HTTPS at `https://io-10m-annual-lulc.s3.amazonaws.com/` with no account. Bucket region: not checked.
