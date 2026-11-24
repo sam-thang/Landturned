@@ -14,7 +14,7 @@ from fastapi.middleware.gzip import GZipMiddleware  # Compresses replies (like z
 from fastapi.responses import HTMLResponse, StreamingResponse  # A web page reply, and a reply sent piece by piece as each piece is ready (the long view)
 from fastapi.staticfiles import StaticFiles  # Hands out ready-made files (the built website) as they are
 
-from app import analysis, change_image, geocoding, imagery, landcover, longview, share, wayback  # Our own code: the land-cover analysis, data URLs (change_image), the address search, the satellite photo, the land-cover data, the long view's Landsat photos, sharing pictures (share), and Esri's imagery archive
+from app import analysis, change_image, geocoding, landcover, longview, share, wayback  # Our own code: the land-cover analysis, data URLs (change_image), the address search, the land-cover data, the long view's Landsat photos, sharing pictures (share), and Esri's imagery archive
 
 # Create the app. The title is shown on FastAPI's automatic documentation page (at /docs).
 app = FastAPI(title="Landturned backend")
@@ -108,26 +108,6 @@ def wayback_imagery(
         first, last = years[0], years[-1]  # The first and the last year
     photo = wayback.before_photo(lat, lon, first)  # The earlier photo (or None); saved per zoom-14 map tile, so neighbours share
     return {"years": {"from": first, "to": last}, "before": photo}  # e.g. {"years": {...}, "before": {date, tiles, ...}} (the "after" photo is Esri's current imagery)
-
-
-# The Sentinel-2 photo of the 2 x 2 km square for one year, on the same pixel grid as the land-cover data.
-# Example: /api/imagery?lat=33.9785&lon=-117.5962&year=2017
-# A plain "def" again: reading the images takes a few seconds, and FastAPI runs it in a worker thread meanwhile.
-@app.get("/api/imagery")
-def imagery_photo(
-    lat: Annotated[float, Query(ge=-90, le=90, description="Latitude in degrees")],  # A number from -90 to 90
-    lon: Annotated[float, Query(ge=-180, le=180, description="Longitude in degrees")],  # A number from -180 to 180
-    year: Annotated[int | None, Query(ge=2015, le=2100, description="The year of the photo; leave out for the latest land-cover year")] = None,  # Sentinel-2 started in 2015; "None" = not given
-) -> dict:  # Hands back a dictionary, which FastAPI turns into JSON
-    try:  # Try to make the photo...
-        if year is None:  # No year given (the app's first request, before it knows the years):
-            maps = landcover.find_files_by_year(lon, lat)  # The land-cover maps for the point
-            if not maps:  # None here:
-                raise LookupError("No land-cover data for this location.")  # Nothing to match
-            year = max(maps)  # The latest year with a land-cover map, so the photo matches the "after" year of the change
-        return imagery.square_photo(round(lat, 5), round(lon, 5), year)  # Rounded to about 1 m, so the memory (cache) recognises the same place asked twice
-    except LookupError as error:  # ...but if there's no data or no usable image:
-        raise HTTPException(status_code=404, detail=str(error)) from error  # Answer with 404 ("not found") and the reason
 
 
 # The long view: one Landsat photo of the 15 x 15 km square around a place for each 5-year slot from 1985 to 2025.

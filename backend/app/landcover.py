@@ -20,7 +20,7 @@ import urllib.request  # Built into Python; asks a web server whether a file exi
 
 import numpy as np  # numpy: fast math on big grids of numbers
 import planetary_computer  # Signs Planetary Computer file links so we're allowed to download them
-import pystac_client  # Searches the STAC catalog (only for the Sentinel-2 photo in imagery.py now)
+import pystac_client  # Searches the STAC catalog (only for the long view's Landsat photos now)
 import rasterio  # Reads raster files, including just a small window of a big file
 from rasterio.warp import transform  # Converts coordinates from one projection to another
 from rasterio.windows import Window, from_bounds  # Window: a block of rows and columns; from_bounds: turns a box in meters into a window
@@ -31,7 +31,7 @@ from app import settings  # Our own code: where saved answers live
 
 HALF_SIZE_M = 1000  # Half the square's width in meters: 1 km in each direction gives the 2 x 2 km square the map shows
 PIXEL_AREA_M2 = 10 * 10  # Each pixel is 10 m x 10 m = 100 square meters
-CATALOG_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"  # The address of Planetary Computer's catalog (only imagery.py uses it now)
+CATALOG_URL = "https://planetarycomputer.microsoft.com/api/stac/v1"  # The address of Planetary Computer's catalog (only the long view uses it now)
 # Where the land-cover files are: Impact Observatory's public bucket on AWS (region us-west-2), named "{zone}_{year}.tif",
 # e.g. "11S_2024.tif" for Fontana. The same files as Planetary Computer's "io-lulc-annual-v02" (checked: identical
 # for 2023), plus newer years (2024 was added in June 2025; Planetary Computer stops at 2023).
@@ -185,7 +185,7 @@ def summarize(before, after, change):
 # ---------- Finding the maps ----------
 
 def open_catalog():
-    """Connect to Planetary Computer's catalog, with every file link signed automatically. Only imagery.py uses it now."""
+    """Connect to Planetary Computer's catalog, with every file link signed automatically. Only the long view (longview.py) uses it now."""
     return pystac_client.Client.open(  # Connect to the catalog...
         CATALOG_URL,  # ...at this address...
         modifier=planetary_computer.sign_inplace,  # ...and sign every file link we get back, automatically
@@ -295,7 +295,7 @@ def find_files_by_year(lon, lat):
 def square_window(crs, file_transform, lon, lat):
     """Which rows and columns of a map file our 2 x 2 km square covers, snapped to whole pixels.
     "crs" is the file's projection and "file_transform" links its pixel rows/columns to meters.
-    Shared by read_square and by the satellite photo (imagery.py), so both always use exactly the same pixel grid."""
+    Every reader of the square uses it, so they all share exactly the same pixel grid."""
     xs, ys = transform("EPSG:4326", crs, [lon], [lat])  # Convert the point from longitude/latitude (EPSG:4326) to the file's projection (a UTM zone, in meters)
     x, y = xs[0], ys[0]  # transform works on lists, so take the first (only) point
     exact = from_bounds(  # Work out which rows and columns of the file our square covers:
@@ -305,15 +305,6 @@ def square_window(crs, file_transform, lon, lat):
     )  # End of the exact window (its edges can fall partway through a pixel)
     size = round(2 * HALF_SIZE_M / file_transform.a)  # How many pixels across: 2,000 m / 10 m = 200 ("a" is the pixel width in the transform)
     return Window(round(exact.col_off), round(exact.row_off), size, size)  # Snap to whole pixels: round the starting column and row, keep 200 x 200
-
-
-def square_grid(url, lon, lat):
-    """The square's pixel grid in one land-cover map file: (its projection, its "transform", its size in pixels).
-    The satellite photo (imagery.py) is drawn onto this grid, so every photo pixel sits exactly on one land-cover pixel."""
-    with rasterio.open(url) as src:  # Open the map file over the internet (only its header is read)
-        crs, file_transform = src.crs, src.transform  # Its projection and grid
-    window = square_window(crs, file_transform, lon, lat)  # Our square's rows and columns
-    return crs, rasterio.windows.transform(window, file_transform), window.width  # The projection, the square's own transform, and 200
 
 
 def zone_grid(zone, url):

@@ -25,7 +25,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 - **Fonts:** Space Grotesk and JetBrains Mono from Google Fonts.
 
 **Backend:** Python 3.13, FastAPI with Uvicorn, managed with uv.
-- **pystac-client** and **planetary-computer:** STAC search and URL signing. Since Phase 2 only the unused Sentinel-2 endpoint uses them.
+- **pystac-client** and **planetary-computer:** STAC search and URL signing. Only the long view (Landsat) uses them.
 - **rasterio** (GDAL): windowed reads of Cloud-Optimized GeoTIFFs.
 - **numpy:** pixel comparison.
 - **Pillow:** writes the change PNG.
@@ -49,14 +49,13 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | `frontend/src/scalebar.js` | Scale bar |
 | `frontend/src/longview.js` | The long view: loads the photos as they stream in, shows one year at a time with the analysis square, north arrow and scale bar on the photo, the year scrubber and play button |
 | `frontend/how/`, `how.js`, `how.css` | "How this works" page: seven numbered SVG diagrams drawn by `how.js`, plus data and credits (section 8) |
-| `backend/app/main.py` | API routes: `/api/health`, `/api/analysis` (since Phase 3; replaces `/api/change` and `/api/timeline`), `/api/wayback`, `/api/imagery`, `/api/longview` (streamed) |
+| `backend/app/main.py` | API routes: `/api/health`, `/api/analysis` (since Phase 3; replaces `/api/change` and `/api/timeline`), `/api/wayback`, `/api/longview` (streamed) |
 | `backend/app/longview.py` | The long view: Landsat Collection 2 Level-2 search on Planetary Computer, the clearest summer scene per 5-year slot at the place (QA_PIXEL), the 500 × 500 px true-color crop, and its disk cache |
 | `backend/app/analysis.py` | Since Phase 3: reads all years in parallel, builds the main result plus every slider comparison, and keeps the land-cover disk cache |
 | `backend/app/landcover.py` | Works out the land-cover file from the coordinates (grid zone + year), 200 × 200 px square read, class mapping, comparison, edge cleaning, stats |
 | `backend/app/geocoding.py` | Since 2026-11-23: the Geoapify relay: secret key from `backend/.env`, answers saved on disk for all visitors, at most 5 requests/s and 2,900/day for the whole site |
 | `backend/app/change_image.py` | Change grid → transparent PNG → base64 data URL |
 | `backend/app/wayback.py` | Esri Wayback lookup: which archive versions and photo dates for "before" and "after", with a disk cache |
-| `backend/app/imagery.py` | Sentinel-2 photo of the square. **The frontend no longer calls it.** |
 | `backend/scripts/warm_wayback.py` | Pre-fills the Wayback cache for the hotspots |
 | `backend/scripts/warm_longview.py` | Pre-fills the long view for the hotspots, on this computer or on the live site (`uv run python -m scripts.warm_longview https://landturned.com`) |
 | `backend/scripts/longview_test.py` | Draws a place's nine long-view photos side by side as one contact sheet, for checking by eye |
@@ -77,7 +76,7 @@ A factual snapshot for performance advice. It's based on reading the code and on
 | **Geoapify geocoding** (since 2026-11-23; free plan: 3,000 credits/day, 5 requests/s; OpenStreetMap data, ODbL) | `https://api.geoapify.com/v1/geocode/search` and `/reverse` | Search: `text`, `limit=1`, `format=json`. Reverse: `type=city`, point rounded to 3 decimals (about 100 m). Key in `backend/.env` (git-ignored) | Backend, `geocoding.py`, via `/api/search` and `/api/place-name` |
 | ~~**Nominatim (OpenStreetMap)**~~ | `nominatim.openstreetmap.org` | Used until 2026-11-23 from the browser. Dropped for a public site: its limit of 1 request/s counts for the whole app, and its policy threatens bans for heavy use | Not used any more |
 | **Google Fonts** | `fonts.googleapis.com`, `fonts.gstatic.com` | Two font families | Browser, `index.html` |
-| **Sentinel-2 L2A** (Planetary Computer) | collection `sentinel-2-l2a` | Bands B04/B03/B02 and SCL, warped to the square's grid, JPEG; the clearest summer image of the requested year | Backend, `imagery.py`, via `/api/imagery?lat&lon&year`. **Unused by the frontend** (a fallback for old Esri imagery was tried and rejected, see section 4) |
+| **Sentinel-2 L2A** (Planetary Computer) | collection `sentinel-2-l2a` | Bands B04/B03/B02 and SCL, warped to the square's grid, JPEG; the clearest summer image of the requested year | **Removed 2026-11-24** (`imagery.py` and `/api/imagery`). A fallback for old Esri imagery was tried and rejected, see section 4 |
 
 ## 3. What happens step by step
 
@@ -451,7 +450,6 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 | Geoapify answers (search and place names) | Disk: `backend/cache/geocoding/{hash}.json`, plus today's request count in `usage.json` | Search: the text, lower-case, spaces tidied. Place name: the point rounded to 3 decimals | Forever (failed requests aren't saved). The count restarts each UTC day |
 | Wayback lookups in progress | Memory (`Future` per cache path) | Same path | While running; concurrent requests share one lookup |
 | Wayback version list | Memory | — | 24 h |
-| Sentinel-2 photo (unused endpoint) | Disk `cache/imagery` plus `lru_cache` | Lat/lon rounded to 5 decimals, plus year | Forever |
 | ~~STAC search results~~ | — | — | No STAC search since Phase 2. The grid zone's availability and the newest year are remembered in memory while the server runs |
 | **Land-cover analysis** (main result + every slider comparison, with PNGs) | Disk: `backend/cache/landcover/*.json` (since Phase 3) | `{zone}_c{column}_r{row}_{first}_{last}`: the square's snapped position on the zone's 10 m grid, plus the years, e.g. `11S_c22735_r67113_2017_2024`. The visitor's exact point isn't saved; it's added per request | Forever. A new data year changes the key |
 | Grid-zone facts: has data (with the year checked), projection, pixel grid | Disk: `backend/cache/zones.json`, plus memory | Grid zone, e.g. `11S` | Forever. "Has data" is re-checked once when a newer year appears (since the Phase 3 follow-up) |
@@ -528,9 +526,7 @@ Esri's archive services vary a lot from run to run, so single-run differences of
 - Impact Observatory labels flicker between years at quiet rural spots, giving implausible colours. A "change must persist two years" filter is parked.
 - Some places have no archive photo within a year of 2017; the tag then shows the real year (for example 2014 in London).
 
-**Unused code:**
-- `/api/imagery` (Sentinel-2) and its cache: no longer called by the frontend.
-- `glideToMiddle` in `map.js`: exported but no longer called.
+**Unused code:** removed 2026-11-24: the Sentinel-2 photo (`imagery.py`, `/api/imagery`) and `landcover.square_grid`. The long view now keeps its own summer rule and colour stretch. (`glideToMiddle` was listed here by mistake: it still glides a late-arriving swipe to the middle.) An old `cache/imagery` folder may remain on disk; nothing reads it.
 
 **Unfinished:**
 - ~~**Landing hints.**~~ Built (`4f1f0ad`, `b3c1452`): a colour key and the caption "Pick any spot on land to see how it turned."
@@ -701,7 +697,6 @@ AWS needs no URL signing.
 5. **Not in this plan:**
    - other land-cover datasets
    - zone-boundary stitching (above)
-   - Sentinel-2 `/api/imagery`, which still uses Planetary Computer STAC but is unused
 6. **Licence:** Impact Observatory's maps are CC BY 4.0 on Planetary Computer. The licence and attribution wording for the AWS copy and for 2024: not checked; to confirm before switching.
 
 ## 9. Git status

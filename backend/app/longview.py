@@ -26,9 +26,18 @@ from rasterio.enums import Resampling  # The ways of filling pixels when a raste
 from rasterio.vrt import WarpedVRT  # A "virtual" raster: another raster seen through our grid, without saving a copy
 from rasterio.warp import transform  # Converts coordinates from one projection to another
 
-from app import imagery, landcover, settings  # Our own code: summer months and colour stretch (imagery), the catalog (landcover), the cache folder (settings)
+from app import landcover, settings  # Our own code: the catalog and the grid's zone (landcover), the cache folder (settings)
 
 # ---------- Settings ----------
+
+# Summer: green, high sun, short shadows. The months depend on the hemisphere; in the tropics any month will do.
+TROPICS = 23.5  # Latitude of the tropics: closer to the equator there is no real winter
+NORTH_SUMMER = {5, 6, 7, 8, 9}  # May to September, north of the tropics
+SOUTH_SUMMER = {11, 12, 1, 2, 3}  # November to March, south of the tropics
+# The colour stretch: which surface brightness ("reflectance", 0 to 1) is shown as white, and how the values in
+# between are spread. A square-root curve (gamma 0.5) lifts the dark ground and keeps bright roofs from turning pure white.
+WHITE = 0.45  # Reflectance shown as pure white (bright warehouse roofs reach about 0.4)
+GAMMA = 0.5  # The curve: output = (reflectance / WHITE) ** GAMMA
 
 COLLECTION = "landsat-c2-l2"  # Landsat Collection 2 Level-2 (surface reflectance) on Planetary Computer
 SLOTS = [1985, 1990, 1995, 2000, 2005, 2010, 2015, 2020, 2025]  # One frame every 5 years
@@ -112,9 +121,16 @@ def read_on_grid(href, crs, grid, resampling, nodata):
 # ---------- Finding scenes ----------
 
 
+def summer_months(lat):
+    """The months we prefer for a place, or None in the tropics (any month is fine there)."""
+    if abs(lat) < TROPICS:  # Close to the equator:
+        return None  # no season preference
+    return NORTH_SUMMER if lat > 0 else SOUTH_SUMMER  # Northern or southern summer
+
+
 def in_summer(item, lat):
     """True when the scene was taken in the place's summer (always True in the tropics)."""
-    summer = imagery.summer_months(lat)  # May-Sep north, Nov-Mar south, None in the tropics (the app's own rule)
+    summer = summer_months(lat)  # May-Sep north, Nov-Mar south, None in the tropics (the app's own rule)
     month = int(item.properties["datetime"][5:7])  # The month (characters 6-7 of "1985-09-30T...")
     return summer is None or month in summer  # Any month in the tropics, otherwise summer only
 
@@ -149,7 +165,7 @@ def season_dates(lat, year):
     """The dates to ask the catalog for, as "start/end": the northern summer, or the whole year elsewhere.
     The catalog takes one date range per search. The southern summer (Nov-Mar) crosses New Year and the tropics have no
     summer, so there we ask for the whole year and drop the other months afterwards (in_summer)."""
-    if imagery.summer_months(lat) == imagery.NORTH_SUMMER:  # North of the tropics:
+    if summer_months(lat) == NORTH_SUMMER:  # North of the tropics:
         return f"{year}-05-01/{year}-09-30"  # May 1 to Sep 30 (the app's northern summer)
     return f"{year}-01-01/{year}-12-31"  # Elsewhere: the whole year
 
@@ -235,7 +251,7 @@ def true_colour(item, crs, grid, pool):
     channels = []  # Red, green, blue after the stretch, filled in below
     for raw in raws:  # Each band in turn
         reflectance = np.clip(raw.astype(float) * SCALE + OFFSET, 0, None)  # Stored numbers to reflectance (0 to about 1); never below 0
-        stretched = np.clip(reflectance / imagery.WHITE, 0, 1) ** imagery.GAMMA  # The app's stretch: 0 to 0.45 becomes 0 to 1, on a square-root curve
+        stretched = np.clip(reflectance / WHITE, 0, 1) ** GAMMA  # The app's stretch: 0 to 0.45 becomes 0 to 1, on a square-root curve
         channels.append(np.where(raw == 0, 0, stretched))  # Where there's no data, black
     return Image.fromarray((np.stack(channels, axis=-1) * 255).astype(np.uint8))  # Stack into rows x columns x 3, scale to 0-255, make a picture
 
