@@ -613,6 +613,8 @@ Then a "Data and credits" section.
 | A new place | 13–25 s (Planetary Computer's catalog sometimes stalls; before the backup request: 34–59 s) |
 | All 12 hotspots warmed, 3 at a time | 93 s |
 
+- **Memory (live, 2026-11-24):** on the first deploy, making new long views ran Render's 512 MB server out of memory and Render restarted it (502s for about 20 s; three at once, and then even one). Fixed in `0dc0817`: `MALLOC_ARENA_MAX=2` in `start.sh` (Linux gave each reading thread its own memory pool) and only one new place made at a time (a semaphore in `longview.py`; others wait their turn, saved places are never held up). Locally one new place peaks at about +110 MB. Tested live afterwards: one new place 13 s and two at once 11 s / 19 s, health 200 throughout.
+- **Live warm-up** (`warm_longview.py https://landturned.com`, 2 at a time): all 12 hotspots in 147 s; a second run 9 s (1.5–1.7 s each, all saved).
 - **Hotspots:** 10 of 12 have all nine years. Kīlauea has 6 (no scene at all near 1985, 1995 and 2010; its 2000 slot is a 1999 photo 24% under cloud) and Weda Bay 7, both cloudy tropical places; the panel says when a year has no photo.
 
 ## Phase 2 findings: land-cover years (2026-11-21, research only, no code changed)
